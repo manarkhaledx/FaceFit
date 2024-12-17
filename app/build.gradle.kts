@@ -40,7 +40,10 @@ android {
 }
 
 dependencies {
-
+    //Togi country code picker library
+    implementation(libs.androidx.material)
+    implementation(libs.jetpack.compose.country.code.picker.emoji)
+    //--
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
