@@ -46,7 +46,7 @@ class HomePageActivity : ComponentActivity() {
 @Composable
 fun HomePagePreview() {
     FaceFitTheme {
-        SearchBarWithCameraButton()
+        EyewearScreen()
     }
 }
 
@@ -64,6 +64,7 @@ fun EyewearScreen() {
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
+        Spacer(modifier = Modifier.height(24.dp))
         SearchBarWithCameraButton()
         Spacer(modifier = Modifier.height(24.dp))
         FeaturedImagesSection()
@@ -82,8 +83,7 @@ fun SearchBarWithCameraButton() {
 
     Row(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
+            .fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically, // Align items vertically
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -97,6 +97,7 @@ fun SearchBarWithCameraButton() {
             textStyle = LocalTextStyle.current.copy(fontSize = 16.sp), // Adjust text size
             modifier = Modifier
                 .weight(1f) // Make the search bar take up available space
+                .shadow(8.dp, shape = RoundedCornerShape(20.dp)) // Add shadow
                 .height(56.dp), // Match the height of the button
             trailingIcon = {
                 Icon(
@@ -141,7 +142,6 @@ fun CameraButton() {
 fun FeaturedImagesSection() {
     val images = listOf(R.drawable.img_notfound, R.drawable.img_notfound)
     LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(images) { image ->
@@ -216,36 +216,54 @@ fun ProductSection(title: String, products: List<Product>) {
 fun ProductCard(product: Product) {
     var isFavorite by remember { mutableStateOf(false) }
 
-    Card(
-        modifier = Modifier.width(160.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            Box(modifier = Modifier.height(120.dp)) {
-                Image(
-                    painter = painterResource(id = R.drawable.eye_glasses),
-                    contentDescription = product.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Fit
-                )
-                IconButton(
-                    onClick = { isFavorite = !isFavorite },
-                    modifier = Modifier.align(Alignment.TopEnd)
-                ) {
-                    Icon(
-                        painter = painterResource(if (isFavorite) R.drawable.heart_filled else R.drawable.heart),
-                        contentDescription = if (isFavorite) "Unmark Favorite" else "Mark Favorite",
-                        tint = Blue1
+    Box {
+        Card(
+            modifier = Modifier
+                .width(160.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Column(modifier = Modifier.padding(8.dp)) {
+                Box(modifier = Modifier.height(120.dp)) {
+                    Image(
+                        painter = painterResource(id = R.drawable.eye_glasses),
+                        contentDescription = product.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit
                     )
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    product.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    product.price,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(product.name, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(product.price, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
+        }
+
+        IconButton(
+            onClick = { isFavorite = !isFavorite },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(4.dp)
+        ) {
+            Icon(
+                painter = painterResource(
+                    if (isFavorite) R.drawable.heart_filled else R.drawable.heart
+                ),
+                contentDescription = if (isFavorite) "Unmark Favorite" else "Mark Favorite",
+                tint = Blue1
+            )
         }
     }
 }
+
 
 fun getProducts() = listOf(
     Product("Browline Glasses", "EGP 120"),
