@@ -44,6 +44,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 
 class LoginPage : ComponentActivity() {
@@ -196,7 +197,7 @@ fun SignButton(btnName: String ) {
             .fillMaxWidth()
             .height(56.dp),
         colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFF0103BA),
+            containerColor = Blue1,
             contentColor = Color.White
         ),
         shape = RoundedCornerShape(size = 30.dp)
