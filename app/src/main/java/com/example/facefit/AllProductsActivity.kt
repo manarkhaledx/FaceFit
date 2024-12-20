@@ -1,4 +1,4 @@
-package com.example.facefit.ui.theme
+package com.example.facefit
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -51,7 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.facefit.R
+import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.ui.theme.FaceFitTheme
 
 class AllProductsActivity : ComponentActivity() {
@@ -61,10 +61,10 @@ class AllProductsActivity : ComponentActivity() {
         setContent {
             FaceFitTheme {
                 AllProfucts()
-                }
             }
         }
     }
+}
 
 
 @Composable
@@ -95,7 +95,7 @@ fun AllProfucts() {
         }
 
         // Filter Tabs
-FilterTabs()
+        FilterTabs()
 
         // Grid Content
         LazyVerticalGrid(
@@ -216,15 +216,15 @@ fun GlassesItem() {
                         .align(Alignment.CenterHorizontally),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.White,
-                        contentColor = Color.Blue
+                        contentColor = Blue1
                     ),
-                    border = BorderStroke(1.dp, Color.Blue),
+                    border = BorderStroke(1.dp, Blue1),
                     contentPadding = PaddingValues(4.dp)
                 ) {
                     Text(
                         "Try ON",
                         fontSize = 12.sp,
-                        color = Color.Blue,
+                        color = Blue1,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -250,7 +250,7 @@ fun GlassesItem() {
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     ColorOption(Color.Yellow)
                     ColorOption(Color.Blue)
@@ -282,9 +282,11 @@ fun GlassesItem() {
 fun ColorOption(color: Color) {
     Box(
         modifier = Modifier
-            .size(24.dp)
+            .size(16.dp)
             .background(color, CircleShape)
             .border(1.dp, Color.LightGray, CircleShape)
+
+
     )
 }
 @Preview(showBackground = true)
