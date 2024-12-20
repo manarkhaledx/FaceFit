@@ -1,6 +1,5 @@
 package com.example.facefit
 
-import android.graphics.Picture
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
