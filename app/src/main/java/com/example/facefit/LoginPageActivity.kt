@@ -7,11 +7,33 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -37,6 +59,10 @@ class LoginPage : ComponentActivity() {
                         val intent = Intent(this, SignUpPage::class.java)
                         startActivity(intent)
                         finish()
+                    },
+                    onSignInClick = {
+                        val intent = Intent(this, HomePageActivity::class.java)
+                        startActivity(intent)
                     }
                 )
             }
@@ -45,7 +71,7 @@ class LoginPage : ComponentActivity() {
 }
 
 @Composable
-fun LoginScreen(onItemClick: () -> Unit) {
+fun LoginScreen(onItemClick: () -> Unit, onSignInClick: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -81,7 +107,10 @@ fun LoginScreen(onItemClick: () -> Unit) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        SignButton("Sign In")
+        SignButton(
+            btnName = "Sign In",
+            onSignInClick = onSignInClick
+        )
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -167,9 +196,9 @@ fun PasswordField(
 }
 
 @Composable
-fun SignButton(btnName: String) {
+fun SignButton(btnName: String, onSignInClick: () -> Unit) {
     Button(
-        onClick = { /* Handle Sign In */ },
+        onClick = onSignInClick,
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp),
@@ -253,7 +282,8 @@ fun SocialLoginButtons() {
 fun LoginPreview() {
     FaceFitTheme {
         LoginScreen(
-            onItemClick = { /* No action needed for preview */ }
+            onItemClick = { /* No action needed for preview */ },
+            onSignInClick = { /* No action needed for preview */ }
         )
     }
 }

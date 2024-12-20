@@ -165,7 +165,7 @@ fun SignUpScreen(
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        SignButton("Sign Up")
+        SignButton("Sign Up" , onSignInClick={})
     }
 }
 

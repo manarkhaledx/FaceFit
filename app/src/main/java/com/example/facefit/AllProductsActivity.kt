@@ -1,5 +1,6 @@
 package com.example.facefit
 
+import android.graphics.Picture
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -74,25 +75,7 @@ fun AllProfucts() {
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // Top Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(
-                onClick = { /* Handle default click */ }
-            ) {
-                Text("Default")
-                Icon(Icons.Default.ArrowDropDown, "dropdown")
-            }
-
-            IconButton(onClick = { /* Handle filter click */ }) {
-
-            }
-        }
+TopBar()
 
         // Filter Tabs
         FilterTabs()
@@ -107,6 +90,41 @@ fun AllProfucts() {
             items(6) { // Repeat 6 times for the example
                 GlassesItem()
             }
+        }
+    }
+}
+@Composable
+fun TopBar() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val buttonModifier = Modifier
+            .weight(1f)
+            .fillMaxWidth()
+
+        TextButton(
+            onClick = { /* Handle default click */ },
+            modifier = buttonModifier
+        ) {
+            Text("Default",color = Blue1)
+            Spacer(modifier = Modifier.width(4.dp))
+            Icon(Icons.Default.ArrowDropDown, "dropdown", tint = Blue1)
+        }
+
+        TextButton(
+            onClick = { /* Handle default click */ },
+            modifier = buttonModifier
+        ) {
+            Text("Filter", color = Color.Black)
+            Spacer(modifier = Modifier.width(4.dp))
+            Image(
+                painter = painterResource(id = R.drawable.filter),
+                contentDescription = "Filter Icon"
+            )
         }
     }
 }
