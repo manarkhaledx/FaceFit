@@ -1,38 +1,17 @@
 package com.example.facefit
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -53,20 +32,24 @@ class LoginPage : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FaceFitTheme {
-                LoginScreen()
+                LoginScreen(
+                    onItemClick = {
+                        val intent = Intent(this, SignUpPage::class.java)
+                        startActivity(intent)
+                        finish()
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-fun LoginScreen() {
-    // States for email and password fields
+fun LoginScreen(onItemClick: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    // Measure whether the keyboard is visible
     val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
 
     Column(
@@ -82,7 +65,6 @@ fun LoginScreen() {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Email Field
         EmailField(
             email = email,
             onEmailChange = { email = it }
@@ -90,7 +72,6 @@ fun LoginScreen() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Password Field
         PasswordField(
             password = password,
             onPasswordChange = { password = it },
@@ -105,7 +86,7 @@ fun LoginScreen() {
         Spacer(modifier = Modifier.height(16.dp))
 
         if (!isKeyboardVisible) {
-            AdditionalOptions()
+            AdditionalOptions(onItemClick = onItemClick)
         }
     }
 }
@@ -115,7 +96,6 @@ fun LoginHeader(isKeyboardVisible: Boolean) {
     val logoFontSize = if (isKeyboardVisible) 32.sp else 48.sp
     val logoBottomPadding = if (isKeyboardVisible) 8.dp else 16.dp
 
-    // App Title
     Text(
         text = "FaceFit",
         fontSize = logoFontSize,
@@ -123,7 +103,6 @@ fun LoginHeader(isKeyboardVisible: Boolean) {
         modifier = Modifier.padding(bottom = logoBottomPadding)
     )
 
-    // Show welcome message only when the keyboard is not visible
     if (!isKeyboardVisible) {
         Text(
             text = "Welcome!",
@@ -157,14 +136,13 @@ fun EmailField(
     )
 }
 
-
 @Composable
 fun PasswordField(
     password: String,
     onPasswordChange: (String) -> Unit,
     passwordVisible: Boolean,
     onPasswordVisibilityChange: () -> Unit,
-    label: String = "Password" // Default label
+    label: String = "Password"
 ) {
     OutlinedTextField(
         value = password,
@@ -188,9 +166,8 @@ fun PasswordField(
     )
 }
 
-
 @Composable
-fun SignButton(btnName: String ) {
+fun SignButton(btnName: String) {
     Button(
         onClick = { /* Handle Sign In */ },
         modifier = Modifier
@@ -211,18 +188,16 @@ fun SignButton(btnName: String ) {
 }
 
 @Composable
-fun AdditionalOptions() {
-
+fun AdditionalOptions(onItemClick: () -> Unit) {
     Text(
-            text = "New to App? Create account",
+        text = "New to App? Create account",
         fontSize = 14.sp,
         color = Color.Gray,
-        modifier = Modifier.clickable { /* Handle Create Account Click */ }
+        modifier = Modifier.clickable { onItemClick() }
     )
 
     Spacer(modifier = Modifier.height(16.dp))
 
-    // Social Login Section
     Text(
         text = "or login with",
         fontSize = 14.sp,
@@ -273,13 +248,12 @@ fun SocialLoginButtons() {
     }
 }
 
-
-
-
 @Preview(showBackground = true)
 @Composable
 fun LoginPreview() {
     FaceFitTheme {
-        LoginScreen()
+        LoginScreen(
+            onItemClick = { /* No action needed for preview */ }
+        )
     }
 }
