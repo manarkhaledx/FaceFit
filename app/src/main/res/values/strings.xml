@@ -2,4 +2,5 @@
     <string name="app_name">FaceFit</string>
     <string name="title_activity_login_page">LoginPage</string>
     <string name="title_activity_sign_up_page">SignUpPage</string>
+    <string name="title_activity_all_products">AllProductsActivity</string>
 </resources>

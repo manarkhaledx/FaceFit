@@ -212,7 +212,7 @@ fun SignButton(btnName: String ) {
 
 @Composable
 fun AdditionalOptions() {
-    // Create Account
+
     Text(
             text = "New to App? Create account",
         fontSize = 14.sp,

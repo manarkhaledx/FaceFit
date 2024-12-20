@@ -13,17 +13,26 @@
         android:theme="@style/Theme.FaceFit"
         tools:targetApi="31">
         <activity
-            android:name=".SignUpPage"
+            android:name=".ui.theme.AllProductsActivity"
             android:exported="true"
-            android:label="@string/title_activity_sign_up_page"
+            android:label="@string/title_activity_all_products"
             android:theme="@style/Theme.FaceFit" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
 
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
+        <activity
+            android:name=".SignUpPage"
+            android:exported="false"
+            android:label="@string/title_activity_sign_up_page"
+            android:theme="@style/Theme.FaceFit"></activity>
         <activity
             android:name=".LoginPage"
             android:exported="false"
             android:label="@string/title_activity_login_page"
-            android:theme="@style/Theme.FaceFit"/>
+            android:theme="@style/Theme.FaceFit" />
         <activity
             android:name=".HomePageActivity"
             android:exported="true"

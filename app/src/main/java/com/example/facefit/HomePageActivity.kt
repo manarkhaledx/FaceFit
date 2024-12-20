@@ -44,7 +44,7 @@ class HomePageActivity : ComponentActivity() {
 }
 @Preview
 @Composable
-fun HomePagePreview() {
+fun HomePagePreview(showBackground: Boolean = true) {
     FaceFitTheme {
         EyewearScreen()
     }
