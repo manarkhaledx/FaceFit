@@ -32,6 +32,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -69,30 +70,32 @@ class AllProductsActivity : ComponentActivity() {
 
 @Composable
 fun AllProfucts() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-TopBar()
-
-        // Filter Tabs
-        FilterTabs()
-
-        // Grid Content
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+    Scaffold(
+        bottomBar = { AppBottomNavigation() } // Add the bottom navigation bar
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.White)
+                .padding(paddingValues) // Adjust for scaffold padding
         ) {
-            items(6) { // Repeat 6 times for the example
-                GlassesItem()
+            TopBar()
+            Spacer(modifier = Modifier.height(16.dp))
+            FilterTabs()
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(6) { // Repeat 6 times for the example
+                    GlassesItem()
+                }
             }
         }
-
     }
 }
+
 @Composable
 fun TopBar() {
     Row(

@@ -40,6 +40,7 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -276,8 +277,18 @@ fun ProductCard(product: Product) {
 
 @Composable
 fun AppBottomNavigation() {
-    var selectedItem by remember { mutableStateOf(0) }
+    // Get the current context
     val context = LocalContext.current
+
+    // Determine the default selected item based on the current activity
+    val defaultSelectedItem = when (context::class.java) {
+        HomePageActivity::class.java -> 0
+        AllProductsActivity::class.java -> 2
+        else -> 0 // Default to "Home" if activity is not recognized
+    }
+
+    // Remember the selected item
+    var selectedItem by remember { mutableIntStateOf(defaultSelectedItem) }
 
     val items = listOf(
         NavigationItem("Home", R.drawable.home),
@@ -289,7 +300,7 @@ fun AppBottomNavigation() {
 
     BottomNavigation(
         backgroundColor = Color.White,
-        modifier = Modifier.height(80.dp) // Set fixed height
+        modifier = Modifier.height(80.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -330,8 +341,10 @@ fun AppBottomNavigation() {
                     selected = selectedItem == index,
                     onClick = {
                         selectedItem = index
-                        if (item.title == "Products") {
-                            context.startActivity(Intent(context, AllProductsActivity::class.java))
+                        when (item.title) {
+                            "Home" -> context.startActivity(Intent(context, HomePageActivity::class.java))
+                            "Products" -> context.startActivity(Intent(context, AllProductsActivity::class.java))
+                            // Add other cases as needed
                         }
                     },
                     modifier = Modifier.weight(1f)
@@ -340,6 +353,8 @@ fun AppBottomNavigation() {
         }
     }
 }
+
+
 
 
 
