@@ -249,7 +249,7 @@ Row(
 
             // Reuse GlassesItem in a grid for recommendations
             items(4) {
-                GlassesItem()
+                GlassesItem(onClick = { /* Handle item click */ })
                 Spacer(Modifier.height(16.dp))
             }
         }

@@ -1,5 +1,6 @@
 package com.example.facefit
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -8,6 +9,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -61,7 +64,10 @@ class AllProductsActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FaceFitTheme {
-                AllProfucts()
+                AllProfucts(onClick = {
+                    val intent = Intent(this, ProductDetailsActivity::class.java)
+                    startActivity(intent)
+                })
             }
         }
     }
@@ -69,7 +75,7 @@ class AllProductsActivity : ComponentActivity() {
 
 
 @Composable
-fun AllProfucts() {
+fun AllProfucts(onClick: () -> Unit = {}) {
     Scaffold(
         bottomBar = { AppBottomNavigation() } // Add the bottom navigation bar
     ) { paddingValues ->
@@ -89,7 +95,7 @@ fun AllProfucts() {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(6) { // Repeat 6 times for the example
-                    GlassesItem()
+                    GlassesItem(onClick = onClick) // Forward the onClick lambda
                 }
             }
         }
@@ -200,10 +206,10 @@ fun FilterTabs() {
 
 
 @Composable
-fun GlassesItem() {
+fun GlassesItem(onClick: () -> Unit) {
     var isFavorite by remember { mutableStateOf(false) }
 
-    Box {
+    Box(modifier = Modifier.clickable { onClick() }) { // Use the passed onClick here
         Card(
             modifier = Modifier.width(180.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
@@ -297,8 +303,6 @@ fun GlassesItem() {
         }
     }
 }
-
-
 @Composable
 fun ColorOption(color: Color) {
     Box(
