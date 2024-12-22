@@ -60,7 +60,6 @@ import com.example.facefit.ui.theme.FaceFitTheme
 import com.example.facefit.ui.theme.Gray600
 import com.example.facefit.ui.theme.LavenderBlue
 
-// Entry Point Activity
 class HomePageActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -112,7 +111,6 @@ fun SearchBarWithCameraButton() {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Search Bar
         TextField(
             value = searchText,
             onValueChange = { searchText = it },
@@ -277,17 +275,13 @@ fun ProductCard(product: Product) {
 
 @Composable
 fun AppBottomNavigation() {
-    // Get the current context
     val context = LocalContext.current
-
-    // Determine the default selected item based on the current activity
     val defaultSelectedItem = when (context::class.java) {
         HomePageActivity::class.java -> 0
         AllProductsActivity::class.java -> 2
-        else -> 0 // Default to "Home" if activity is not recognized
+        else -> 0
     }
 
-    // Remember the selected item
     var selectedItem by remember { mutableIntStateOf(defaultSelectedItem) }
 
     val items = listOf(
@@ -344,7 +338,6 @@ fun AppBottomNavigation() {
                         when (item.title) {
                             "Home" -> context.startActivity(Intent(context, HomePageActivity::class.java))
                             "Products" -> context.startActivity(Intent(context, AllProductsActivity::class.java))
-                            // Add other cases as needed
                         }
                     },
                     modifier = Modifier.weight(1f)
@@ -354,18 +347,10 @@ fun AppBottomNavigation() {
     }
 }
 
-
-
-
-
-
-
-// Data Models
 private data class NavigationItem(val title: String, val iconResId: Int)
 
 data class Product(val name: String, val price: String)
 
-// Mock Data
 fun getProducts() = listOf(
     Product("Browline Glasses", "EGP 120"),
     Product("Round Frame Glasses", "EGP 150"),

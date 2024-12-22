@@ -47,7 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -64,7 +63,7 @@ class AllProductsActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FaceFitTheme {
-                AllProfucts(onClick = {
+                AllProducts(onClick = {
                     val intent = Intent(this, ProductDetailsActivity::class.java)
                     startActivity(intent)
                 })
@@ -73,17 +72,16 @@ class AllProductsActivity : ComponentActivity() {
     }
 }
 
-
 @Composable
-fun AllProfucts(onClick: () -> Unit = {}) {
+fun AllProducts(onClick: () -> Unit = {}) {
     Scaffold(
-        bottomBar = { AppBottomNavigation() } // Add the bottom navigation bar
+        bottomBar = { AppBottomNavigation() }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
-                .padding(paddingValues) // Adjust for scaffold padding
+                .padding(paddingValues)
         ) {
             TopBar()
             Spacer(modifier = Modifier.height(16.dp))
@@ -94,8 +92,8 @@ fun AllProfucts(onClick: () -> Unit = {}) {
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(6) { // Repeat 6 times for the example
-                    GlassesItem(onClick = onClick) // Forward the onClick lambda
+                items(6) {
+                    GlassesItem(onClick = onClick)
                 }
             }
         }
@@ -116,16 +114,16 @@ fun TopBar() {
             .fillMaxWidth()
 
         TextButton(
-            onClick = { /* Handle default click */ },
+            onClick = {},
             modifier = buttonModifier
         ) {
-            Text("Default",color = Blue1)
+            Text("Default", color = Blue1)
             Spacer(modifier = Modifier.width(4.dp))
             Icon(Icons.Default.ArrowDropDown, "dropdown", tint = Blue1)
         }
 
         TextButton(
-            onClick = { /* Handle default click */ },
+            onClick = {},
             modifier = buttonModifier
         ) {
             Text("Filter", color = Color.Black)
@@ -137,26 +135,26 @@ fun TopBar() {
         }
     }
 }
+
 @Composable
 fun FilterTabs() {
-    var selectedTab by remember { mutableIntStateOf(0) } // Track the selected tab
+    var selectedTab by remember { mutableIntStateOf(0) }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp) // Ensures equal spacing
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         val buttonModifier = Modifier
-            .weight(1f) // Ensures buttons are of equal width
+            .weight(1f)
             .height(34.dp)
 
-        // All Button
         Button(
-            onClick = { selectedTab = 0 }, // Update selected tab
+            onClick = { selectedTab = 0 },
             modifier = buttonModifier,
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (selectedTab == 0) Blue1 else Color.White // Blue if selected, White otherwise
+                containerColor = if (selectedTab == 0) Blue1 else Color.White
             )
         ) {
             Text(
@@ -164,16 +162,15 @@ fun FilterTabs() {
                 modifier = Modifier.fillMaxSize(),
                 textAlign = TextAlign.Center,
                 fontSize = 13.sp,
-                color = if (selectedTab == 0) Color.White else Blue1 // White text if selected, Blue otherwise
+                color = if (selectedTab == 0) Color.White else Blue1
             )
         }
 
-        // Eyeglasses Button
         Button(
-            onClick = { selectedTab = 1 }, // Update selected tab
+            onClick = { selectedTab = 1 },
             modifier = buttonModifier,
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (selectedTab == 1) Blue1 else Color.White // Blue if selected, White otherwise
+                containerColor = if (selectedTab == 1) Blue1 else Color.White
             )
         ) {
             Text(
@@ -181,16 +178,15 @@ fun FilterTabs() {
                 modifier = Modifier.fillMaxSize(),
                 textAlign = TextAlign.Center,
                 fontSize = 13.sp,
-                color = if (selectedTab == 1) Color.White else Blue1 // White text if selected, Blue otherwise
+                color = if (selectedTab == 1) Color.White else Blue1
             )
         }
 
-        // Sunglasses Button
         Button(
-            onClick = { selectedTab = 2 }, // Update selected tab
+            onClick = { selectedTab = 2 },
             modifier = buttonModifier,
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (selectedTab == 2) Blue1 else Color.White // Blue if selected, White otherwise
+                containerColor = if (selectedTab == 2) Blue1 else Color.White
             )
         ) {
             Text(
@@ -198,18 +194,17 @@ fun FilterTabs() {
                 modifier = Modifier.fillMaxSize(),
                 textAlign = TextAlign.Center,
                 fontSize = 13.sp,
-                color = if (selectedTab == 2) Color.White else Blue1 // White text if selected, Blue otherwise
+                color = if (selectedTab == 2) Color.White else Blue1
             )
         }
     }
 }
 
-
 @Composable
 fun GlassesItem(onClick: () -> Unit) {
     var isFavorite by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.clickable { onClick() }) { // Use the passed onClick here
+    Box(modifier = Modifier.clickable { onClick() }) {
         Card(
             modifier = Modifier.width(180.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
@@ -236,7 +231,7 @@ fun GlassesItem(onClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Button(
-                    onClick = { /* Handle try on */ },
+                    onClick = {},
                     modifier = Modifier
                         .width(72.dp)
                         .height(30.dp)
@@ -303,6 +298,7 @@ fun GlassesItem(onClick: () -> Unit) {
         }
     }
 }
+
 @Composable
 fun ColorOption(color: Color) {
     Box(
@@ -310,14 +306,13 @@ fun ColorOption(color: Color) {
             .size(16.dp)
             .background(color, CircleShape)
             .border(1.dp, Color.LightGray, CircleShape)
-
-
     )
 }
+
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
     FaceFitTheme {
-        AllProfucts()
+        AllProducts()
     }
 }

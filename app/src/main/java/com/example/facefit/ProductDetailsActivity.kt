@@ -63,9 +63,7 @@ class ProductDetailsActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FaceFitTheme {
-
                 ProductDetailScreen(onBackClick = { finish() })
-
             }
         }
     }
@@ -88,7 +86,6 @@ fun ProductDetailScreen(
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // Top App Bar
         TopAppBar(
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
@@ -100,7 +97,6 @@ fun ProductDetailScreen(
             },
             title = { Text("Round Glasses") },
             actions = {
-                // Share icon
                 IconButton(onClick = { /* Handle share */ }) {
                     Icon(
                         painter = painterResource(id = R.drawable.share),
@@ -109,8 +105,6 @@ fun ProductDetailScreen(
                     )
                 }
 
-
-                // Favorite icon with toggle functionality
                 val isFavorite = remember { mutableStateOf(false) }
                 IconButton(
                     onClick = { isFavorite.value = !isFavorite.value }
@@ -126,12 +120,10 @@ fun ProductDetailScreen(
             }
         )
 
-
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(16.dp)
         ) {
-            // Product Image
             item {
                 Box(
                     modifier = Modifier
@@ -146,17 +138,16 @@ fun ProductDetailScreen(
                         contentScale = ContentScale.Crop
                     )
 
-                    // AR Try-On Button
-Button(
-    onClick = { /* Handle AR try-on */ },
-    modifier = Modifier
-        .align(Alignment.BottomEnd)
-        .padding(end = 8.dp, bottom = 16.dp),
-    colors = ButtonDefaults.buttonColors(
-        containerColor = LavenderBlue,
-        contentColor = Blue1
-    )
-) {
+                    Button(
+                        onClick = { /* Handle AR try-on */ },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 8.dp, bottom = 16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = LavenderBlue,
+                            contentColor = Blue1
+                        )
+                    ) {
                         Icon(
                             painter = painterResource(id = R.drawable.camera),
                             contentDescription = "Camera",
@@ -168,34 +159,31 @@ Button(
                 }
             }
 
-            // Product Title and Price
             item {
-Row(
-    modifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 8.dp),
-    horizontalArrangement = Arrangement.SpaceBetween
-) {
-    Text(
-        "Round Glasses",
-        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
-        fontWeight = FontWeight.Bold
-    )
-    Text(
-        "EGP 150",
-        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
-        color = Black
-    )
-
-}
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        "Round Glasses",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        "EGP 150",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
+                        color = Black
+                    )
+                }
 
                 Text("#54321")
-
             }
 
             val colors = listOf(Color.Yellow, Color.Blue, Color.Green, Color.Black)
             val labels = listOf("Yellow", "Blue", "Green", "Black")
-            // Color Options
+
             item {
                 Column(modifier = Modifier.padding(vertical = 8.dp)) {
                     Row(
@@ -205,9 +193,6 @@ Row(
                     }
                 }
             }
-
-            //add spacer 22dp
-
 
             item {
                 Text(
@@ -223,7 +208,6 @@ Row(
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-
                         Spacer(Modifier.height(8.dp))
                         SpecificationRow("Shape", "Rounded")
                         SpecificationRow("Size", "Medium 11-11-11")
@@ -233,12 +217,10 @@ Row(
                 }
             }
 
-            // Reviews
             item {
                 ReviewsSection(11)
             }
 
-            // Recommendations
             item {
                 Text(
                     "Recommendation",
@@ -247,7 +229,6 @@ Row(
                 )
             }
 
-            // Reuse GlassesItem in a grid for recommendations
             items(4) {
                 GlassesItem(onClick = { /* Handle item click */ })
                 Spacer(Modifier.height(16.dp))
@@ -258,7 +239,7 @@ Row(
 
 @Composable
 fun ColorOptionsSection(colors: List<Color>, labels: List<String>) {
-    var selectedColorIndex by remember { mutableStateOf(0) } // Default selection is the first color
+    var selectedColorIndex by remember { mutableStateOf(0) }
 
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         Row(
@@ -290,7 +271,7 @@ fun ColorOptionWithLabel(
         Box(
             modifier = Modifier
                 .size(24.dp)
-                .background(color, CircleShape) // No shadow or border now
+                .background(color, CircleShape)
                 .clickable { onClick() }
         )
         if (isSelected) {
@@ -302,8 +283,6 @@ fun ColorOptionWithLabel(
         }
     }
 }
-
-
 
 @Composable
 fun SpecificationRow(label: String, value: String) {
@@ -318,10 +297,10 @@ fun SpecificationRow(label: String, value: String) {
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Gray
         )
-Text(
-    value,
-    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-)
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
+        )
     }
 }
 
@@ -342,15 +321,15 @@ fun ReviewsSection(reviewsCount: Int) {
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-TextButton(
-    onClick = { /* Handle see all */ },
-    colors = ButtonDefaults.textButtonColors(contentColor = Blue1)
-) {
-    Text(
-        "See all",
-        style = MaterialTheme.typography.bodyMedium.copy(textDecoration = TextDecoration.Underline)
-    )
-}
+            TextButton(
+                onClick = { /* Handle see all */ },
+                colors = ButtonDefaults.textButtonColors(contentColor = Blue1)
+            ) {
+                Text(
+                    "See all",
+                    style = MaterialTheme.typography.bodyMedium.copy(textDecoration = TextDecoration.Underline)
+                )
+            }
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -372,7 +351,6 @@ TextButton(
             }
         }
 
-        // Review Items
         repeat(2) {
             ReviewItem()
         }
@@ -434,4 +412,3 @@ fun ReviewItem() {
         }
     }
 }
-

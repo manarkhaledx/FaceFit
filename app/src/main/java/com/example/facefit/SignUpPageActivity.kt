@@ -119,11 +119,11 @@ fun SignUpScreen(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             label = { Text("Phone Number") },
-            clearIcon = null, // Removes the 'X' icon
-            showError = false, // Prevent errors before input
+            clearIcon = null,
+            showError = false,
             showCountryFlag = true,
             showCountryCode = true,
-            colors = TextFieldDefaults.outlinedTextFieldColors( // Apply consistent colors
+            colors = TextFieldDefaults.outlinedTextFieldColors(
                 focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                 cursorColor = MaterialTheme.colorScheme.primary
