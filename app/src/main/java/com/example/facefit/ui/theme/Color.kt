@@ -17,3 +17,5 @@ val LavenderBlue = Color(0xFFE8E9FF)
 val Gray600= Color(0xFF4D5159)
 //edeff7
 val Gray200= Color(0xFFEDEFF7)
+//f2f2f2
+val Gray100= Color(0xFFF2F2F2)

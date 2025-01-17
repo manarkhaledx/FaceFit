@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,6 +34,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -44,6 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -58,6 +61,7 @@ import androidx.compose.ui.unit.sp
 import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
+import com.example.facefit.ui.theme.Gray100
 import com.example.facefit.ui.theme.Gray200
 import com.example.facefit.ui.theme.LavenderBlue
 
@@ -74,49 +78,61 @@ class ProductDetailsActivity : ComponentActivity() {
 }
 @Preview
 @Composable
-fun ProductDetailScreenPreview() {
-    ProductDetailScreen(onBackClick = {})
+fun ProductDetailPreview() {
+    FaceFitTheme {
+        ProductDetailScreen(onBackClick = { /* Preview action */ })
+    }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductDetailScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.White)
-    ) {
-        // TopAppBar
-        TopAppBar(
-            navigationIcon = {
+    Scaffold(
+        bottomBar = { ProductBottomNavBar() } // Include the bottom navigation bar
+    ) { paddingValues ->
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .background(Gray100)
+                .padding(paddingValues) // Ensure content is not overlapped by the bottom bar
+        ) {
+            // Header Section
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 IconButton(onClick = onBackClick) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back"
+                        contentDescription = "Back",
+                        tint = Color.Black,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
-            },
-title = {
-    Box(
-        modifier = Modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-Text(
-    text = "Round Glasses",
-    style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
-    color = Color.Black
-)
-    }
-},
-            actions = {
+
+                Text(
+                    text = "Browline Glasses",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    ),
+                    color = Color.Black,
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .weight(1f),
+                    textAlign = TextAlign.Center
+                )
+
                 IconButton(onClick = { /* Handle share */ }) {
                     Icon(
                         painter = painterResource(id = R.drawable.share),
                         contentDescription = "Share",
-                        tint = Black
+                        tint = Black,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
 
@@ -127,145 +143,145 @@ Text(
                             id = if (isFavorite) R.drawable.heart_filled else R.drawable.heart
                         ),
                         contentDescription = "Favorite",
-                        tint = Blue1
+                        tint = Blue1,
+                        modifier = Modifier.size(24.dp)
                     )
-                }
-            },
-
-        )
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp)
-        ) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .background(Color.LightGray, RoundedCornerShape(8.dp))
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.eye_glasses),
-                        contentDescription = "Product Image",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-
-                    Button(
-                        onClick = { /* Handle AR try-on */ },
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(end = 8.dp, bottom = 16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = LavenderBlue,
-                            contentColor = Blue1
-                        )
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.camera),
-                            contentDescription = "Camera",
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("AR Try-On")
-                    }
                 }
             }
 
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+
+            // Main Content
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp)
+            ) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                    ) {
+Image(
+    painter = painterResource(id = R.drawable.eye_glasses),
+    contentDescription = "Product Image",
+    modifier = Modifier
+        .fillMaxSize()
+        .clip(RoundedCornerShape(8.dp)),
+    contentScale = ContentScale.Crop
+)
+                        Button(
+                            onClick = { /* Handle AR try-on */ },
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 8.dp, bottom = 16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = LavenderBlue,
+                                contentColor = Blue1
+                            )
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.camera),
+                                contentDescription = "Camera",
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("AR Try-On")
+                        }
+                    }
+                }
+
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "Round Glasses",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "EGP 150",
+                            style = TextStyle(
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight(600),
+                                color = Color(0xFF111928),
+                                letterSpacing = 0.8.sp,
+                            )
+                        )
+                    }
+
+                    Text("#54321")
+                }
+
+                val colors = listOf(Color.Yellow, Color.Blue, Color.Green, Color.Black)
+                val labels = listOf("Yellow", "Blue", "Green", "Black")
+
+                item {
+                    Column(modifier = Modifier.padding(vertical = 8.dp)) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(24.dp)
+                        ) {
+                            ColorOptionsSection(colors = colors, labels = labels)
+                        }
+                    }
+                }
+
+                item {
                     Text(
-                        "Round Glasses",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
+                        "Product specifications",
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Spacer(Modifier.height(8.dp))
+                            SpecificationRow("Shape", "Rounded")
+                            SpecificationRow("Size", "Medium 11-11-11")
+                            SpecificationRow("Weight", "20.3 gm")
+                            SpecificationRow("Material", "Plastic")
+                        }
+                    }
+                }
+
+                item {
+                    ReviewsSection(11)
+                }
+
+                item {
                     Text(
-                        text = "EGP 150",
+                        text = "Recommendation",
                         style = TextStyle(
                             fontSize = 16.sp,
-                            fontWeight = FontWeight(600),
-                            color = Color(0xFF111928),
-                            letterSpacing = 0.8.sp,
+                            color = Black,
                         )
                     )
                 }
 
-                Text("#54321")
-            }
-
-            val colors = listOf(Color.Yellow, Color.Blue, Color.Green, Color.Black)
-            val labels = listOf("Yellow", "Blue", "Green", "Black")
-
-            item {
-                Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(24.dp)
+                item {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        ColorOptionsSection(colors = colors, labels = labels)
+                        items(4) {
+                            GlassesItem(onClick = { /* Handle item click */ })
+                        }
                     }
                 }
             }
-
-            item {
-                Text(
-                    "Product specifications",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Spacer(Modifier.height(8.dp))
-                        SpecificationRow("Shape", "Rounded")
-                        SpecificationRow("Size", "Medium 11-11-11")
-                        SpecificationRow("Weight", "20.3 gm")
-                        SpecificationRow("Material", "Plastic")
-                    }
-                }
-            }
-
-            item {
-                ReviewsSection(11)
-            }
-
-
-            item {
-                Text(
-                    text = "Recommendation",
-                    style = TextStyle(
-                        fontSize = 16.sp,
-                        color = Black,
-                    )
-                )
-            }
-
-            item {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(4) {
-                        GlassesItem(onClick = { /* Handle item click */ })
-                    }
-                }
-            }
-
         }
+    }
+}
 
-        }
-        }
 
 
 
@@ -370,7 +386,7 @@ fun ReviewsSection(reviewsCount: Int) {
                 style = TextStyle(
                     fontSize = 16.sp,
                     fontWeight = FontWeight(600),
-                    color = Color(0xFF151616),
+                    color = Black,
 
                     )
             )
@@ -407,73 +423,123 @@ fun ReviewItem() {
         colors = CardDefaults.cardColors(containerColor = Gray200),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-Column(modifier = Modifier.padding(16.dp)) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-Text(
-    "User Name",
-    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
-    fontWeight = FontWeight.Bold
-)
-Text(
-    "12/2/2024",
-    style = MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp),
-    color = Color.Gray
-)
-    }
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    "User Name",
+                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "12/2/2024",
+                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp),
+                    color = Color.Gray
+                )
+            }
 
-    Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        repeat(4) {
-            Icon(
-                painter = painterResource(id = R.drawable.rate_star_filled),
-                contentDescription = null,
-                tint = Blue1,
-                modifier = Modifier.size(16.dp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                repeat(4) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.rate_star_filled),
+                        contentDescription = null,
+                        tint = Blue1,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Icon(
+                    painter = painterResource(id = R.drawable.rate_star),
+                    contentDescription = null,
+                    tint = Blue1,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                "Lorem ipsum dolor sit amet consectetur...",
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                fontSize = 14.sp,
+                modifier = Modifier.fillMaxWidth()
             )
         }
-        Icon(
-            painter = painterResource(id = R.drawable.rate_star),
-            contentDescription = null,
-            tint = Blue1,
-            modifier = Modifier.size(16.dp)
-        )
-    }
-
-    Spacer(modifier = Modifier.height(8.dp))
-
-Text(
-    "Lorem ipsum dolor sit amet consectetur...",
-    style = MaterialTheme.typography.bodyMedium,
-    maxLines = 1,
-    overflow = TextOverflow.Ellipsis,
-    fontSize = 14.sp,
-    modifier = Modifier.fillMaxWidth()
-)
-}
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.End
         ) {
 
-Text(
-    text = "Read More",
-    style = TextStyle(
-        fontSize = 12.sp,
-        fontWeight = FontWeight(500),
-        color = Blue1,
-        textAlign = TextAlign.Right,
-        letterSpacing = 0.6.sp,
-        textDecoration = TextDecoration.Underline,
-    ),
-    modifier = Modifier.padding(16.dp)
-)
-            }
+            Text(
+                text = "Read More",
+                style = TextStyle(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight(500),
+                    color = Blue1,
+                    textAlign = TextAlign.Right,
+                    letterSpacing = 0.6.sp,
+                    textDecoration = TextDecoration.Underline,
+                ),
+                modifier = Modifier.padding(16.dp)
+            )
+        }
 
+    }
+}
+
+@Composable
+fun ProductBottomNavBar() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .background(Color.White),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        // Try-On Button
+        Button(
+            onClick = { /* Handle Try-On action */ },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color.White,
+                contentColor = Blue1
+            ),
+            border = BorderStroke(1.dp, Blue1),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.camera), // Replace with your icon
+                contentDescription = "Try-On Icon",
+                modifier = Modifier.size(20.dp),
+                tint = Blue1
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = "Try-On", style = MaterialTheme.typography.bodyMedium)
+        }
+
+        Spacer(modifier = Modifier.width(16.dp)) // Space between buttons
+
+        // Select Lenses Button
+        Button(
+            onClick = { /* Handle Select Lenses action */ },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Blue1,
+                contentColor = Color.White
+            ),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+        ) {
+            Text(text = "Select Lenses", style = MaterialTheme.typography.bodyMedium)
         }
     }
-
+}
