@@ -20,11 +20,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -38,6 +38,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -46,7 +47,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
+import com.example.facefit.ui.theme.Gray200
 import com.example.facefit.ui.theme.LavenderBlue
 
 class ProductDetailsActivity : ComponentActivity() {
@@ -68,10 +72,9 @@ class ProductDetailsActivity : ComponentActivity() {
         }
     }
 }
-
-@Preview(showBackground = true)
+@Preview
 @Composable
-fun GreetingPreview2() {
+fun ProductDetailScreenPreview() {
     ProductDetailScreen(onBackClick = {})
 }
 
@@ -86,6 +89,7 @@ fun ProductDetailScreen(
             .fillMaxSize()
             .background(Color.White)
     ) {
+        // TopAppBar
         TopAppBar(
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
@@ -95,7 +99,18 @@ fun ProductDetailScreen(
                     )
                 }
             },
-            title = { Text("Round Glasses") },
+title = {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+Text(
+    text = "Round Glasses",
+    style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp),
+    color = Color.Black
+)
+    }
+},
             actions = {
                 IconButton(onClick = { /* Handle share */ }) {
                     Icon(
@@ -105,19 +120,18 @@ fun ProductDetailScreen(
                     )
                 }
 
-                val isFavorite = remember { mutableStateOf(false) }
-                IconButton(
-                    onClick = { isFavorite.value = !isFavorite.value }
-                ) {
+                var isFavorite by remember { mutableStateOf(false) }
+                IconButton(onClick = { isFavorite = !isFavorite }) {
                     Icon(
                         painter = painterResource(
-                            id = if (isFavorite.value) R.drawable.heart_filled else R.drawable.heart
+                            id = if (isFavorite) R.drawable.heart_filled else R.drawable.heart
                         ),
                         contentDescription = "Favorite",
                         tint = Blue1
                     )
                 }
-            }
+            },
+
         )
 
         LazyColumn(
@@ -172,9 +186,13 @@ fun ProductDetailScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "EGP 150",
-                        style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
-                        color = Black
+                        text = "EGP 150",
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight(600),
+                            color = Color(0xFF111928),
+                            letterSpacing = 0.8.sp,
+                        )
                     )
                 }
 
@@ -221,25 +239,39 @@ fun ProductDetailScreen(
                 ReviewsSection(11)
             }
 
+
             item {
                 Text(
-                    "Recommendation",
-                    style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.padding(vertical = 16.dp)
+                    text = "Recommendation",
+                    style = TextStyle(
+                        fontSize = 16.sp,
+                        color = Black,
+                    )
                 )
             }
 
-            items(4) {
-                GlassesItem(onClick = { /* Handle item click */ })
-                Spacer(Modifier.height(16.dp))
+            item {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    items(4) {
+                        GlassesItem(onClick = { /* Handle item click */ })
+                    }
+                }
             }
+
         }
-    }
-}
+
+        }
+        }
+
+
 
 @Composable
 fun ColorOptionsSection(colors: List<Color>, labels: List<String>) {
-    var selectedColorIndex by remember { mutableStateOf(0) }
+    var selectedColorIndex by remember { mutableIntStateOf(0) }
 
     Column(modifier = Modifier.padding(vertical = 8.dp)) {
         Row(
@@ -333,82 +365,115 @@ fun ReviewsSection(reviewsCount: Int) {
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("4.0", style = MaterialTheme.typography.titleLarge)
+            Text(
+                text = "4.0",
+                style = TextStyle(
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight(600),
+                    color = Color(0xFF151616),
+
+                    )
+            )
             Spacer(Modifier.width(8.dp))
             Row {
                 repeat(4) {
                     Icon(
-                        Icons.Filled.Star,
+                        painter = painterResource(id = R.drawable.rate_star_filled),
                         contentDescription = null,
-                        tint = Color.Blue
+                        tint = Blue1,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
                 Icon(
-                    Icons.Filled.Star,
+                    painter = painterResource(id = R.drawable.rate_star),
                     contentDescription = null,
-                    tint = Color.Blue
+                    tint = Blue1,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
 
-        repeat(2) {
+        repeat(2) { // Repeat the review item twice
             ReviewItem()
         }
     }
 }
-
 @Composable
 fun ReviewItem() {
-    Column(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
+            .padding(vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = Gray200),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                "User Name",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                "12/2/2024",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
-            )
-        }
+Column(modifier = Modifier.padding(16.dp)) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+Text(
+    "User Name",
+    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
+    fontWeight = FontWeight.Bold
+)
+Text(
+    "12/2/2024",
+    style = MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp),
+    color = Color.Gray
+)
+    }
 
-        Row {
-            repeat(4) {
-                Icon(
-                    Icons.Filled.Star,
-                    contentDescription = null,
-                    tint = Color.Blue,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
+    Spacer(modifier = Modifier.height(8.dp))
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        repeat(4) {
             Icon(
-                Icons.Filled.Star,
+                painter = painterResource(id = R.drawable.rate_star_filled),
                 contentDescription = null,
-                tint = Color.Blue,
+                tint = Blue1,
                 modifier = Modifier.size(16.dp)
             )
         }
-
-        Text(
-            "Lorem ipsum dolor sit amet consectetur...",
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+        Icon(
+            painter = painterResource(id = R.drawable.rate_star),
+            contentDescription = null,
+            tint = Blue1,
+            modifier = Modifier.size(16.dp)
         )
+    }
 
-        TextButton(
-            onClick = { /* Handle read more */ },
-            contentPadding = PaddingValues(0.dp)
+    Spacer(modifier = Modifier.height(8.dp))
+
+Text(
+    "Lorem ipsum dolor sit amet consectetur...",
+    style = MaterialTheme.typography.bodyMedium,
+    maxLines = 1,
+    overflow = TextOverflow.Ellipsis,
+    fontSize = 14.sp,
+    modifier = Modifier.fillMaxWidth()
+)
+}
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End
         ) {
-            Text("Read More")
+
+Text(
+    text = "Read More",
+    style = TextStyle(
+        fontSize = 12.sp,
+        fontWeight = FontWeight(500),
+        color = Blue1,
+        textAlign = TextAlign.Right,
+        letterSpacing = 0.6.sp,
+        textDecoration = TextDecoration.Underline,
+    ),
+    modifier = Modifier.padding(16.dp)
+)
+            }
+
         }
     }
-}
+
