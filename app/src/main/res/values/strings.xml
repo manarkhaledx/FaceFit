@@ -5,4 +5,5 @@
     <string name="title_activity_all_products">AllProductsActivity</string>
     <string name="title_activity_product_details">ProductDetailsActivity</string>
     <string name="title_activity_bottom_nav_bar">BottomNavBar</string>
+    <string name="title_activity_favourites">FavouritesActivity</string>
 </resources>

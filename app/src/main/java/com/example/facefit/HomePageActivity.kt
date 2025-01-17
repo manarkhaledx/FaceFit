@@ -279,17 +279,18 @@ fun AppBottomNavigation() {
     val defaultSelectedItem = when (context::class.java) {
         HomePageActivity::class.java -> 0
         AllProductsActivity::class.java -> 2
+        FavouritesActivity::class.java -> 1
         else -> 0
     }
 
     var selectedItem by remember { mutableIntStateOf(defaultSelectedItem) }
 
     val items = listOf(
-        NavigationItem("Home", R.drawable.home),
-        NavigationItem("Favourites", R.drawable.heart),
-        NavigationItem("Products", R.drawable.glass_icon),
-        NavigationItem("Cart", R.drawable.cart),
-        NavigationItem("Profile", R.drawable.profile)
+        NavigationItem("Home", if (selectedItem == 0)  R.drawable.home else R.drawable.home_empty),
+        NavigationItem("Favourites", if (selectedItem == 1) R.drawable.heart_filled else R.drawable.heart),
+        NavigationItem("Products", if (selectedItem == 2) R.drawable.fill_glasses else R.drawable.glass_icon),
+        NavigationItem("Cart", if (selectedItem == 3) R.drawable.cart_fill else R.drawable.cart),
+        NavigationItem("Profile", if (selectedItem == 4) R.drawable.profile_fill else R.drawable.profile)
     )
 
     BottomNavigation(
@@ -338,6 +339,7 @@ fun AppBottomNavigation() {
                         when (item.title) {
                             "Home" -> context.startActivity(Intent(context, HomePageActivity::class.java))
                             "Products" -> context.startActivity(Intent(context, AllProductsActivity::class.java))
+                            "Favourites" -> context.startActivity(Intent(context, FavouritesActivity::class.java))
                         }
                     },
                     modifier = Modifier.weight(1f)
