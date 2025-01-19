@@ -6,4 +6,6 @@
     <string name="title_activity_product_details">ProductDetailsActivity</string>
     <string name="title_activity_bottom_nav_bar">BottomNavBar</string>
     <string name="title_activity_favourites">FavouritesActivity</string>
+    <string name="title_activity_step_navigation">StepNavigationActivity</string>
+    <string name="title_activity_prescription_lens">PrescriptionLensActivity</string>
 </resources>
