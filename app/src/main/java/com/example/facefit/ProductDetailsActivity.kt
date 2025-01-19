@@ -1,5 +1,6 @@
 package com.example.facefit
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -34,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -69,7 +71,13 @@ class ProductDetailsActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FaceFitTheme {
-                ProductDetailScreen(onBackClick = { finish() })
+                ProductDetailScreen(
+                    onBackClick = { finish() },
+                    onNavigateToLenses = {
+                        val intent = Intent(this,PrescriptionLensActivity::class.java)
+                        startActivity(intent)
+                    }
+                )
             }
         }
     }
@@ -78,17 +86,26 @@ class ProductDetailsActivity : ComponentActivity() {
 @Composable
 fun ProductDetailPreview() {
     FaceFitTheme {
-        ProductDetailScreen(onBackClick = { /* Preview action */ })
+        ProductDetailScreen(
+            onBackClick = { /* Handle back click */ },
+            onNavigateToLenses = { /* Handle navigate to lenses */ }
+        )
     }
 }
 
 @Composable
 fun ProductDetailScreen(
     onBackClick: () -> Unit,
+    onNavigateToLenses: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
-        bottomBar = { ProductBottomNavBar() } // Include the bottom navigation bar
+        bottomBar = {
+            ProductBottomNavBar(
+                onTryOnClick = { /* Handle Try-On */ },
+                onSelectLensesClick = onNavigateToLenses
+            )
+        }
     ) { paddingValues ->
         Column(
             modifier = modifier
@@ -492,52 +509,60 @@ fun ReviewItem() {
 }
 
 @Composable
-fun ProductBottomNavBar() {
-    Row(
+fun ProductBottomNavBar(onTryOnClick: () -> Unit, onSelectLensesClick: () -> Unit) {
+    Surface(
+        shadowElevation = 8.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
-            .background(Color.White),
-        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Try-On Button
-        Button(
-            onClick = { /* Handle Try-On action */ },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.White,
-                contentColor = Blue1
-            ),
-            border = BorderStroke(1.dp, Blue1),
-            shape = RoundedCornerShape(24.dp),
+        Row(
             modifier = Modifier
-                .weight(1f)
-                .height(48.dp)
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                painter = painterResource(id = R.drawable.camera), // Replace with your icon
-                contentDescription = "Try-On Icon",
-                modifier = Modifier.size(20.dp),
-                tint = Blue1
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = "Try-On", style = MaterialTheme.typography.bodyMedium)
-        }
 
-        Spacer(modifier = Modifier.width(16.dp)) // Space between buttons
+            // Try-On Button
+            Button(
+                onClick = { onTryOnClick() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.White,
+                    contentColor = Blue1
+                ),
+                border = BorderStroke(1.dp, Blue1),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.camera), // Replace with your icon
+                    contentDescription = "Try-On Icon",
+                    modifier = Modifier.size(20.dp),
+                    tint = Blue1
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(text = "Try-On", style = MaterialTheme.typography.bodyMedium)
+            }
 
-        // Select Lenses Button
-        Button(
-            onClick = { /* Handle Select Lenses action */ },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Blue1,
-                contentColor = Color.White
-            ),
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier
-                .weight(1f)
-                .height(48.dp)
-        ) {
-            Text(text = "Select Lenses", style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.width(16.dp)) // Space between buttons
+
+            // Select Lenses Button
+            Button(
+                onClick = { onSelectLensesClick() },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Blue1,
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp)
+            ) {
+                Text(text = "Select Lenses", style = MaterialTheme.typography.bodyMedium)
+            }
         }
     }
 }
+

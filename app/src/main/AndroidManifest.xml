@@ -17,11 +17,7 @@
             android:exported="true"
             android:label="@string/title_activity_prescription_lens"
             android:theme="@style/Theme.FaceFit" >
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
 
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
         </activity>
         <activity
             android:name=".FavouritesActivity"
@@ -48,7 +44,11 @@
             android:exported="true"
             android:label="@string/title_activity_login_page"
             android:theme="@style/Theme.FaceFit">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
 
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
         <activity
             android:name=".HomePageActivity"

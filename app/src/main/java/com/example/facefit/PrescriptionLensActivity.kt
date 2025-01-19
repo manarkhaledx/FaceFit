@@ -76,7 +76,7 @@ class PrescriptionLensActivity : ComponentActivity() {
 @Composable
 fun LensPrescriptionFlowPreview() {
     FaceFitTheme {
-        EnterPrescriptionScreen(onNext = {})
+        LensMaterialScreen(onComplete = {})
     }
 }
 
@@ -100,24 +100,25 @@ fun LensPrescriptionFlow() {
 
             when (currentStep) {
                 1 -> PrescriptionTypeScreen(onNext = { currentStep++ })
-                2 -> EnterPrescriptionScreen(onNext = { currentStep++ })
+                2 -> EnterPrescriptionScreen()
                 3 -> LensTypeScreen(onNext = { currentStep++ })
                 4 -> LensMaterialScreen(onComplete = { currentStep++ })
             }
         }
 
-        if (currentStep > 1) {
-            BottomNavigationBar(
-                onNext = {
-                    if (currentStep < 4) currentStep++
-                    else {/* Handle completion */
-                    }
-                },
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
+ if (currentStep > 1) {
+    BottomNavigationBar(
+        onNext = {
+            if (currentStep < 4) currentStep++
+            else {/* Handle completion */}
+        },
+        currentStep = currentStep,
+        modifier = Modifier.align(Alignment.BottomCenter)
+    )
+}
         }
     }
-}
+
 
 
 @Composable
@@ -166,43 +167,10 @@ fun StepIndicator(currentStep: Int, totalSteps: Int) {
 }
 
 
-@Composable
-fun PrescriptionTypeScreen(onNext: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-            .background(Gray100),
-        verticalArrangement = Arrangement.Top
-    ) {
-        Text(
-            text = "Prescription Type",
-            style = TextStyle(
-                fontSize = 20.sp,
-                fontWeight = FontWeight(700),
-                color = Color(0xFF151616),
-
-                letterSpacing = 1.sp,
-            ),
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-        OptionItem(
-            title = "Single Vision",
-            description = "Most common prescription lenses, used for near, intermediate or distance",
-            onClick = { onNext() }
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        OptionItem(
-            title = "Non-Prescription",
-            description = "Lens without any prescription",
-            onClick = { onNext() }
-        )
-    }
-}
 
 
 @Composable
-fun EnterPrescriptionScreen(onNext: () -> Unit) {
+fun EnterPrescriptionScreen() {
     var odSph by remember { mutableStateOf("") }
     var odCyl by remember { mutableStateOf("") }
     var odAxis by remember { mutableStateOf("") }
@@ -579,7 +547,8 @@ fun PrescriptionField(
 }
 
 @Composable
-fun BottomNavigationBar(onNext: () -> Unit, modifier: Modifier = Modifier) {
+fun BottomNavigationBar(onNext: () -> Unit, currentStep: Int, modifier: Modifier = Modifier) {
+
     Surface(
         shadowElevation = 8.dp,
         modifier = modifier
@@ -624,7 +593,12 @@ Button(
         .height(42.dp)
 ) {
     Text(
-        text = "Submit",
+        text = when (currentStep) {
+            2 -> "Submit"
+            3 -> "Next"
+            4 -> "Add To Cart"
+            else -> "Submit"
+        },
         style = TextStyle(
             fontSize = 16.sp,
             fontWeight = FontWeight(500),
@@ -651,15 +625,15 @@ fun LensTypeScreen(onNext: () -> Unit) {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        OptionItem(title = "Standard Eyeglass Lenses", description = "EGP 50", onClick = onNext)
+        OptionItem(title = "Standard Eyeglass Lenses", price = "EGP 50", onClick = onNext)
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        OptionItem(title = "Blue Light Blocking", description = "EGP 50", onClick = onNext)
+        OptionItem(title = "Blue Light Blocking", price = "EGP 50", onClick = onNext)
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        OptionItem(title = "Driving Lenses", description = "EGP 50", onClick = onNext)
+        OptionItem(title = "Driving Lenses", price = "EGP 50", onClick = onNext)
     }
 }
 
@@ -677,16 +651,54 @@ fun LensMaterialScreen(onComplete: () -> Unit) {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        OptionItem(title = "1.57 Mid-Index", description = "Free", onClick = onComplete)
+        OptionItem(title = "1.57 Mid-Index", price = "Free", onClick = onComplete)
 
         Spacer(modifier = Modifier.height(16.dp))
+        OptionItem(title = "1.61 High Index", price = "EGP 50", description = "• Property 1\n" +
+                "• Property 2", onClick = onComplete)
+        Spacer(modifier = Modifier.height(16.dp))
 
-        OptionItem(title = "1.61 High Index", description = "EGP 50", onClick = onComplete)
+        OptionItem(title = "1.61 High Index", price = "EGP 50", description = "• Property 1\n" +
+                "• Property 2\n"+"• Property 3", onClick = onComplete)
+        Spacer(modifier = Modifier.height(16.dp))
+        OptionItem(title = "1.61 High Index", price = "EGP 50", description = "• Property 1\n"+"• Property 2\n"+"• Property 3\n"+"• Property 4", onClick = onComplete)
+    }
+}
+@Composable
+fun PrescriptionTypeScreen(onNext: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
+            .background(Gray100),
+        verticalArrangement = Arrangement.Top
+    ) {
+        Text(
+            text = "Prescription Type",
+            style = TextStyle(
+                fontSize = 20.sp,
+                fontWeight = FontWeight(700),
+                color = Black,
+                letterSpacing = 1.sp,
+            ),
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+        OptionItem(
+            title = "Single Vision",
+            description = "Most common prescription lenses, used for near, intermediate or distance",
+            onClick = { onNext() }
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OptionItem(
+            title = "Non-Prescription",
+            description = "Lens without any prescription",
+            onClick = { onNext() }
+        )
     }
 }
 
 @Composable
-fun OptionItem(title: String, description: String, onClick: () -> Unit) {
+fun OptionItem(title: String, price: String? = null, description: String? = null, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -707,19 +719,25 @@ fun OptionItem(title: String, description: String, onClick: () -> Unit) {
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
-                )
+                description?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Gray
+                    )
+                }
+                price?.let {
+                    Text(
+                        text = it,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
-            Icon(
-                painter = painterResource(id = R.drawable.arrow_right),
-                contentDescription = "Next",
-                tint = Color.Gray,
-                modifier = Modifier.align(Alignment.CenterVertically)
-            )
+
         }
     }
 }
