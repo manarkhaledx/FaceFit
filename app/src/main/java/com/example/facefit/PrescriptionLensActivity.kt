@@ -53,6 +53,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 import com.example.facefit.ui.theme.Gray100
@@ -202,14 +203,26 @@ fun PrescriptionTypeScreen(onNext: () -> Unit) {
 
 @Composable
 fun EnterPrescriptionScreen(onNext: () -> Unit) {
+    var odSph by remember { mutableStateOf("") }
+    var odCyl by remember { mutableStateOf("") }
+    var odAxis by remember { mutableStateOf("") }
+    var osSph by remember { mutableStateOf("") }
+    var osCyl by remember { mutableStateOf("") }
+    var osAxis by remember { mutableStateOf("") }
+    var pdValue by remember { mutableStateOf("") }
+    var isSinglePD by remember { mutableStateOf(true) }
+    var leftPD by remember { mutableStateOf("") }
+    var rightPD by remember { mutableStateOf("") }
+    var isSavePrescriptionChecked by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Gray100)
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.Top // Adjust spacing vertically
+        verticalArrangement = Arrangement.Top
     ) {
-        Spacer(modifier = Modifier.height(24.dp)) // Extra space at the top
+        Spacer(modifier = Modifier.height(24.dp))
         Text(
             text = "Enter Your Prescription",
             style = TextStyle(
@@ -218,20 +231,21 @@ fun EnterPrescriptionScreen(onNext: () -> Unit) {
                 color = Color(0xFF151616),
                 letterSpacing = 1.sp,
             ),
-            modifier = Modifier.padding(bottom = 24.dp) // Adjust bottom spacing
+            modifier = Modifier.padding(bottom = 24.dp)
         )
 
         // "Apply Pre-Saved Prescription" Section
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp) // Add vertical padding
+                .padding(vertical = 16.dp)
                 .border(
                     width = 1.dp,
                     color = Color(0xFFD4D8DF),
                     shape = RoundedCornerShape(size = 8.dp)
                 )
                 .background(color = Color(0xFFFAFBFC), shape = RoundedCornerShape(size = 8.dp))
+                .clickable { /* Handle click */ }
                 .padding(horizontal = 8.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -239,7 +253,6 @@ fun EnterPrescriptionScreen(onNext: () -> Unit) {
                 modifier = Modifier
                     .size(32.dp)
                     .background(LavenderBlue, CircleShape)
-                    .clickable { /* Handle click */ }
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.perscription_icon),
@@ -250,7 +263,7 @@ fun EnterPrescriptionScreen(onNext: () -> Unit) {
                         .align(Alignment.Center)
                 )
             }
-            Spacer(modifier = Modifier.width(12.dp)) // Adjust horizontal spacing
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = "Apply pre-saved prescription",
                 style = TextStyle(
@@ -262,32 +275,31 @@ fun EnterPrescriptionScreen(onNext: () -> Unit) {
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp)) // Spacing between sections
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Prescription Fields
         SectionTitle("OD (Right Eye)")
-PrescriptionField(
-    sphValue = "",
-    onSphChange = { /* Handle SPH input */ },
-    cylValue = "",
-    onCylChange = { /* Handle CYL input */ },
-    axisValue = "",
-    onAxisChange = { /* Handle Axis input */ }
-)
+        PrescriptionField(
+            sphValue = odSph,
+            onSphChange = { odSph = it },
+            cylValue = odCyl,
+            onCylChange = { odCyl = it },
+            axisValue = odAxis,
+            onAxisChange = { odAxis = it }
+        )
         Spacer(modifier = Modifier.height(16.dp))
 
         SectionTitle("OS (Left Eye)")
-PrescriptionField(
-    sphValue = "",
-    onSphChange = { /* Handle SPH input */ },
-    cylValue = "",
-    onCylChange = { /* Handle CYL input */ },
-    axisValue = "",
-    onAxisChange = { /* Handle Axis input */ }
-)
+        PrescriptionField(
+            sphValue = osSph,
+            onSphChange = { osSph = it },
+            cylValue = osCyl,
+            onCylChange = { osCyl = it },
+            axisValue = osAxis,
+            onAxisChange = { osAxis = it }
+        )
 
         Spacer(modifier = Modifier.height(24.dp))
-
 
         Text(
             text = "Pupillary Distance",
@@ -297,16 +309,14 @@ PrescriptionField(
                 color = Color(0xFF151616),
                 letterSpacing = 0.9.sp,
             ),
-            modifier = Modifier.padding(bottom = 12.dp) // Adjust bottom spacing
+            modifier = Modifier.padding(bottom = 12.dp)
         )
-
-        var isSinglePD by remember { mutableStateOf(true) } // Keep track of whether it's single or double PD
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(
                 selected = isSinglePD,
                 onClick = { isSinglePD = true },
-                colors = RadioButtonDefaults.colors(selectedColor = Blue1) // Update state when "One Number" is selected
+                colors = RadioButtonDefaults.colors(selectedColor = Blue1)
             )
             Text(
                 text = "One Number",
@@ -318,11 +328,11 @@ PrescriptionField(
                 ),
                 modifier = Modifier.padding(start = 8.dp)
             )
-            Spacer(modifier = Modifier.width(16.dp)) // Adjust horizontal spacing
+            Spacer(modifier = Modifier.width(16.dp))
             RadioButton(
                 selected = !isSinglePD,
                 onClick = { isSinglePD = false },
-                colors = RadioButtonDefaults.colors(selectedColor = Blue1) // Update state when "Two Numbers" is selected
+                colors = RadioButtonDefaults.colors(selectedColor = Blue1)
             )
             Text(
                 text = "Two Numbers",
@@ -336,15 +346,19 @@ PrescriptionField(
             )
         }
 
-        Spacer(modifier = Modifier.height(12.dp)) // Adjust spacing between items
+        Spacer(modifier = Modifier.height(12.dp))
 
         if (isSinglePD) {
-            // Show one OutlinedTextField for single PD
             OutlinedTextField(
-                value = "35.00",
-                onValueChange = { /* Handle PD input */ },
+                value = pdValue,
+              onValueChange = { newValue ->
+    if (newValue.isEmpty() || newValue.isValidPD()) {
+        pdValue = newValue
+    }
+},
                 label = { Text("PD", color = Blue1) },
                 modifier = Modifier.fillMaxWidth(),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Blue1,
                     unfocusedBorderColor = Blue1,
@@ -354,16 +368,20 @@ PrescriptionField(
                 )
             )
         } else {
-            // Show two OutlinedTextFields for double PD
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedTextField(
-                    value = "35.00",
-                    onValueChange = { /* Handle left PD input */ },
+                    value = leftPD,
+onValueChange = { newValue ->
+    if (newValue.isEmpty() || newValue.isValidPD()) {
+        leftPD = newValue
+    }
+},
                     label = { Text("Left PD", color = Blue1) },
                     modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Blue1,
                         unfocusedBorderColor = Blue1,
@@ -373,10 +391,15 @@ PrescriptionField(
                     )
                 )
                 OutlinedTextField(
-                    value = "35.00",
-                    onValueChange = { /* Handle right PD input */ },
+                    value = rightPD,
+onValueChange = { newValue ->
+    if (newValue.isEmpty() || newValue.isValidPD()) {
+        rightPD = newValue
+    }
+},
                     label = { Text("Right PD", color = Blue1) },
                     modifier = Modifier.weight(1f),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Blue1,
                         unfocusedBorderColor = Blue1,
@@ -388,10 +411,7 @@ PrescriptionField(
             }
         }
 
-
-
-
-        Spacer(modifier = Modifier.height(24.dp)) // Adjust bottom spacing
+        Spacer(modifier = Modifier.height(24.dp))
 
         // Prism Section
         Row(
@@ -435,7 +455,7 @@ PrescriptionField(
                 )
             }
         }
-        var isSavePrescriptionChecked by remember { mutableStateOf(false) } // State for checkbox
+
         // Save Prescription Section
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -454,11 +474,9 @@ PrescriptionField(
                     color = Color(0xFF151616),
                     letterSpacing = 0.8.sp,
                 ),
-
-                )
+            )
         }
 
-        Spacer(modifier = Modifier.height(32.dp)) // Final spacing before bottom navigation
 
     }
 }
@@ -466,7 +484,7 @@ PrescriptionField(
 @Composable
 fun SectionTitle(title: String) {
     Row(
-        modifier = Modifier.padding(bottom = 12.dp) // Adjust bottom spacing
+        modifier = Modifier.padding(bottom = 12.dp)
     ) {
         Text(
             text = title.split(" (")[0],
@@ -491,21 +509,24 @@ fun SectionTitle(title: String) {
     }
 }
 
-
-
 fun String.isValidSph(): Boolean {
     val value = this.toFloatOrNull() ?: return false
-    return value in -20.0..20.0
+    return value in -20.0f..20.0f && this.matches(Regex("^-?\\d+(\\.\\d{1,2})?$"))
 }
 
 fun String.isValidCyl(): Boolean {
     val value = this.toFloatOrNull() ?: return false
-    return value in -6.0..6.0
+    return value in -6.0f..6.0f && this.matches(Regex("^-?\\d+(\\.\\d{1,2})?$"))
 }
 
 fun String.isValidAxis(): Boolean {
     val value = this.toIntOrNull() ?: return false
-    return value in 1..180
+    return value in 1..180 && this.matches(Regex("^\\d{1,3}$"))
+}
+
+fun String.isValidPD(): Boolean {
+    val value = this.toFloatOrNull() ?: return false
+    return value in 20.0f..80.0f && this.matches(Regex("^\\d{2}(\\.\\d{1,2})?$"))
 }
 
 @Composable
@@ -523,46 +544,39 @@ fun PrescriptionField(
     ) {
         OutlinedTextField(
             value = sphValue,
-            onValueChange = { if (it.isValidSph()) onSphChange(it) },
+            onValueChange = { if (it.isValidSph() || it.isEmpty()) onSphChange(it) },
             label = { Text("SPH") },
             modifier = Modifier.weight(1f),
-            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Blue1,
-                unfocusedBorderColor = Blue1,
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent
+                unfocusedBorderColor = Blue1
             )
         )
         OutlinedTextField(
             value = cylValue,
-            onValueChange = { if (it.isValidCyl()) onCylChange(it) },
+            onValueChange = { if (it.isValidCyl() || it.isEmpty()) onCylChange(it) },
             label = { Text("CYL") },
             modifier = Modifier.weight(1f),
-            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Blue1,
-                unfocusedBorderColor = Blue1,
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent
+                unfocusedBorderColor = Blue1
             )
         )
         OutlinedTextField(
             value = axisValue,
-            onValueChange = { if (it.isValidAxis()) onAxisChange(it) },
+            onValueChange = { if (it.isValidAxis() || it.isEmpty()) onAxisChange(it) },
             label = { Text("Axis") },
             modifier = Modifier.weight(1f),
-            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Blue1,
-                unfocusedBorderColor = Blue1,
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent
+                unfocusedBorderColor = Blue1
             )
         )
     }
 }
-
 
 @Composable
 fun BottomNavigationBar(onNext: () -> Unit, modifier: Modifier = Modifier) {
@@ -578,16 +592,46 @@ fun BottomNavigationBar(onNext: () -> Unit, modifier: Modifier = Modifier) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "EGP 150",
-                style = MaterialTheme.typography.titleLarge,
-                color = Blue1
-            )
-            Button(
-                onClick = onNext,
-            ) {
-                Text("Next")
-            }
+Column(
+    horizontalAlignment = Alignment.CenterHorizontally
+) {
+    Text(
+        text = "Browline glasses",
+        style = TextStyle(
+            fontSize = 16.sp,
+            fontWeight = FontWeight(400),
+            color = Black,
+            letterSpacing = 0.8.sp,
+        )
+    )
+    Text(
+        text = "EGP 150",
+        style = TextStyle(
+            fontWeight = FontWeight(700),
+            color = Black,
+            letterSpacing = 1.sp,
+        )
+    )
+}
+
+Button(
+    onClick = onNext,
+    colors = ButtonDefaults.buttonColors(
+        containerColor = Blue1,
+        contentColor = Blue1
+    ), modifier = Modifier
+        .width(190.dp)
+        .height(42.dp)
+) {
+    Text(
+        text = "Submit",
+        style = TextStyle(
+            fontSize = 16.sp,
+            fontWeight = FontWeight(500),
+            color = Color.White,
+        )
+    )
+}
         }
     }
 }
