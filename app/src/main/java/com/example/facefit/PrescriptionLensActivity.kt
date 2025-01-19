@@ -76,7 +76,7 @@ class PrescriptionLensActivity : ComponentActivity() {
 @Composable
 fun LensPrescriptionFlowPreview() {
     FaceFitTheme {
-        LensMaterialScreen(onComplete = {})
+        EnterPrescriptionScreen()
     }
 }
 
@@ -106,18 +106,18 @@ fun LensPrescriptionFlow() {
             }
         }
 
- if (currentStep > 1) {
-    BottomNavigationBar(
-        onNext = {
-            if (currentStep < 4) currentStep++
-            else {/* Handle completion */}
-        },
-        currentStep = currentStep,
-        modifier = Modifier.align(Alignment.BottomCenter)
-    )
-}
+        if (currentStep > 1) {
+            BottomNavigationBar(
+                onNext = {
+                    if (currentStep < 4) currentStep++
+                    else {/* Handle completion */}
+                },
+                currentStep = currentStep,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
+}
 
 
 
@@ -319,11 +319,11 @@ fun EnterPrescriptionScreen() {
         if (isSinglePD) {
             OutlinedTextField(
                 value = pdValue,
-              onValueChange = { newValue ->
-    if (newValue.isEmpty() || newValue.isValidPD()) {
-        pdValue = newValue
-    }
-},
+                onValueChange = { newValue ->
+                    if (newValue.isEmpty() || newValue.toFloatOrNull() != null) {
+                        pdValue = newValue
+                    }
+                },
                 label = { Text("PD", color = Blue1) },
                 modifier = Modifier.fillMaxWidth(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -342,11 +342,11 @@ fun EnterPrescriptionScreen() {
             ) {
                 OutlinedTextField(
                     value = leftPD,
-onValueChange = { newValue ->
-    if (newValue.isEmpty() || newValue.isValidPD()) {
-        leftPD = newValue
-    }
-},
+                    onValueChange = { newValue ->
+                        if (newValue.isEmpty() || newValue.toFloatOrNull() != null) {
+                            leftPD = newValue
+                        }
+                    },
                     label = { Text("Left PD", color = Blue1) },
                     modifier = Modifier.weight(1f),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -360,11 +360,11 @@ onValueChange = { newValue ->
                 )
                 OutlinedTextField(
                     value = rightPD,
-onValueChange = { newValue ->
-    if (newValue.isEmpty() || newValue.isValidPD()) {
-        rightPD = newValue
-    }
-},
+                    onValueChange = { newValue ->
+                        if (newValue.isEmpty() || newValue.toFloatOrNull() != null) {
+                            rightPD = newValue
+                        }
+                    },
                     label = { Text("Right PD", color = Blue1) },
                     modifier = Modifier.weight(1f),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -561,51 +561,51 @@ fun BottomNavigationBar(onNext: () -> Unit, currentStep: Int, modifier: Modifier
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-Column(
-    horizontalAlignment = Alignment.CenterHorizontally
-) {
-    Text(
-        text = "Browline glasses",
-        style = TextStyle(
-            fontSize = 16.sp,
-            fontWeight = FontWeight(400),
-            color = Black,
-            letterSpacing = 0.8.sp,
-        )
-    )
-    Text(
-        text = "EGP 150",
-        style = TextStyle(
-            fontWeight = FontWeight(700),
-            color = Black,
-            letterSpacing = 1.sp,
-        )
-    )
-}
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Browline glasses",
+                    style = TextStyle(
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight(400),
+                        color = Black,
+                        letterSpacing = 0.8.sp,
+                    )
+                )
+                Text(
+                    text = "EGP 150",
+                    style = TextStyle(
+                        fontWeight = FontWeight(700),
+                        color = Black,
+                        letterSpacing = 1.sp,
+                    )
+                )
+            }
 
-Button(
-    onClick = onNext,
-    colors = ButtonDefaults.buttonColors(
-        containerColor = Blue1,
-        contentColor = Blue1
-    ), modifier = Modifier
-        .width(190.dp)
-        .height(42.dp)
-) {
-    Text(
-        text = when (currentStep) {
-            2 -> "Submit"
-            3 -> "Next"
-            4 -> "Add To Cart"
-            else -> "Submit"
-        },
-        style = TextStyle(
-            fontSize = 16.sp,
-            fontWeight = FontWeight(500),
-            color = Color.White,
-        )
-    )
-}
+            Button(
+                onClick = onNext,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Blue1,
+                    contentColor = Blue1
+                ), modifier = Modifier
+                    .width(190.dp)
+                    .height(42.dp)
+            ) {
+                Text(
+                    text = when (currentStep) {
+                        2 -> "Submit"
+                        3 -> "Next"
+                        4 -> "Add To Cart"
+                        else -> "Submit"
+                    },
+                    style = TextStyle(
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight(500),
+                        color = Color.White,
+                    )
+                )
+            }
         }
     }
 }
