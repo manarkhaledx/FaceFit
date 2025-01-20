@@ -8,4 +8,5 @@
     <string name="title_activity_favourites">FavouritesActivity</string>
     <string name="title_activity_step_navigation">StepNavigationActivity</string>
     <string name="title_activity_prescription_lens">PrescriptionLensActivity</string>
+    <string name="title_activity_shopping_cart">ShoppingCartActivity</string>
 </resources>

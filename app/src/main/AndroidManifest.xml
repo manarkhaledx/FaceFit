@@ -13,12 +13,21 @@
         android:theme="@style/Theme.FaceFit"
         tools:targetApi="31">
         <activity
-            android:name=".PrescriptionLensActivity"
+            android:name=".ShoppingCartActivity"
             android:exported="true"
-            android:label="@string/title_activity_prescription_lens"
+            android:label="@string/title_activity_shopping_cart"
             android:theme="@style/Theme.FaceFit" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
 
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
+        <activity
+            android:name=".PrescriptionLensActivity"
+            android:exported="false"
+            android:label="@string/title_activity_prescription_lens"
+            android:theme="@style/Theme.FaceFit"></activity>
         <activity
             android:name=".FavouritesActivity"
             android:exported="false"
