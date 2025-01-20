@@ -208,7 +208,7 @@ fun CartItem(
                 painter = painterResource(id = item.imageRes),
                 contentDescription = null,
                 modifier = Modifier
-                    .size(70.dp)
+                    .size(100.dp)
                     .padding(end = 12.dp)
             )
 
