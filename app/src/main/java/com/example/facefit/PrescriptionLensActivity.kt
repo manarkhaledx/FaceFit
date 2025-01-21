@@ -1,5 +1,6 @@
 package com.example.facefit
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -66,7 +68,14 @@ class PrescriptionLensActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FaceFitTheme {
-                LensPrescriptionFlow()
+                LensPrescriptionFlow(
+                    onNavigateToCart = {
+                        val intent = Intent(this, ShoppingCartActivity::class.java)
+                        startActivity(intent)
+                    },
+                    onClose = { finish() } // Close the activity and go back to ProductDetailsActivity
+                    // Same as close if on first step
+                )
             }
         }
     }
@@ -76,12 +85,21 @@ class PrescriptionLensActivity : ComponentActivity() {
 @Composable
 fun LensPrescriptionFlowPreview() {
     FaceFitTheme {
-        EnterPrescriptionScreen()
+        LensPrescriptionFlow(
+            onNavigateToCart = {
+
+            },
+            onClose = {  } // Close the activity and go back to ProductDetailsActivity
+            // Same as close if on first step
+        )
     }
 }
 
 @Composable
-fun LensPrescriptionFlow() {
+fun LensPrescriptionFlow(
+    onNavigateToCart: () -> Unit,
+    onClose: () -> Unit
+) {
     var currentStep by remember { mutableIntStateOf(1) }
 
     Box(
@@ -94,7 +112,47 @@ fun LensPrescriptionFlow() {
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
         ) {
-            StepIndicator(currentStep = currentStep, totalSteps = 4)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Back Button
+                Icon(
+                    painter = painterResource(id = R.drawable.arrow_left), // Replace with your back icon
+                    contentDescription = "Back",
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable {
+                            if (currentStep > 1) {
+                                currentStep--
+                            } else {
+                                onClose()
+                            }
+                        }
+                )
+
+                // Step Indicator
+                Box(
+                    modifier = Modifier
+                        .weight(1f) // Ensures it takes proportional space
+                        .wrapContentWidth(Alignment.CenterHorizontally) // Centers content within the available space
+                ) {
+                    StepIndicator(currentStep = currentStep, totalSteps = 4)
+                }
+
+                // Close Button
+                Icon(
+                    painter = painterResource(id = R.drawable.close), // Replace with your close icon
+                    contentDescription = "Close",
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable { onClose() }
+                )
+            }
+
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -102,7 +160,7 @@ fun LensPrescriptionFlow() {
                 1 -> PrescriptionTypeScreen(onNext = { currentStep++ })
                 2 -> EnterPrescriptionScreen()
                 3 -> LensTypeScreen(onNext = { currentStep++ })
-                4 -> LensMaterialScreen(onComplete = { currentStep++ })
+                4 -> LensMaterialScreen(onComplete = onNavigateToCart)
             }
         }
 
@@ -110,14 +168,16 @@ fun LensPrescriptionFlow() {
             BottomNavigationBar(
                 onNext = {
                     if (currentStep < 4) currentStep++
-                    else {/* Handle completion */}
                 },
+                onNavigateToCart = onNavigateToCart,
                 currentStep = currentStep,
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
     }
 }
+
+
 
 
 
@@ -547,12 +607,15 @@ fun PrescriptionField(
 }
 
 @Composable
-fun BottomNavigationBar(onNext: () -> Unit, currentStep: Int, modifier: Modifier = Modifier) {
-
+fun BottomNavigationBar(
+    onNext: () -> Unit,
+    onNavigateToCart: () -> Unit,
+    currentStep: Int,
+    modifier: Modifier = Modifier
+) {
     Surface(
         shadowElevation = 8.dp,
-        modifier = modifier
-            .fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
@@ -584,11 +647,18 @@ fun BottomNavigationBar(onNext: () -> Unit, currentStep: Int, modifier: Modifier
             }
 
             Button(
-                onClick = onNext,
+                onClick = {
+                    if (currentStep == 4) {
+                        onNavigateToCart()
+                    } else {
+                        onNext()
+                    }
+                },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Blue1,
                     contentColor = Blue1
-                ), modifier = Modifier
+                ),
+                modifier = Modifier
                     .width(190.dp)
                     .height(42.dp)
             ) {
@@ -609,6 +679,7 @@ fun BottomNavigationBar(onNext: () -> Unit, currentStep: Int, modifier: Modifier
         }
     }
 }
+
 
 
 @Composable
@@ -637,6 +708,7 @@ fun LensTypeScreen(onNext: () -> Unit) {
     }
 }
 
+
 @Composable
 fun LensMaterialScreen(onComplete: () -> Unit) {
     Column(
@@ -654,16 +726,16 @@ fun LensMaterialScreen(onComplete: () -> Unit) {
         OptionItem(title = "1.57 Mid-Index", price = "Free", onClick = onComplete)
 
         Spacer(modifier = Modifier.height(16.dp))
-        OptionItem(title = "1.61 High Index", price = "EGP 50", description = "• Property 1\n" +
-                "• Property 2", onClick = onComplete)
-        Spacer(modifier = Modifier.height(16.dp))
+        OptionItem(title = "1.61 High Index", price = "EGP 50", description = "• Property 1\n• Property 2", onClick = onComplete)
 
-        OptionItem(title = "1.61 High Index", price = "EGP 50", description = "• Property 1\n" +
-                "• Property 2\n"+"• Property 3", onClick = onComplete)
         Spacer(modifier = Modifier.height(16.dp))
-        OptionItem(title = "1.61 High Index", price = "EGP 50", description = "• Property 1\n"+"• Property 2\n"+"• Property 3\n"+"• Property 4", onClick = onComplete)
+        OptionItem(title = "1.67 High Index", price = "EGP 75", description = "• Property 1\n• Property 2\n• Property 3", onClick = onComplete)
+
+        Spacer(modifier = Modifier.height(16.dp))
+        OptionItem(title = "1.74 High Index", price = "EGP 100", description = "• Property 1\n• Property 2\n• Property 3\n• Property 4", onClick = onComplete)
     }
 }
+
 @Composable
 fun PrescriptionTypeScreen(onNext: () -> Unit) {
     Column(
