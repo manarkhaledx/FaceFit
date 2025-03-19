@@ -107,10 +107,10 @@ fun LoginScreen(onItemClick: () -> Unit, onSignInClick: () -> Unit) {
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        SignButton(
-            btnName = "Sign In",
-            onSignInClick = onSignInClick
-        )
+LongButton(
+    text = "Sign In",
+    onClick = onSignInClick
+)
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -195,26 +195,26 @@ fun PasswordField(
     )
 }
 
-@Composable
-fun SignButton(btnName: String, onSignInClick: () -> Unit) {
-    Button(
-        onClick = onSignInClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Blue1,
-            contentColor = Color.White
-        ),
-        shape = RoundedCornerShape(size = 30.dp)
-    ) {
-        Text(
-            text = btnName,
-            fontSize = 16.sp,
-            color = Color.White
-        )
-    }
-}
+//@Composable
+//fun SignButton(btnName: String, onSignInClick: () -> Unit) {
+//    Button(
+//        onClick = onSignInClick,
+//        modifier = Modifier
+//            .fillMaxWidth()
+//            .height(56.dp),
+//        colors = ButtonDefaults.buttonColors(
+//            containerColor = Blue1,
+//            contentColor = Color.White
+//        ),
+//        shape = RoundedCornerShape(size = 30.dp)
+//    ) {
+//        Text(
+//            text = btnName,
+//            fontSize = 16.sp,
+//            color = Color.White
+//        )
+//    }
+//}
 
 @Composable
 fun AdditionalOptions(onItemClick: () -> Unit) {

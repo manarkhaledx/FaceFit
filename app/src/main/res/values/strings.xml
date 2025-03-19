@@ -9,4 +9,6 @@
     <string name="title_activity_step_navigation">StepNavigationActivity</string>
     <string name="title_activity_prescription_lens">PrescriptionLensActivity</string>
     <string name="title_activity_shopping_cart">ShoppingCartActivity</string>
+    <string name="title_activity_customers_reviews">CustomersReviewsActivity</string>
+    <string name="title_activity_write_review">WriteReviewActivity</string>
 </resources>

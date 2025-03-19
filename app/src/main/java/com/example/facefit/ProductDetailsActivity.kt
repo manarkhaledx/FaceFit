@@ -479,32 +479,10 @@ fun ReviewItem() {
             Text(
                 "Lorem ipsum dolor sit amet consectetur...",
                 style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
                 fontSize = 14.sp,
                 modifier = Modifier.fillMaxWidth()
             )
         }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.End
-        ) {
-
-            Text(
-                text = "Read More",
-                style = TextStyle(
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight(500),
-                    color = Blue1,
-                    textAlign = TextAlign.Right,
-                    letterSpacing = 0.6.sp,
-                    textDecoration = TextDecoration.Underline,
-                ),
-                modifier = Modifier.padding(16.dp)
-            )
-        }
-
     }
 }
 
