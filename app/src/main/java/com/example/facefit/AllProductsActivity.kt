@@ -32,6 +32,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
@@ -45,6 +47,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -55,35 +58,53 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.facefit.ui.theme.Blue1
-import com.example.facefit.ui.theme.ui.theme.FaceFitTheme
+import com.example.facefit.ui.theme.FaceFitTheme
 
 class AllProductsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            var showFilter by remember { mutableStateOf(false) }
+
             FaceFitTheme {
-                AllProducts(onClick = {
-                    val intent = Intent(this, ProductDetailsActivity::class.java)
-                    startActivity(intent)
-                })
+                Box(modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White)) {
+                    Box(modifier = Modifier
+                        .fillMaxSize()
+                        .blur(if (showFilter) 3.dp else 0.dp)) {
+                        AllProducts(
+                            onClick = {
+                                startActivity(
+                                    Intent(
+                                        this@AllProductsActivity,
+                                        ProductDetailsActivity::class.java
+                                    )
+                                )
+                            },
+                            onFilterClick = { showFilter = true }
+                        )
+                    }
+                    if (showFilter) {
+                        FilterScreenOverlay(onDismiss = { showFilter = false })
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-fun AllProducts(onClick: () -> Unit = {}) {
-    Scaffold(
-        bottomBar = { AppBottomNavigation() }
-    ) { paddingValues ->
+fun AllProducts(onClick: () -> Unit = {}, onFilterClick: () -> Unit = {}) {
+    Scaffold(bottomBar = { AppBottomNavigation() }) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.White)
                 .padding(paddingValues)
         ) {
-            TopBar()
+            TopBar(onFilterClick = onFilterClick)
             Spacer(modifier = Modifier.height(16.dp))
             FilterTabs()
             LazyVerticalGrid(
@@ -92,16 +113,16 @@ fun AllProducts(onClick: () -> Unit = {}) {
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(6) {
-                    GlassesItem(onClick = onClick)
-                }
+                items(6) { GlassesItem(onClick = onClick) }
             }
         }
     }
 }
 
 @Composable
-fun TopBar() {
+fun TopBar(onFilterClick: () -> Unit = {}) {
+    var expanded by remember { mutableStateOf(false) }
+    var selectedOption by remember { mutableStateOf("Default") }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -109,23 +130,29 @@ fun TopBar() {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val buttonModifier = Modifier
-            .weight(1f)
-            .fillMaxWidth()
 
-        TextButton(
-            onClick = {},
-            modifier = buttonModifier
-        ) {
-            Text("Default", color = Blue1)
+
+        TextButton(onClick = { expanded = true }, modifier = Modifier.weight(1f)) {
+            Text(selectedOption, color = Blue1)
             Spacer(modifier = Modifier.width(4.dp))
             Icon(Icons.Default.ArrowDropDown, "dropdown", tint = Blue1)
+DropdownMenu(
+    expanded = expanded,
+    onDismissRequest = { expanded = false },
+    modifier = Modifier.background(Color.White)
+) {
+    listOf("Default", "Best Sellers", "New Arrivals").forEach { option ->
+        DropdownMenuItem(
+            text = { Text(option) },
+            onClick = {
+                selectedOption = option
+                expanded = false
+            }
+        )
+    }
+}
         }
-
-        TextButton(
-            onClick = {},
-            modifier = buttonModifier
-        ) {
+        TextButton(onClick = { onFilterClick() }, modifier = Modifier.weight(1f)) {
             Text("Filter", color = Color.Black)
             Spacer(modifier = Modifier.width(4.dp))
             Image(
@@ -139,7 +166,6 @@ fun TopBar() {
 @Composable
 fun FilterTabs() {
     var selectedTab by remember { mutableIntStateOf(0) }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -149,53 +175,24 @@ fun FilterTabs() {
         val buttonModifier = Modifier
             .weight(1f)
             .height(34.dp)
+        val buttonColors =
+            @Composable { isSelected: Boolean -> ButtonDefaults.buttonColors(containerColor = if (isSelected) Blue1 else Color.White) }
+        val buttonTextColor = { isSelected: Boolean -> if (isSelected) Color.White else Blue1 }
 
-        Button(
-            onClick = { selectedTab = 0 },
-            modifier = buttonModifier,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (selectedTab == 0) Blue1 else Color.White
-            )
-        ) {
-            Text(
-                text = "All",
-                modifier = Modifier.fillMaxSize(),
-                textAlign = TextAlign.Center,
-                fontSize = 13.sp,
-                color = if (selectedTab == 0) Color.White else Blue1
-            )
-        }
-
-        Button(
-            onClick = { selectedTab = 1 },
-            modifier = buttonModifier,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (selectedTab == 1) Blue1 else Color.White
-            )
-        ) {
-            Text(
-                text = "Eyeglasses",
-                modifier = Modifier.fillMaxSize(),
-                textAlign = TextAlign.Center,
-                fontSize = 13.sp,
-                color = if (selectedTab == 1) Color.White else Blue1
-            )
-        }
-
-        Button(
-            onClick = { selectedTab = 2 },
-            modifier = buttonModifier,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (selectedTab == 2) Blue1 else Color.White
-            )
-        ) {
-            Text(
-                text = "Sunglasses",
-                modifier = Modifier.fillMaxSize(),
-                textAlign = TextAlign.Center,
-                fontSize = 13.sp,
-                color = if (selectedTab == 2) Color.White else Blue1
-            )
+        listOf("All", "Eyeglasses", "Sunglasses").forEachIndexed { index, text ->
+            Button(
+                onClick = { selectedTab = index },
+                modifier = buttonModifier,
+                colors = buttonColors(selectedTab == index)
+            ) {
+                Text(
+                    text,
+                    modifier = Modifier.fillMaxSize(),
+                    textAlign = TextAlign.Center,
+                    fontSize = 13.sp,
+                    color = buttonTextColor(selectedTab == index)
+                )
+            }
         }
     }
 }
@@ -203,23 +200,18 @@ fun FilterTabs() {
 @Composable
 fun GlassesItem(onClick: () -> Unit) {
     var isFavorite by remember { mutableStateOf(false) }
-
     Box(modifier = Modifier.clickable { onClick() }) {
         Card(
             modifier = Modifier.width(180.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(12.dp)
+            Column(modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth()) {
+                Box(modifier = Modifier
                     .fillMaxWidth()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                ) {
+                    .aspectRatio(1f)) {
                     Image(
                         painter = painterResource(id = R.drawable.eye_glasses),
                         contentDescription = "Glasses",
@@ -227,9 +219,7 @@ fun GlassesItem(onClick: () -> Unit) {
                         contentScale = ContentScale.Fit
                     )
                 }
-
                 Spacer(modifier = Modifier.height(8.dp))
-
                 Button(
                     onClick = {},
                     modifier = Modifier
@@ -251,37 +241,28 @@ fun GlassesItem(onClick: () -> Unit) {
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-
                 Spacer(modifier = Modifier.height(8.dp))
-
                 Text(
-                    text = "Browline Glasses",
+                    "Browline Glasses",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     color = Color.Black
                 )
-
-                Text(
-                    text = "EGP 120",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-
+                Text("EGP 120", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.Black)
                 Spacer(modifier = Modifier.height(8.dp))
-
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    ColorOption(Color.Yellow)
-                    ColorOption(Color.Blue)
-                    ColorOption(Color.Green)
-                    ColorOption(Color.Black)
+                    listOf(
+                        Color.Yellow,
+                        Color.Blue,
+                        Color.Green,
+                        Color.Black
+                    ).forEach { ColorOption(it) }
                 }
             }
         }
-
         IconButton(
             onClick = { isFavorite = !isFavorite },
             modifier = Modifier
@@ -289,9 +270,7 @@ fun GlassesItem(onClick: () -> Unit) {
                 .padding(4.dp)
         ) {
             Icon(
-                painter = painterResource(
-                    if (isFavorite) R.drawable.heart_filled else R.drawable.heart
-                ),
+                painter = painterResource(if (isFavorite) R.drawable.heart_filled else R.drawable.heart),
                 contentDescription = if (isFavorite) "Unmark Favorite" else "Mark Favorite",
                 tint = Color.Blue
             )
@@ -312,7 +291,5 @@ fun ColorOption(color: Color) {
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
-    FaceFitTheme {
-        AllProducts()
-    }
+    FaceFitTheme { AllProducts() }
 }

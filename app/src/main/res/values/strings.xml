@@ -11,4 +11,6 @@
     <string name="title_activity_shopping_cart">ShoppingCartActivity</string>
     <string name="title_activity_customers_reviews">CustomersReviewsActivity</string>
     <string name="title_activity_write_review">WriteReviewActivity</string>
+    <string name="title_activity_filer">FilerActivity</string>
+    <string name="title_activity_filter">FilterActivity</string>
 </resources>
