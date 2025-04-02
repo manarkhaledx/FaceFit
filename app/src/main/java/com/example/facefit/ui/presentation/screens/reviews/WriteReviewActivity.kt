@@ -1,4 +1,4 @@
-package com.example.facefit
+package com.example.facefit.ui.presentation.screens.reviews
 
         import android.os.Bundle
         import androidx.activity.ComponentActivity
@@ -20,6 +20,8 @@ package com.example.facefit
         import androidx.compose.ui.tooling.preview.Preview
         import androidx.compose.ui.unit.dp
         import androidx.compose.ui.unit.sp
+        import com.example.facefit.R
+        import com.example.facefit.ui.presentation.components.buttons.LongButton
         import com.example.facefit.ui.theme.FaceFitTheme
 
         class WriteReviewActivity : ComponentActivity() {

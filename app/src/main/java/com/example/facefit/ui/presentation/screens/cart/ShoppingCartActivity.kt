@@ -1,4 +1,4 @@
-package com.example.facefit
+package com.example.facefit.ui.presentation.screens.cart
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -58,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.facefit.R
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 

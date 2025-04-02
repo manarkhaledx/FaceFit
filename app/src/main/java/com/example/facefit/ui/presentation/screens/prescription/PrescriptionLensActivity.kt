@@ -1,4 +1,4 @@
-package com.example.facefit
+package com.example.facefit.ui.presentation.screens.prescription
 
 import android.content.Intent
 import android.os.Bundle
@@ -55,6 +55,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.facefit.R
+import com.example.facefit.ui.presentation.screens.cart.ShoppingCartActivity
 import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme

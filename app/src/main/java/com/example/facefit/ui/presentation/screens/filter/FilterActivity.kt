@@ -1,4 +1,4 @@
-package com.example.facefit
+package com.example.facefit.ui.presentation.screens.filter
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

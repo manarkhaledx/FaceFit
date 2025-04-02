@@ -1,4 +1,4 @@
-package com.example.facefit
+package com.example.facefit.ui.presentation.screens.products
 
 import android.content.Intent
 import android.os.Bundle
@@ -54,10 +54,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.facefit.R
+import com.example.facefit.ui.presentation.screens.prescription.PrescriptionLensActivity
 import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
@@ -74,7 +75,7 @@ class ProductDetailsActivity : ComponentActivity() {
                 ProductDetailScreen(
                     onBackClick = { finish() },
                     onNavigateToLenses = {
-                        val intent = Intent(this,PrescriptionLensActivity::class.java)
+                        val intent = Intent(this, PrescriptionLensActivity::class.java)
                         startActivity(intent)
                     }
                 )

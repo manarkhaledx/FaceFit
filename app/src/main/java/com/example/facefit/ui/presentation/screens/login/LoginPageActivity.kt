@@ -1,4 +1,4 @@
-package com.example.facefit
+package com.example.facefit.ui.presentation.screens.login
 
 import android.content.Intent
 import android.os.Bundle
@@ -20,14 +20,8 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,13 +33,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.facefit.ui.theme.Blue1
+import com.example.facefit.R
+import com.example.facefit.ui.presentation.components.buttons.LongButton
+import com.example.facefit.ui.presentation.components.textfields.EmailField
+import com.example.facefit.ui.presentation.components.textfields.PasswordField
+import com.example.facefit.ui.presentation.screens.home.HomePageActivity
+import com.example.facefit.ui.presentation.screens.signUp.SignUpPage
 import com.example.facefit.ui.theme.FaceFitTheme
 
 class LoginPage : ComponentActivity() {
@@ -149,51 +145,9 @@ fun LoginHeader(isKeyboardVisible: Boolean) {
     }
 }
 
-@Composable
-fun EmailField(
-    email: String,
-    onEmailChange: (String) -> Unit
-) {
-    OutlinedTextField(
-        value = email,
-        onValueChange = onEmailChange,
-        label = { Text(text = "E-mail") },
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        textStyle = androidx.compose.ui.text.TextStyle(color = Color.Black),
-        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Email)
-    )
-}
 
-@Composable
-fun PasswordField(
-    password: String,
-    onPasswordChange: (String) -> Unit,
-    passwordVisible: Boolean,
-    onPasswordVisibilityChange: () -> Unit,
-    label: String = "Password"
-) {
-    OutlinedTextField(
-        value = password,
-        onValueChange = onPasswordChange,
-        label = { Text(text = label) },
-        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-        trailingIcon = {
-            IconButton(onClick = onPasswordVisibilityChange) {
-                Icon(
-                    painter = painterResource(
-                        id = if (passwordVisible) R.drawable.eye_not_visibile else R.drawable.eye_visible
-                    ),
-                    contentDescription = if (passwordVisible) "Hide password" else "Show password"
-                )
-            }
-        },
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        textStyle = androidx.compose.ui.text.TextStyle(color = Color.Black),
-        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
-    )
-}
+
+
 
 //@Composable
 //fun SignButton(btnName: String, onSignInClick: () -> Unit) {

@@ -1,4 +1,4 @@
-package com.example.facefit
+package com.example.facefit.ui.presentation.screens.products
 
 import android.content.Intent
 import android.os.Bundle
@@ -57,6 +57,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.facefit.R
+import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
+import com.example.facefit.ui.presentation.screens.filter.FilterScreenOverlay
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 

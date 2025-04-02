@@ -13,4 +13,5 @@
     <string name="title_activity_write_review">WriteReviewActivity</string>
     <string name="title_activity_filer">FilerActivity</string>
     <string name="title_activity_filter">FilterActivity</string>
+    <string name="title_activity_app_bottom_navigation">AppBottomNavigation</string>
 </resources>
