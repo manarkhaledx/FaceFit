@@ -1,4 +1,4 @@
-package com.example.facefit.ui.presentation.screens.login
+package com.example.facefit.ui.presentation.screens.auth.login
 
 import android.content.Intent
 import android.os.Bundle
@@ -41,7 +41,7 @@ import com.example.facefit.ui.presentation.components.buttons.LongButton
 import com.example.facefit.ui.presentation.components.textfields.EmailField
 import com.example.facefit.ui.presentation.components.textfields.PasswordField
 import com.example.facefit.ui.presentation.screens.home.HomePageActivity
-import com.example.facefit.ui.presentation.screens.signUp.SignUpPage
+import com.example.facefit.ui.presentation.screens.auth.signUp.SignUpPage
 import com.example.facefit.ui.theme.FaceFitTheme
 
 class LoginPage : ComponentActivity() {

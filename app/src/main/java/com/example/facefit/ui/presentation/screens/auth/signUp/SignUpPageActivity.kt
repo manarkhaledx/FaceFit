@@ -1,4 +1,4 @@
-package com.example.facefit.ui.presentation.screens.signUp
+package com.example.facefit.ui.presentation.screens.auth.signUp
 
 import android.content.Intent
 import android.os.Bundle
@@ -35,7 +35,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.facefit.ui.presentation.components.buttons.LongButton
 import com.example.facefit.ui.presentation.components.textfields.PasswordField
-import com.example.facefit.ui.presentation.screens.login.LoginPage
+import com.example.facefit.ui.presentation.screens.auth.login.LoginPage
 import com.example.facefit.ui.theme.FaceFitTheme
 import com.togitech.ccp.component.TogiCountryCodePicker
 

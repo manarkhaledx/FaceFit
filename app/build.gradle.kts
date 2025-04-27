@@ -40,6 +40,14 @@ android {
 }
 
 dependencies {
+
+
+    //Retrofit
+    implementation(libs.retrofit2.retrofit)
+    implementation(libs.converter.gson)
+    //OkHttp enhanced logging
+    implementation(libs.logging.interceptor)
+
     //Togi country code picker library
     implementation(libs.androidx.material)
     implementation(libs.jetpack.compose.country.code.picker.emoji)
