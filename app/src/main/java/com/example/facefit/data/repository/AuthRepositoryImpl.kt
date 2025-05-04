@@ -5,8 +5,9 @@ import com.example.facefit.data.models.SignUpResponse
 import com.example.facefit.data.remote.ApiService
 import com.example.facefit.domain.repository.AuthRepository
 import retrofit2.Response
+import javax.inject.Inject
 
-class AuthRepositoryImpl(
+class AuthRepositoryImpl @Inject constructor(
     private val apiService: ApiService
 ) : AuthRepository {
     override suspend fun signupUser(signUpRequest: SignUpRequest): Response<SignUpResponse> {
