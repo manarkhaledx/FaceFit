@@ -1,6 +1,8 @@
 package com.example.facefit.ui.presentation.components.textfields
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -14,6 +16,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.dp
 import com.example.facefit.R
 
 @Composable
@@ -22,26 +25,43 @@ fun PasswordField(
     onPasswordChange: (String) -> Unit,
     passwordVisible: Boolean,
     onPasswordVisibilityChange: () -> Unit,
-    label: String = "Password"
+    label: String = "Password",
+    isError: Boolean = false,
+    errorMessage: String? = null,
+    modifier: Modifier = Modifier
 ) {
-    OutlinedTextField(
-        value = password,
-        onValueChange = onPasswordChange,
-        label = { Text(text = label) },
-        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-        trailingIcon = {
-            IconButton(onClick = onPasswordVisibilityChange) {
-                Icon(
-                    painter = painterResource(
-                        id = if (passwordVisible) R.drawable.eye_not_visibile else R.drawable.eye_visible
-                    ),
-                    contentDescription = if (passwordVisible) "Hide password" else "Show password"
-                )
-            }
-        },
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.medium,
-        textStyle = androidx.compose.ui.text.TextStyle(color = Color.Black),
-        keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Password)
-    )
+    Column(modifier = modifier) {
+        OutlinedTextField(
+            value = password,
+            onValueChange = onPasswordChange,
+            label = { Text(label) },
+            visualTransformation = if (passwordVisible) VisualTransformation.None
+            else PasswordVisualTransformation(),
+            trailingIcon = {
+                IconButton(onClick = onPasswordVisibilityChange) {
+                    Icon(
+                        painter = painterResource(
+                            id = if (passwordVisible) R.drawable.eye_not_visibile
+                            else R.drawable.eye_visible
+                        ),
+                        contentDescription = if (passwordVisible) "Hide password"
+                        else "Show password"
+                    )
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            isError = isError,
+            supportingText = {
+                if (isError && errorMessage != null) {
+                    Text(
+                        text = errorMessage,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
+        )
+    }
 }
