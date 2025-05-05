@@ -22,8 +22,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,33 +35,54 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.facefit.R
+import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.components.buttons.LongButton
 import com.example.facefit.ui.presentation.components.textfields.EmailField
 import com.example.facefit.ui.presentation.components.textfields.PasswordField
 import com.example.facefit.ui.presentation.screens.home.HomePageActivity
 import com.example.facefit.ui.presentation.screens.auth.signUp.SignUpPage
+import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class LoginPage : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             FaceFitTheme {
+                val viewModel: LoginViewModel = hiltViewModel()
+                val loginState by viewModel.loginState.collectAsStateWithLifecycle()
+                val fieldErrors by viewModel.fieldErrors.collectAsStateWithLifecycle()
+                val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+
+                LaunchedEffect(loginState) {
+                    if (loginState is Resource.Success) {
+                        startActivity(Intent(this@LoginPage, HomePageActivity::class.java))
+                        finish()
+                    }
+                }
+
                 LoginScreen(
                     onItemClick = {
-                        val intent = Intent(this, SignUpPage::class.java)
-                        startActivity(intent)
+                        startActivity(Intent(this@LoginPage, SignUpPage::class.java))
                         finish()
                     },
-                    onSignInClick = {
-                        val intent = Intent(this, HomePageActivity::class.java)
-                        startActivity(intent)
-                    }
+                    onSignInClick = { email, password ->
+                        viewModel.login(email, password)
+                    },
+                    isLoading = loginState is Resource.Loading,
+                    fieldErrors = fieldErrors,
+                    errorMessage = errorMessage,
+                    onFieldChanged = { field -> viewModel.clearFieldError(field) }
                 )
             }
         }
@@ -67,12 +90,22 @@ class LoginPage : ComponentActivity() {
 }
 
 @Composable
-fun LoginScreen(onItemClick: () -> Unit, onSignInClick: () -> Unit) {
+fun LoginScreen(
+    onItemClick: () -> Unit,
+    onSignInClick: (String, String) -> Unit,
+    isLoading: Boolean,
+    fieldErrors: Map<String, String>,
+    errorMessage: String?,
+    onFieldChanged: (String) -> Unit
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
     val isKeyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+
+    LaunchedEffect(email) { onFieldChanged("email") }
+    LaunchedEffect(password) { onFieldChanged("password") }
 
     Column(
         modifier = Modifier
@@ -83,32 +116,49 @@ fun LoginScreen(onItemClick: () -> Unit, onSignInClick: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ) {
+
+        errorMessage?.takeIf { fieldErrors.isEmpty() }?.let { message ->
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+
         LoginHeader(isKeyboardVisible)
 
         Spacer(modifier = Modifier.height(24.dp))
 
         EmailField(
             email = email,
-            onEmailChange = { email = it }
+            onEmailChange = { email = it },
+            isError = fieldErrors.containsKey("email"),
+            supportingText = {
+                fieldErrors["email"]?.let { error ->
+                    Text(text = error, color = MaterialTheme.colorScheme.error)
+                }
+            }
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         PasswordField(
             password = password,
             onPasswordChange = { password = it },
             passwordVisible = passwordVisible,
-            onPasswordVisibilityChange = { passwordVisible = !passwordVisible }
+            onPasswordVisibilityChange = { passwordVisible = !passwordVisible },
+            isError = fieldErrors.containsKey("password"),
+            errorMessage = fieldErrors["password"]
         )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-LongButton(
-    text = "Sign In",
-    onClick = onSignInClick
-)
+        LongButton(
+            text = if (isLoading) "Signing In..." else "Sign In",
+            onClick = { onSignInClick(email, password) }
+        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         if (!isKeyboardVisible) {
             AdditionalOptions(onItemClick = onItemClick)
@@ -122,15 +172,15 @@ fun LoginHeader(isKeyboardVisible: Boolean) {
     val logoBottomPadding = if (isKeyboardVisible) 8.dp else 16.dp
 
     Text(
-        text = "FaceFit",
+        text = stringResource(id = R.string.app_name),
         fontSize = logoFontSize,
-        color = Color.Black,
+        color = Blue1,
         modifier = Modifier.padding(bottom = logoBottomPadding)
     )
 
     if (!isKeyboardVisible) {
         Text(
-            text = "Welcome!",
+            text = stringResource(id = R.string.welcome),
             fontSize = 24.sp,
             color = Color.Black
         )
@@ -138,7 +188,7 @@ fun LoginHeader(isKeyboardVisible: Boolean) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Please enter your data",
+            text = stringResource(id = R.string.enter_data),
             fontSize = 16.sp,
             color = Color.Gray
         )
@@ -147,42 +197,26 @@ fun LoginHeader(isKeyboardVisible: Boolean) {
 
 
 
-
-
-//@Composable
-//fun SignButton(btnName: String, onSignInClick: () -> Unit) {
-//    Button(
-//        onClick = onSignInClick,
-//        modifier = Modifier
-//            .fillMaxWidth()
-//            .height(56.dp),
-//        colors = ButtonDefaults.buttonColors(
-//            containerColor = Blue1,
-//            contentColor = Color.White
-//        ),
-//        shape = RoundedCornerShape(size = 30.dp)
-//    ) {
-//        Text(
-//            text = btnName,
-//            fontSize = 16.sp,
-//            color = Color.White
-//        )
-//    }
-//}
-
 @Composable
 fun AdditionalOptions(onItemClick: () -> Unit) {
-    Text(
-        text = "New to App? Create account",
-        fontSize = 14.sp,
-        color = Color.Gray,
-        modifier = Modifier.clickable { onItemClick() }
-    )
+    Row {
+        Text(
+            text = stringResource(id = R.string.new_to_app),
+            fontSize = 14.sp,
+            color = Color.Gray
+        )
+        Text(
+            text = stringResource(id=R.string.create_account),
+            fontSize = 14.sp,
+            color = Blue1,
+            modifier = Modifier.clickable { onItemClick() }
+        )
+    }
 
     Spacer(modifier = Modifier.height(16.dp))
 
     Text(
-        text = "or login with",
+        text = stringResource(id=R.string.or_login_with),
         fontSize = 14.sp,
         color = Color.Gray
     )
@@ -236,8 +270,12 @@ fun SocialLoginButtons() {
 fun LoginPreview() {
     FaceFitTheme {
         LoginScreen(
-            onItemClick = { /* No action needed for preview */ },
-            onSignInClick = { /* No action needed for preview */ }
+            onItemClick = {},
+            onSignInClick = { _, _ ->},
+            isLoading = false,
+            fieldErrors = emptyMap(),
+            errorMessage = null,
+            onFieldChanged = {}
         )
     }
 }
