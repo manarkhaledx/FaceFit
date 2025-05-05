@@ -1,4 +1,4 @@
-package com.example.facefit.data.models
+package com.example.facefit.data.models.requests
 
 import com.google.gson.annotations.SerializedName
 

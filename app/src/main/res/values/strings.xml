@@ -14,4 +14,23 @@
     <string name="title_activity_filer">FilerActivity</string>
     <string name="title_activity_filter">FilterActivity</string>
     <string name="title_activity_app_bottom_navigation">AppBottomNavigation</string>
+    //login
+    <string name="welcome">Welcome!</string>
+    <string name="enter_data">Please enter your data</string>
+    <string name="new_to_app">New to App? </string>
+    <string name="create_account">Create account</string>"
+    <string name="or_login_with">or login with</string>
+    <string name="sign_in">Sign In</string>
+    <string name="signing_in">Signing In...</string>
+    <string name="email_error">Invalid email</string>
+    <string name="password_error">Invalid password</string>
+    //signup
+    <string name="return_to_login">Return to Login</string>
+    <string name="first_name">First Name</string>
+    <string name="last_name">Last Name</string>
+    <string name="phone_number">Phone Number</string>
+    <string name="email">Email</string>
+    <string name="confirm_password">Confirm Password</string>
+    <string name="sign_up">Sign Up</string>
+    <string name="back">Back</string>
 </resources>

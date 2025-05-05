@@ -37,14 +37,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.facefit.R
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.components.textfields.PasswordField
 import com.example.facefit.ui.presentation.screens.auth.login.LoginPage
+import com.example.facefit.ui.presentation.screens.home.HomePageActivity
 import com.example.facefit.ui.theme.FaceFitTheme
 import com.togitech.ccp.component.TogiCountryCodePicker
 import dagger.hilt.android.AndroidEntryPoint
@@ -64,10 +67,9 @@ class SignUpPage : ComponentActivity() {
                         finish()
                     },
                     onSignUpSuccess = {
-                        // Navigate to home screen after successful signup
-                        // val intent = Intent(this, HomeActivity::class.java)
-                        // startActivity(intent)
-                        // finish()
+                         val intent = Intent(this, HomePageActivity::class.java)
+                         startActivity(intent)
+                         finish()
                     }
                 )
             }
@@ -94,7 +96,7 @@ fun SignUpScreen(
     val signUpState by viewModel.signUpState.collectAsStateWithLifecycle()
     val fieldErrors by viewModel.fieldErrors.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val snackBarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(firstName) { viewModel.clearFieldError("firstName") }
@@ -110,7 +112,7 @@ fun SignUpScreen(
                 if (fieldErrors.isEmpty()) {
                     errorMessage?.let { message ->
                         scope.launch {
-                            snackbarHostState.showSnackbar(message)
+                            snackBarHostState.showSnackbar(message)
                         }
                     }
                 }
@@ -120,7 +122,7 @@ fun SignUpScreen(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+        snackbarHost = { SnackbarHost(hostState = snackBarHostState) }
     ) { paddingValues ->
         Column(
             modifier = modifier
@@ -136,11 +138,11 @@ fun SignUpScreen(
                 IconButton(onClick = onNavigateBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back"
+                        contentDescription = stringResource(id = R.string.return_to_login)
                     )
                 }
                 Text(
-                    text = "Return to Login",
+                    text = stringResource(id = R.string.return_to_login),
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.padding(start = 8.dp)
                 )
@@ -155,7 +157,7 @@ fun SignUpScreen(
                 OutlinedTextField(
                     value = firstName,
                     onValueChange = { firstName = it },
-                    label = { Text("First Name") },
+                    label = { Text(stringResource(id = R.string.first_name)) },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
                     isError = fieldErrors.containsKey("firstName"),
@@ -172,7 +174,7 @@ fun SignUpScreen(
                 OutlinedTextField(
                     value = lastName,
                     onValueChange = { lastName = it },
-                    label = { Text("Last Name") },
+                    label = { Text(stringResource(id = R.string.last_name)) },
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(12.dp),
                     isError = fieldErrors.containsKey("lastName"),
@@ -195,7 +197,7 @@ fun SignUpScreen(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    label = { Text("Phone Number") },
+                    label = { Text(stringResource(id = R.string.phone_number)) },
                     showCountryFlag = true,
                     showCountryCode = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
@@ -213,7 +215,7 @@ fun SignUpScreen(
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = { Text("Email") },
+                label = { Text(stringResource(id = R.string.email)) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -243,7 +245,7 @@ fun SignUpScreen(
                 onPasswordChange = { confirmPassword = it },
                 passwordVisible = confirmPasswordVisible,
                 onPasswordVisibilityChange = { confirmPasswordVisible = !confirmPasswordVisible },
-                label = "Confirm Password",
+                label = stringResource(id = R.string.confirm_password),
                 isError = fieldErrors.containsKey("confirmPassword"),
                 errorMessage = fieldErrors["confirmPassword"]
             )
@@ -275,7 +277,7 @@ fun SignUpScreen(
                         modifier = Modifier.size(24.dp)
                     )
                 } else {
-                    Text(text = "Sign Up")
+                    Text(text = stringResource(id = R.string.sign_up))
                 }
             }
         }

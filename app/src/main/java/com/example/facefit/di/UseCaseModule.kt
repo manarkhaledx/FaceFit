@@ -1,6 +1,7 @@
 package com.example.facefit.di
 
 import com.example.facefit.domain.repository.AuthRepository
+import com.example.facefit.domain.usecases.LoginUseCase
 import com.example.facefit.domain.usecases.SignUpUseCase
 import dagger.Module
 import dagger.Provides
@@ -18,9 +19,9 @@ object UseCaseModule {
         return SignUpUseCase(authRepository)
     }
 
-//    @Provides
-//    @Singleton
-//    fun provideLoginUseCase(authRepository: AuthRepository): LoginUseCase {
-//        return LoginUseCase(authRepository)
-//    }
+    @Provides
+    @Singleton
+    fun provideLoginUseCase(authRepository: AuthRepository): LoginUseCase {
+        return LoginUseCase(authRepository)
+    }
 }

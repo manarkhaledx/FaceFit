@@ -3,8 +3,8 @@ package com.example.facefit.ui.presentation.screens.auth.signUp
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.facefit.data.models.SignUpRequest
-import com.example.facefit.data.models.SignUpResponse
+import com.example.facefit.data.models.requests.SignUpRequest
+import com.example.facefit.data.models.responses.SignUpResponse
 import com.example.facefit.domain.usecases.SignUpUseCase
 import com.example.facefit.domain.utils.Resource
 import com.google.gson.Gson
@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import retrofit2.Response
-import com.example.facefit.data.models.ErrorResponse
+import com.example.facefit.data.models.responses.ErrorResponse
 
 import javax.inject.Inject
 
@@ -104,6 +104,6 @@ class SignUpViewModel @Inject constructor(
     }
 
     fun clearFieldError(field: String) {
-        _fieldErrors.value = _fieldErrors.value - field
+        _fieldErrors.value -= field
     }
 }

@@ -1,6 +1,6 @@
 package com.example.facefit.domain.usecases
 
-import com.example.facefit.data.models.SignUpRequest
+import com.example.facefit.data.models.requests.SignUpRequest
 import com.example.facefit.domain.repository.AuthRepository
 import javax.inject.Inject
 
