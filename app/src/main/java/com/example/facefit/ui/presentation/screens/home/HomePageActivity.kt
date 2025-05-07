@@ -48,27 +48,35 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.facefit.R
+import com.example.facefit.domain.models.Glasses
+import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.components.cards.ProductCard
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class HomePageActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             FaceFitTheme {
-                EyewearScreen()
+                val viewModel: HomeViewModel = hiltViewModel()
+                EyewearScreen(viewModel)
             }
         }
     }
 }
 
 @Composable
-fun EyewearScreen() {
-    val products = getProducts()
+fun EyewearScreen(viewModel: HomeViewModel = hiltViewModel()) {
+    val bestSellers by viewModel.bestSellers.collectAsStateWithLifecycle()
+    val newArrivals by viewModel.newArrivals.collectAsStateWithLifecycle()
     val categories = getCategories()
 
     Scaffold(
@@ -88,12 +96,66 @@ fun EyewearScreen() {
             Spacer(modifier = Modifier.height(24.dp))
             CategorySection(title = "Categories", categories = categories)
             Spacer(modifier = Modifier.height(24.dp))
-            ProductSection(title = "Best Seller", products = products)
+
+            when (val result = bestSellers) {
+                is Resource.Success -> {
+                    ProductSection(
+                        title = "Best Seller",
+                        products = result.data?.map { it.toProduct() } ?: emptyList()
+                    )
+                }
+
+                is Resource.Error -> {
+                    ProductSection(
+                        title = "Best Seller",
+                        products = (result.data ?: emptyList()).map {
+                            it.toProduct().copy(name = "Couldn't load")
+                        }
+                    )
+                }
+
+                is Resource.Loading -> {
+                    ProductSection(
+                        title = "Best Seller",
+                        products = (result.data ?: emptyList()).map {
+                            it.toProduct().copy(name = "Loading...", price = "---")
+                        }
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
-            ProductSection(title = "New Arrivals", products = products)
+
+            when (val result = newArrivals) {
+                is Resource.Success -> {
+                    ProductSection(
+                        title = "New Arrivals",
+                        products = result.data?.map { it.toProduct() } ?: emptyList()
+                    )
+                }
+
+                is Resource.Error -> {
+                    ProductSection(
+                        title = "New Arrivals",
+                        products = (result.data ?: emptyList()).map {
+                            it.toProduct().copy(name = "Couldn't load")
+                        }
+                    )
+                }
+
+                is Resource.Loading -> {
+                    ProductSection(
+                        title = "New Arrivals",
+                        products = (result.data ?: emptyList()).map {
+                            it.toProduct().copy(name = "Loading...", price = "---")
+                        }
+                    )
+                }
+            }
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -154,6 +216,7 @@ fun CameraButton() {
 
 @Composable
 fun FeaturedImagesSection() {
+    // TODO(): Replace with actual images
     val images = listOf(R.drawable.img_notfound, R.drawable.img_notfound)
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(images) { image ->
@@ -177,6 +240,7 @@ fun FeaturedImagesSection() {
 
 @Composable
 fun CategorySection(title: String, categories: List<Pair<String, Int>>) {
+    // TODO(): Implement actual logic to fetch categories
     Column {
         Text(title, style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.height(8.dp))
@@ -218,19 +282,22 @@ fun ProductSection(title: String, products: List<Product>) {
     }
 }
 
-
-
-
-
-
-
-data class Product(val name: String, val price: String)
-
-fun getProducts() = listOf(
-    Product("Browline Glasses", "EGP 120"),
-    Product("Round Frame Glasses", "EGP 150"),
-    Product("Wayfarer Glasses", "EGP 200")
+data class Product(
+    val name: String,
+    val price: String,
+    val imageUrl: String? = null,
+    val isPlaceholder: Boolean = false
 )
+
+fun Glasses.toProduct(): Product {
+    val isPlaceholder = id?.startsWith("placeholder_") ?: false
+    return Product(
+        name = if (isPlaceholder) "Loading..." else this.name,
+        price = if (isPlaceholder) "---" else "EGP ${this.price}",
+        imageUrl = this.images.firstOrNull(),
+        isPlaceholder = isPlaceholder
+    )
+}
 
 fun getCategories() = listOf(
     "Men" to R.drawable.men_glasses,
