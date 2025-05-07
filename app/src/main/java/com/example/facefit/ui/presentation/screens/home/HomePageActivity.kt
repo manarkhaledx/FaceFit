@@ -44,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -94,31 +95,31 @@ fun EyewearScreen(viewModel: HomeViewModel = hiltViewModel()) {
             Spacer(modifier = Modifier.height(24.dp))
             FeaturedImagesSection()
             Spacer(modifier = Modifier.height(24.dp))
-            CategorySection(title = "Categories", categories = categories)
+            CategorySection(title = stringResource(R.string.categories), categories = categories)
             Spacer(modifier = Modifier.height(24.dp))
 
             when (val result = bestSellers) {
                 is Resource.Success -> {
                     ProductSection(
-                        title = "Best Seller",
+                        title = stringResource(R.string.best_seller),
                         products = result.data?.map { it.toProduct() } ?: emptyList()
                     )
                 }
 
                 is Resource.Error -> {
                     ProductSection(
-                        title = "Best Seller",
+                        title = stringResource(R.string.best_seller),
                         products = (result.data ?: emptyList()).map {
-                            it.toProduct().copy(name = "Couldn't load")
+                            it.toProduct().copy(name = stringResource(R.string.could_not_load))
                         }
                     )
                 }
 
                 is Resource.Loading -> {
                     ProductSection(
-                        title = "Best Seller",
+                        title = stringResource(R.string.best_seller),
                         products = (result.data ?: emptyList()).map {
-                            it.toProduct().copy(name = "Loading...", price = "---")
+                            it.toProduct().copy(name = stringResource(R.string.loading), price = stringResource(R.string.price_placeholder))
                         }
                     )
                 }
@@ -129,25 +130,25 @@ fun EyewearScreen(viewModel: HomeViewModel = hiltViewModel()) {
             when (val result = newArrivals) {
                 is Resource.Success -> {
                     ProductSection(
-                        title = "New Arrivals",
+                        title = stringResource(R.string.new_arrivals),
                         products = result.data?.map { it.toProduct() } ?: emptyList()
                     )
                 }
 
                 is Resource.Error -> {
                     ProductSection(
-                        title = "New Arrivals",
+                        title = stringResource(R.string.new_arrivals),
                         products = (result.data ?: emptyList()).map {
-                            it.toProduct().copy(name = "Couldn't load")
+                            it.toProduct().copy(name = stringResource(R.string.could_not_load))
                         }
                     )
                 }
 
                 is Resource.Loading -> {
                     ProductSection(
-                        title = "New Arrivals",
+                        title = stringResource(R.string.new_arrivals),
                         products = (result.data ?: emptyList()).map {
-                            it.toProduct().copy(name = "Loading...", price = "---")
+                            it.toProduct().copy(name = stringResource(R.string.loading), price = stringResource(R.string.price_placeholder))
                         }
                     )
                 }
@@ -170,7 +171,7 @@ fun SearchBarWithCameraButton() {
         TextField(
             value = searchText,
             onValueChange = { searchText = it },
-            placeholder = { Text("Search", fontSize = 14.sp, color = Color.Gray) },
+            placeholder = { Text(stringResource(R.string.search), fontSize = 14.sp, color = Color.Gray) },
             shape = RoundedCornerShape(20.dp),
             singleLine = true,
             textStyle = LocalTextStyle.current.copy(fontSize = 16.sp),
@@ -207,7 +208,7 @@ fun CameraButton() {
     ) {
         Icon(
             painter = painterResource(id = R.drawable.camera),
-            contentDescription = "Camera Icon",
+            contentDescription = stringResource(R.string.camera_icon_description),
             tint = Color.White,
             modifier = Modifier.size(24.dp)
         )

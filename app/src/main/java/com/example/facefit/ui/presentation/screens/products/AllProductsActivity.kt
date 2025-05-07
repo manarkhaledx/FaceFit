@@ -204,7 +204,7 @@ fun FilterTabs() {
 fun GlassesItem(onClick: () -> Unit) {
     var isFavorite by remember { mutableStateOf(false) }
     Box(modifier = Modifier.clickable { onClick() }) {
-        Card(
+          Card(
             modifier = Modifier.width(180.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White)
