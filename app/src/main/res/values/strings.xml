@@ -33,4 +33,13 @@
     <string name="confirm_password">Confirm Password</string>
     <string name="sign_up">Sign Up</string>
     <string name="back">Back</string>
+    //home page
+    <string name="search">Search</string>
+    <string name="camera_icon_description">Camera Icon</string>
+    <string name="categories">Categories</string>
+    <string name="best_seller">Best Seller</string>
+    <string name="new_arrivals">New Arrivals</string>
+    <string name="loading">Loading...</string>
+    <string name="could_not_load">Couldn\'t load</string>
+    <string name="price_placeholder">---</string>
 </resources>
