@@ -1,7 +1,9 @@
 package com.example.facefit.di
 
 import com.example.facefit.data.repository.AuthRepositoryImpl
+import com.example.facefit.data.repository.GlassesRepositoryImpl
 import com.example.facefit.domain.repository.AuthRepository
+import com.example.facefit.domain.repository.GlassesRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -17,4 +19,8 @@ abstract class RepositoryModule {
     abstract fun bindAuthRepository(
         authRepositoryImpl: AuthRepositoryImpl
     ): AuthRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindGlassesRepository(impl: GlassesRepositoryImpl): GlassesRepository
 }

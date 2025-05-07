@@ -4,9 +4,11 @@ import com.example.facefit.data.models.requests.LoginRequest
 import com.example.facefit.data.models.requests.SignUpRequest
 import com.example.facefit.data.models.responses.LoginResponse
 import com.example.facefit.data.models.responses.SignUpResponse
+import com.example.facefit.domain.models.Glasses
 import com.example.facefit.ui.utils.Constants
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
 
 interface ApiService {
@@ -15,4 +17,10 @@ interface ApiService {
 
     @POST(Constants.LOGIN_ENDPOINT)
     suspend fun loginUser(@Body request: LoginRequest): Response<LoginResponse>
+
+    @GET(Constants.BESTSELLERS_ENDPOINT)
+    suspend fun getBestSellers(): Response<List<Glasses>>
+
+    @GET(Constants.NEWARRIVALS_ENDPOINT)
+    suspend fun getNewArrivals(): Response<List<Glasses>>
 }
