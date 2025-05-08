@@ -70,6 +70,24 @@ class AllProductsViewModel @Inject constructor(
         }
     }
 
+    fun filterByCategory(category: String) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(isLoading = true)
+            }
+
+            val (type, gender) = when (category) {
+                "Men" -> Pair(null, "Men")
+                "Women" -> Pair(null, "Women")
+                "Eye Glasses" -> Pair(EYEGLASSES, null)
+                "Sun Glasses" -> Pair(SUNGLASSES, null)
+                else -> Pair(null, null)
+            }
+
+            filterProducts(type = type, gender = gender)
+        }
+    }
+
     fun sortProducts(sortOption: String) {
         viewModelScope.launch {
             _uiState.update { 
@@ -136,8 +154,6 @@ class AllProductsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
-            println("Filtering with price range: $minPrice - $maxPrice")
-
             when (val result = repository.filterGlasses(
                 type = type,
                 gender = gender,
@@ -154,7 +170,9 @@ class AllProductsViewModel @Inject constructor(
                             isLoading = false,
                             error = null,
                             selectedType = type,
-                            selectedGender = gender
+                            selectedGender = gender,
+                            priceRangeMin = minPrice?.toInt(),
+                            priceRangeMax = maxPrice?.toInt()
                         )
                     }
                 }

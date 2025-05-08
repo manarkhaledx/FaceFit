@@ -23,6 +23,12 @@ class HomeViewModel @Inject constructor(
     private val _newArrivals = MutableStateFlow<Resource<List<Glasses>>>(Resource.Loading())
     val newArrivals: StateFlow<Resource<List<Glasses>>> = _newArrivals
 
+    private val _filteredProducts = MutableStateFlow<Resource<List<Glasses>>>(Resource.Loading())
+    val filteredProducts: StateFlow<Resource<List<Glasses>>> = _filteredProducts
+
+    private val _selectedCategory = MutableStateFlow<String?>(null)
+    val selectedCategory: StateFlow<String?> = _selectedCategory
+
     init {
         getBestSellers()
         getNewArrivals()
@@ -40,8 +46,33 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun getProductsByCategory(category: String) {
+        _selectedCategory.value = category
+        viewModelScope.launch {
+            _filteredProducts.value = Resource.Loading()
+            try {
+                val allProducts = mutableListOf<Glasses>()
+                (bestSellers.value as? Resource.Success)?.data?.let { allProducts.addAll(it) }
+                (newArrivals.value as? Resource.Success)?.data?.let { allProducts.addAll(it) }
+
+                val filtered = when (category) {
+                    "Men" -> allProducts.filter { it.gender == "Men" }
+                    "Women" -> allProducts.filter { it.gender == "Women" }
+                    "Eye Glasses" -> allProducts.filter { it.type == "eyeglasses" }
+                    "Sun Glasses" -> allProducts.filter { it.type == "sunglasses" }
+                    else -> allProducts
+                }
+
+                _filteredProducts.value = Resource.Success(filtered)
+            } catch (e: Exception) {
+                _filteredProducts.value = Resource.Error(e.message ?: "Unknown error")
+            }
+        }
+    }
+
     fun refresh() {
         getBestSellers()
         getNewArrivals()
+        _selectedCategory.value?.let { getProductsByCategory(it) }
     }
 }
