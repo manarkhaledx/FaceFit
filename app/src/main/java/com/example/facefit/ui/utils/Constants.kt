@@ -6,5 +6,7 @@ object Constants {
     const val LOGIN_ENDPOINT = "facefit/customers/login"
     const val BESTSELLERS_ENDPOINT = "facefit/glasses/bestsellers"
     const val NEWARRIVALS_ENDPOINT = "facefit/glasses/newarrivals"
-    const val EMULATOR_URL = "https://e8d2-41-68-156-17.ngrok-free.app"
+    const val FILTER_GLASSES_ENDPOINT = "facefit/glasses/search"
+    const val ALL_GLASSES_ENDPOINT = "facefit/glasses/all"
+    const val EMULATOR_URL = "https://b4ea-41-68-136-233.ngrok-free.app"
 }

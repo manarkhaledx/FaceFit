@@ -14,17 +14,84 @@
     <string name="title_activity_filer">FilerActivity</string>
     <string name="title_activity_filter">FilterActivity</string>
     <string name="title_activity_app_bottom_navigation">AppBottomNavigation</string>
-    //login
+    
+    <!-- General -->
+    <string name="filter">Filter</string>
+    <string name="clear_filters">Clear Filters</string>
+    <string name="apply_filters">Apply Filters</string>
+    <string name="close">Close</string>
+    
+    <!-- Filter categories -->
+    <string name="gender">Gender</string>
+    <string name="men">Men</string>
+    <string name="women">Women</string>
+    <string name="type">Type</string>
+    <string name="eyeglasses">Eyeglasses</string>
+    <string name="sunglasses">Sunglasses</string>
+    <string name="price">Price</string>
+    <string name="shape">Shape</string>
+    <string name="rounded">Rounded</string>
+    <string name="square">Square</string>
+    <string name="material">Material</string>
+    <string name="plastic">Plastic</string>
+    <string name="metal">Metal</string>
+    
+    <!-- Price ranges -->
+    <string name="price_under_100">Under EGP 100</string>
+    <string name="price_100_300">EGP 100-300</string>
+    <string name="price_300_500">EGP 300-500</string>
+    <string name="price_500_800">EGP 500-800</string>
+    <string name="price_800_plus">EGP 800+</string>
+    
+    <!-- Filter maintenance message -->
+    <string name="price_filter_maintenance">Price filtering is currently under maintenance.</string>
+    <string name="price_filter_coming_soon">Our team is working to restore this feature soon.</string>
+    
+    <!-- Product display -->
+    <string name="try_on">Try ON</string>
+    <string name="no_products_found">No products found matching your filters</string>
+    <string name="failed_to_fetch_best_sellers">Failed to fetch best sellers</string>
+    <string name="failed_to_fetch_new_arrivals">Failed to fetch new arrivals</string>
+    <string name="failed_to_filter_glasses">Failed to filter glasses</string>
+    <string name="an_error_occurred">An error occurred</string>
+    <string name="current_filters">Current filters:</string>
+    <string name="filter_gender">Gender=%s</string>
+    <string name="filter_type">Type=%s</string>
+    <string name="filter_price">Price=%d-%d</string>
+    
+    <!-- Sort options -->
+    <string name="default_sort">Default</string>
+    <string name="best_sellers">Best Sellers</string>
+    
+    <!-- Sort keys (used internally) -->
+    <string name="sort_default_key">Default</string>
+    <string name="sort_best_sellers_key">Best Sellers</string>
+    <string name="sort_new_arrivals_key">New Arrivals</string>
+    
+    <!-- Tab names -->
+    <string name="all">All</string>
+    
+    <!-- Content descriptions -->
+    <string name="desc_mark_favorite">Mark Favorite</string>
+    <string name="desc_unmark_favorite">Unmark Favorite</string>
+    <string name="desc_filter_icon">Filter Icon</string>
+    <string name="desc_dropdown">Dropdown</string>
+    
+    <!-- Currency -->
+    <string name="currency_format">EGP %.2f</string>
+    
+    <!-- Login -->
     <string name="welcome">Welcome!</string>
     <string name="enter_data">Please enter your data</string>
     <string name="new_to_app">New to App? </string>
-    <string name="create_account">Create account</string>"
+    <string name="create_account">Create account</string>
     <string name="or_login_with">or login with</string>
     <string name="sign_in">Sign In</string>
     <string name="signing_in">Signing In...</string>
     <string name="email_error">Invalid email</string>
     <string name="password_error">Invalid password</string>
-    //signup
+    
+    <!-- Signup -->
     <string name="return_to_login">Return to Login</string>
     <string name="first_name">First Name</string>
     <string name="last_name">Last Name</string>
@@ -33,13 +100,15 @@
     <string name="confirm_password">Confirm Password</string>
     <string name="sign_up">Sign Up</string>
     <string name="back">Back</string>
-    //home page
+    
+    <!-- Home page -->
     <string name="search">Search</string>
     <string name="camera_icon_description">Camera Icon</string>
     <string name="categories">Categories</string>
-    <string name="best_seller">Best Seller</string>
+    <string name="best_seller">Best Sellers</string>
     <string name="new_arrivals">New Arrivals</string>
     <string name="loading">Loading...</string>
     <string name="could_not_load">Couldn\'t load</string>
     <string name="price_placeholder">---</string>
+    <string name="error_loading_products">Error loading products</string>
 </resources>

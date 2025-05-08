@@ -10,6 +10,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.http.Query
 
 interface ApiService {
     @POST(Constants.SIGNUP_ENDPOINT)
@@ -23,4 +24,19 @@ interface ApiService {
 
     @GET(Constants.NEWARRIVALS_ENDPOINT)
     suspend fun getNewArrivals(): Response<List<Glasses>>
+
+    @GET(Constants.ALL_GLASSES_ENDPOINT)
+    suspend fun getAllGlasses(): Response<List<Glasses>>
+
+    @GET(Constants.FILTER_GLASSES_ENDPOINT)
+    suspend fun filterGlasses(
+        @Query("type") type: String? = null,
+        @Query("gender") gender: String? = null,
+        @Query("size") size: String? = null, // Keep this for API compatibility
+        @Query("minPrice") minPrice: Double? = null,
+        @Query("maxPrice") maxPrice: Double? = null,
+        @Query("shape") shape: String? = null,
+        @Query("material") material: String? = null,
+        @Query("sort") sort: String? = null
+    ): Response<List<Glasses>>
 }
