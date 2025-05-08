@@ -1,11 +1,13 @@
 package com.example.facefit.ui.presentation.screens.home
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,6 +58,7 @@ import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.components.cards.ProductCard
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
+import com.example.facefit.ui.presentation.screens.products.AllProductsActivity
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -68,14 +71,17 @@ class HomePageActivity : ComponentActivity() {
         setContent {
             FaceFitTheme {
                 val viewModel: HomeViewModel = hiltViewModel()
-                EyewearScreen(viewModel)
+                EyewearScreen(viewModel, this)
             }
         }
     }
 }
 
 @Composable
-fun EyewearScreen(viewModel: HomeViewModel = hiltViewModel()) {
+fun EyewearScreen(
+    viewModel: HomeViewModel = hiltViewModel(),
+    activity: ComponentActivity? = null
+) {
     val bestSellers by viewModel.bestSellers.collectAsStateWithLifecycle()
     val newArrivals by viewModel.newArrivals.collectAsStateWithLifecycle()
     val categories = getCategories()
@@ -95,7 +101,18 @@ fun EyewearScreen(viewModel: HomeViewModel = hiltViewModel()) {
             Spacer(modifier = Modifier.height(24.dp))
             FeaturedImagesSection()
             Spacer(modifier = Modifier.height(24.dp))
-            CategorySection(title = stringResource(R.string.categories), categories = categories)
+            CategorySection(
+                title = stringResource(R.string.categories),
+                categories = categories,
+                onCategoryClick = { category ->
+                    activity?.let {
+                        val intent = Intent(it, AllProductsActivity::class.java).apply {
+                            putExtra("CATEGORY_FILTER", category)
+                        }
+                        it.startActivity(intent)
+                    }
+                }
+            )
             Spacer(modifier = Modifier.height(24.dp))
 
             when (val result = bestSellers) {
@@ -157,7 +174,6 @@ fun EyewearScreen(viewModel: HomeViewModel = hiltViewModel()) {
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchBarWithCameraButton() {
@@ -181,7 +197,7 @@ fun SearchBarWithCameraButton() {
             trailingIcon = {
                 Icon(
                     painter = painterResource(id = R.drawable.search_icon),
-                    contentDescription = "Search Icon",
+                    contentDescription = stringResource(R.string.search_icon),
                     tint = Color.Gray
                 )
             },
@@ -217,7 +233,6 @@ fun CameraButton() {
 
 @Composable
 fun FeaturedImagesSection() {
-    // TODO(): Replace with actual images
     val images = listOf(R.drawable.img_notfound, R.drawable.img_notfound)
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(images) { image ->
@@ -230,7 +245,7 @@ fun FeaturedImagesSection() {
             ) {
                 Image(
                     painter = painterResource(id = image),
-                    contentDescription = "Featured Image",
+                    contentDescription = stringResource(R.string.featured_image),
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )
@@ -240,20 +255,25 @@ fun FeaturedImagesSection() {
 }
 
 @Composable
-fun CategorySection(title: String, categories: List<Pair<String, Int>>) {
-    // TODO(): Implement actual logic to fetch categories
+fun CategorySection(
+    title: String, 
+    categories: List<Pair<String, Int>>,
+    onCategoryClick: (String) -> Unit = {}
+) {
     Column {
         Text(title, style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.height(8.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             items(categories) { (category, imageResId) ->
                 Column(
-                    modifier = Modifier.width(100.dp),
+                    modifier = Modifier
+                        .width(100.dp)
+                        .clickable { onCategoryClick(category) },
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Image(
                         painter = painterResource(id = imageResId),
-                        contentDescription = category,
+                        contentDescription = stringResource(R.string.category_image),
                         modifier = Modifier
                             .size(70.dp)
                             .clip(CircleShape),

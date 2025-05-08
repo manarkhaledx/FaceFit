@@ -111,4 +111,11 @@
     <string name="could_not_load">Couldn\'t load</string>
     <string name="price_placeholder">---</string>
     <string name="error_loading_products">Error loading products</string>
+    
+    <!-- Error messages -->
+    <string name="unknown_error">Unknown error</string>
+    <string name="product_details">Product Details</string>
+    <string name="featured_image">Featured Image</string>
+    <string name="search_icon">Search Icon</string>
+    <string name="category_image">Category Image</string>
 </resources>

@@ -79,6 +79,13 @@ class AllProductsActivity : ComponentActivity() {
         setContent {
             var showFilter by remember { mutableStateOf(false) }
             val viewModel: AllProductsViewModel = hiltViewModel()
+            val categoryFilter = intent.getStringExtra("CATEGORY_FILTER")
+
+            LaunchedEffect(categoryFilter) {
+                if (categoryFilter != null) {
+                    viewModel.filterByCategory(categoryFilter)
+                }
+            }
 
             FaceFitTheme {
                 Box(modifier = Modifier.fillMaxSize().background(Color.White)) {
