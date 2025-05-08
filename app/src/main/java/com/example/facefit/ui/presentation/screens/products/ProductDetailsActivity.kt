@@ -288,9 +288,9 @@ Image(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        items(4) {
-                            GlassesItem(onClick = { /* Handle item click */ })
-                        }
+//                        items(4) {
+//                            GlassesItem(onClick = { /* Handle item click */ })
+//                        }
                     }
                 }
             }

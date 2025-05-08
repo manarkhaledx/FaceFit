@@ -1,13 +1,17 @@
 package com.example.facefit.data.repository
 
+import android.content.Context
+import com.example.facefit.R
 import com.example.facefit.data.remote.ApiService
 import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.repository.GlassesRepository
 import com.example.facefit.domain.utils.Resource
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 
 class GlassesRepositoryImpl @Inject constructor(
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    @ApplicationContext private val context: Context
 ) : GlassesRepository {
     override suspend fun getBestSellers(): Resource<List<Glasses>> {
         return try {
@@ -15,10 +19,10 @@ class GlassesRepositoryImpl @Inject constructor(
             if (response.isSuccessful) {
                 Resource.Success(response.body() ?: emptyList())
             } else {
-                Resource.Error("Failed to fetch best sellers", createPlaceholderGlasses())
+                Resource.Error(context.getString(R.string.failed_to_fetch_best_sellers), createPlaceholderGlasses(3))
             }
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "An error occurred", createPlaceholderGlasses())
+            Resource.Error(e.message ?: context.getString(R.string.an_error_occurred), createPlaceholderGlasses(3))
         }
     }
 
@@ -28,33 +32,90 @@ class GlassesRepositoryImpl @Inject constructor(
             if (response.isSuccessful) {
                 Resource.Success(response.body() ?: emptyList())
             } else {
-                Resource.Error("Failed to fetch new arrivals", createPlaceholderGlasses())
+                Resource.Error(context.getString(R.string.failed_to_fetch_new_arrivals), createPlaceholderGlasses(3))
             }
         } catch (e: Exception) {
-            Resource.Error(e.message ?: "An error occurred", createPlaceholderGlasses())
+            Resource.Error(e.message ?: context.getString(R.string.an_error_occurred), createPlaceholderGlasses(3))
         }
     }
 
-    private fun createPlaceholderGlasses(): List<Glasses> {
-        return List(3) { index ->
+    override suspend fun getAllGlasses(): Resource<List<Glasses>> {
+        return try {
+            val response = apiService.getAllGlasses()
+            if (response.isSuccessful) {
+                Resource.Success(response.body() ?: emptyList())
+            } else {
+                Resource.Error(context.getString(R.string.error_loading_products), createPlaceholderGlasses(6))
+            }
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: context.getString(R.string.an_error_occurred), createPlaceholderGlasses(6))
+        }
+    }
+
+    override suspend fun filterGlasses(
+        type: String?,
+        gender: String?,
+        minPrice: Double?,
+        maxPrice: Double?,
+        shape: String?,
+        material: String?,
+        sort: String?
+    ): Resource<List<Glasses>> {
+        return try {
+            println("Repository - Filtering with minPrice: $minPrice, maxPrice: $maxPrice")
+
+            val response = apiService.filterGlasses(
+                type = type,
+                gender = gender,
+                size = null, // Always null since we don't want to filter by size
+                minPrice = minPrice,
+                maxPrice = maxPrice,
+                shape = shape,
+                material = material,
+                sort = sort
+            )
+
+            println("API Response: ${response.code()} - ${response.message()}")
+            println("Received ${response.body()?.size ?: 0} products")
+
+            if (response.isSuccessful) {
+                Resource.Success(response.body() ?: emptyList())
+            } else {
+                Resource.Error(
+                    context.getString(R.string.failed_to_filter_glasses, response.message()),
+                    createPlaceholderGlasses(6)
+                )
+            }
+        } catch (e: Exception) {
+            println("Filter Exception: ${e.message}")
+            Resource.Error(
+                e.message ?: context.getString(R.string.an_error_occurred),
+                createPlaceholderGlasses(6)
+            )
+        }
+    }
+
+    private fun createPlaceholderGlasses(count: Int): List<Glasses> {
+        return List(count) { index ->
             Glasses(
                 id = "placeholder_$index",
                 name = "Loading...",
                 price = 0.0,
                 stock = 0,
-                images = emptyList(),
+                images = listOf(R.drawable.eye_glasses.toString()),
                 shape = "",
                 weight = 0.0,
                 size = "",
                 material = "",
                 type = "",
                 gender = "",
-                colors = emptyList(),
+                colors = listOf("#000000"),
                 createdAt = "",
                 numberOfRatings = 0,
                 rate = 0.0,
                 reviews = emptyList(),
-                numberOfSells = 0
+                numberOfSells = 0,
+                isFavorite = false
             )
         }
     }

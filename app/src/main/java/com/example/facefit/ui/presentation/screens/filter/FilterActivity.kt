@@ -32,7 +32,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,10 +45,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.facefit.R
+import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 
 class FilterActivity : ComponentActivity() {
@@ -58,14 +62,27 @@ class FilterActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FaceFitTheme {
-                FilterScreenOverlay(onDismiss = { finish() })
+                FilterScreenOverlay(
+                    onDismiss = { finish() },
+                    onApply = { gender, type, minPrice, maxPrice, shape, material -> }
+                )
             }
         }
     }
 }
 
 @Composable
-fun FilterScreenOverlay(onDismiss: () -> Unit) {
+fun FilterScreenOverlay(
+    onDismiss: () -> Unit,
+    onApply: (
+        gender: String?,
+        type: String?,
+        minPrice: Double?,
+        maxPrice: Double?,
+        shape: String?,
+        material: String?
+    ) -> Unit
+) {
     var showFilter by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { showFilter = true }
@@ -90,18 +107,39 @@ fun FilterScreenOverlay(onDismiss: () -> Unit) {
                     .width(300.dp)
                     .background(Color.White)
             ) {
-                FilterScreen(onClose = { showFilter = false; onDismiss() })
+                FilterScreen(
+                    onClose = { showFilter = false; onDismiss() },
+                    onApply = { gender, type, minPrice, maxPrice, shape, material ->
+                        onApply(gender, type, minPrice, maxPrice, shape, material)
+                        showFilter = false
+                        onDismiss()
+                    }
+                )
             }
         }
     }
 }
 
 @Composable
-fun FilterScreen(onClose: () -> Unit = {}, onApply: () -> Unit = {}) {
+fun FilterScreen(
+    onClose: () -> Unit = {},
+    onApply: (
+        gender: String?,
+        type: String?,
+        minPrice: Double?,
+        maxPrice: Double?,
+        shape: String?,
+        material: String?
+    ) -> Unit = { _, _, _, _, _, _ -> }
+) {
     val backgroundColor = Color(0xFFF5F5F5)
-    val primaryColor = Color(0xFF0000CC)
-    val selectedColor = Color(0xFFB794F6)
     val scrollState = rememberScrollState()
+
+    var selectedGender by remember { mutableStateOf<String?>(null) }
+    var selectedType by remember { mutableStateOf<String?>(null) }
+    var selectedPriceRange by remember { mutableStateOf<Pair<Double?, Double?>?>(null) }
+    var selectedShape by remember { mutableStateOf<String?>(null) }
+    var selectedMaterial by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -111,9 +149,159 @@ fun FilterScreen(onClose: () -> Unit = {}, onApply: () -> Unit = {}) {
             .verticalScroll(scrollState)
     ) {
         Header(onClose)
-        FilterContent(selectedColor)
+
+        FilterCategory(stringResource(R.string.gender)) {
+            FilterRow(
+                items = listOf(
+                    stringResource(R.string.men) to "Men",
+                    stringResource(R.string.women) to "Women"
+                ),
+                selectedItem = selectedGender,
+                onItemSelected = { gender ->
+                    selectedGender = if (selectedGender == gender) null else gender
+                }
+            )
+        }
+
+        FilterCategory(stringResource(R.string.type)) {
+            FilterRow(
+                items = listOf(
+                    stringResource(R.string.eyeglasses) to "eyeglasses",
+                    stringResource(R.string.sunglasses) to "sunglasses"
+                ),
+                selectedItem = selectedType,
+                onItemSelected = { type ->
+                    selectedType = if (selectedType == type) null else type
+                }
+            )
+        }
+
+        FilterCategory(stringResource(R.string.price)) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = stringResource(R.string.price_filter_maintenance),
+                    color = Color(0xFFFF8800),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Text(
+                    text = stringResource(R.string.price_filter_coming_soon),
+                    color = Color.Gray,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                var isPriceFilterDisabled by remember { mutableStateOf(true) }
+
+                AnimatedVisibility(visible = !isPriceFilterDisabled) {
+                    Column {
+                        val priceRanges = listOf(
+                            stringResource(R.string.price_under_100) to (null to 100.0),
+                            stringResource(R.string.price_100_300) to (100.0 to 300.0),
+                            stringResource(R.string.price_300_500) to (300.0 to 500.0),
+                            stringResource(R.string.price_500_800) to (500.0 to 800.0),
+                            stringResource(R.string.price_800_plus) to (800.0 to null)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            priceRanges.take(3).forEach { (label, range) ->
+                                PriceButton(
+                                    text = label,
+                                    selected = selectedPriceRange == range && !isPriceFilterDisabled,
+                                    onClick = {
+                                        if (!isPriceFilterDisabled) {
+                                            selectedPriceRange = if (selectedPriceRange == range) null else range
+                                        }
+                                    },
+                                    enabled = !isPriceFilterDisabled,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            priceRanges.drop(3).forEach { (label, range) ->
+                                PriceButton(
+                                    text = label,
+                                    selected = selectedPriceRange == range && !isPriceFilterDisabled,
+                                    onClick = {
+                                        if (!isPriceFilterDisabled) {
+                                            selectedPriceRange = if (selectedPriceRange == range) null else range
+                                        }
+                                    },
+                                    enabled = !isPriceFilterDisabled,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+
+                            if (priceRanges.size % 2 != 0) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        FilterCategory(stringResource(R.string.shape)) {
+            FilterRow(
+                items = listOf(
+                    stringResource(R.string.rounded) to "Round",
+                    stringResource(R.string.square) to "Square"
+                ),
+                selectedItem = selectedShape,
+                onItemSelected = { shape ->
+                    selectedShape = if (selectedShape == shape) null else shape
+                }
+            )
+        }
+
+        FilterCategory(stringResource(R.string.material)) {
+            FilterRow(
+                items = listOf(
+                    stringResource(R.string.plastic) to "Plastic",
+                    stringResource(R.string.metal) to "Metal"
+                ),
+                selectedItem = selectedMaterial,
+                onItemSelected = { material ->
+                    selectedMaterial = if (selectedMaterial == material) null else material
+                }
+            )
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
-        BottomButtons(onClose, onApply, primaryColor)
+
+        Button(
+            onClick = {
+                onApply(
+                    selectedGender,
+                    selectedType,
+                    null,
+                    null,
+                    selectedShape,
+                    selectedMaterial
+                )
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Blue1),
+            shape = RoundedCornerShape(24.dp)
+        ) {
+            Text(stringResource(R.string.apply_filters))
+        }
     }
 }
 
@@ -126,11 +314,11 @@ fun Header(onClose: () -> Unit) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(text = "Filter", fontSize = 20.sp, fontWeight = FontWeight.Medium)
+        Text(text = stringResource(R.string.filter), fontSize = 20.sp, fontWeight = FontWeight.Medium)
         IconButton(onClick = { onClose() }, modifier = Modifier.size(24.dp)) {
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Close",
+                contentDescription = stringResource(R.string.close),
                 modifier = Modifier.size(16.dp)
             )
         }
@@ -138,96 +326,36 @@ fun Header(onClose: () -> Unit) {
 }
 
 @Composable
-fun FilterContent(selectedColor: Color) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        FilterCategory("Gender") {
-            FilterRow(listOf("Men" to true, "Women" to false))
-        }
-        FilterCategory("Type") {
-            FilterRow(
-                listOf("Full rim" to true, "Semi-rimless" to false, "Rimless" to false),
-                selectedColor
-            )
-        }
-        FilterCategory("Lens Type") {
-            FilterRow(
-                listOf(
-                    "Single Vision" to false,
-                    "Single Vision" to true,
-                    "Single Vision" to false
-                ), selectedColor
-            )
-        }
-        FilterCategory("Size") {
-            FilterRow(
-                listOf(
-                    "Narrow\n<111mm" to false,
-                    "Narrow\n<111mm" to false,
-                    "Narrow\n<111mm" to false
+fun FilterRow(
+    items: List<Pair<String, String>>,
+    selectedItem: String?,
+    onItemSelected: (String) -> Unit
+) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items.forEach { (displayText, value) ->
+            val isSelected = value == selectedItem
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(34.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (isSelected) Blue1 else Color.White)
+                    .clickable {
+                        onItemSelected(value)
+                    }
+                    .border(1.dp, if (isSelected) Blue1 else Color.LightGray, RoundedCornerShape(8.dp))
+                    .padding(4.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = displayText,
+                    fontSize = 14.sp,
+                    color = if (isSelected) Color.White else Color.Black,
+                    textAlign = TextAlign.Center
                 )
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            FilterRow(listOf("Narrow\n<111mm" to false))
+            }
         }
-        FilterCategory("Price") {
-            FilterRow(listOf("0-333" to false, "0-333" to false, "0-333" to false))
-            Spacer(modifier = Modifier.height(8.dp))
-            FilterRow(listOf("0-333" to false, "0-333" to false, "0-333" to false))
-        }
-        FilterCategory("Shape") {
-            ShapeRow(listOf("Rectangle" to false, "Rectangle" to false, "Rectangle" to false))
-            Spacer(modifier = Modifier.height(8.dp))
-            ShapeRow(listOf("Rectangle" to false))
-        }
-        FilterCategory("Material") {
-            FilterRow(listOf("Plastic" to false, "Metal" to false, "Plastic" to false))
-            Spacer(modifier = Modifier.height(8.dp))
-            FilterRow(listOf("Metal" to false, "Metal" to false, "Metal" to false))
-        }
-    }
-}
-
-@Composable
-fun FilterRow(items: List<Pair<String, Boolean>>, borderColor: Color? = null) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items.forEach { (text, isSelected) ->
-            FilterChip(
-                text = text,
-                isSelected = isSelected,
-                borderColor = borderColor,
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-fun ShapeRow(items: List<Pair<String, Boolean>>) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        items.forEach { (text, isSelected) ->
-            GlassesShapeChip(text = text, isSelected = isSelected, modifier = Modifier.weight(1f))
-        }
-    }
-}
-
-@Composable
-fun BottomButtons(onClose: () -> Unit, onApply: () -> Unit, primaryColor: Color) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedButton(
-            onClick = { onClose() },
-            modifier = Modifier
-                .weight(1f)
-                .height(48.dp),
-            shape = RoundedCornerShape(24.dp)
-        ) { Text("Clear") }
-        Button(
-            onClick = { onApply() },
-            modifier = Modifier
-                .weight(1f)
-                .height(48.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
-            shape = RoundedCornerShape(24.dp)
-        ) { Text("Apply") }
     }
 }
 
@@ -247,61 +375,48 @@ fun FilterCategory(title: String, content: @Composable () -> Unit) {
 }
 
 @Composable
-fun FilterChip(
+fun PriceButton(
     text: String,
-    isSelected: Boolean,
-    borderColor: Color? = null,
+    selected: Boolean,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
-    var selected by remember { mutableStateOf(isSelected) }
-    val backgroundColor = if (selected) Color.White else Color(0xFFE8E8E8)
-    val borderModifier =
-        borderColor?.let { Modifier.border(1.dp, it, RoundedCornerShape(8.dp)) } ?: Modifier
-
     Box(
         modifier = modifier
-            .then(borderModifier)
-            .height(34.dp)
+            .height(36.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(backgroundColor)
-            .clickable { selected = !selected }
-            .padding(4.dp),
+            .background(
+                when {
+                    !enabled -> Color.LightGray.copy(alpha = 0.5f)
+                    selected -> Blue1
+                    else -> Color.White
+                }
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .border(
+                1.dp,
+                when {
+                    !enabled -> Color.Gray.copy(alpha = 0.3f)
+                    selected -> Blue1
+                    else -> Color.LightGray
+                },
+                RoundedCornerShape(8.dp)
+            )
+            .padding(horizontal = 4.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            fontSize = 14.sp,
-            color = Color.Black,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-        )
-    }
-}
-
-@Composable
-fun GlassesShapeChip(text: String, isSelected: Boolean, modifier: Modifier = Modifier) {
-    var selected by remember { mutableStateOf(isSelected) }
-    val backgroundColor = if (selected) Color.White else Color(0xFFE8E8E8)
-
-    Column(
-        modifier = modifier
-            .height(60.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(backgroundColor)
-            .clickable { selected = !selected }
-            .padding(4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Box(modifier = Modifier
-            .size(24.dp)
-            .clip(RoundedCornerShape(4.dp))
-            .background(Color.Black))
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = text,
             fontSize = 12.sp,
-            color = Color.Black,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            color = when {
+                !enabled -> Color.Gray
+                selected -> Color.White
+                else -> Color.Black
+            },
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -309,5 +424,7 @@ fun GlassesShapeChip(text: String, isSelected: Boolean, modifier: Modifier = Mod
 @Preview(showBackground = true)
 @Composable
 fun FilterScreenPreview() {
-    FaceFitTheme { FilterScreenOverlay(onDismiss = {}) }
+    FaceFitTheme {
+
+    }
 }
