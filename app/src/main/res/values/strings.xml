@@ -37,7 +37,7 @@
     <string name="metal">Metal</string>
     
     <!-- Price ranges -->
-    <string name="price_under_100">Under EGP 100</string>
+    <string name="price_under_100">&lt; 100 EGP</string>
     <string name="price_100_300">EGP 100-300</string>
     <string name="price_300_500">EGP 300-500</string>
     <string name="price_500_800">EGP 500-800</string>
@@ -57,7 +57,9 @@
     <string name="current_filters">Current filters:</string>
     <string name="filter_gender">Gender=%s</string>
     <string name="filter_type">Type=%s</string>
-    <string name="filter_price">Price=%d-%d</string>
+    <string name="filter_price">Price: %s - %s</string>
+    <string name="min_price_default">Min Price</string>
+    <string name="max_price_default">Max Price</string>"
     
     <!-- Sort options -->
     <string name="default_sort">Default</string>

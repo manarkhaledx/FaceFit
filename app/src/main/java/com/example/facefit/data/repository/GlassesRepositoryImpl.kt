@@ -1,5 +1,6 @@
 package com.example.facefit.data.repository
 
+import android.annotation.SuppressLint
 import android.content.Context
 import com.example.facefit.R
 import com.example.facefit.data.remote.ApiService
@@ -52,6 +53,7 @@ class GlassesRepositoryImpl @Inject constructor(
         }
     }
 
+    @SuppressLint("StringFormatInvalid")
     override suspend fun filterGlasses(
         type: String?,
         gender: String?,
@@ -64,12 +66,16 @@ class GlassesRepositoryImpl @Inject constructor(
         return try {
             println("Repository - Filtering with minPrice: $minPrice, maxPrice: $maxPrice")
 
+            // Create price range map according to backend expectations
+            val priceRange = mutableMapOf<String, String>()
+            minPrice?.let { priceRange["price[gte]"] = it.toString() }
+            maxPrice?.let { priceRange["price[lte]"] = it.toString() }
+
             val response = apiService.filterGlasses(
                 type = type,
                 gender = gender,
-                size = null, // Always null since we don't want to filter by size
-                minPrice = minPrice,
-                maxPrice = maxPrice,
+                size = null,
+                priceRange = if (priceRange.isNotEmpty()) priceRange else null,
                 shape = shape,
                 material = material,
                 sort = sort

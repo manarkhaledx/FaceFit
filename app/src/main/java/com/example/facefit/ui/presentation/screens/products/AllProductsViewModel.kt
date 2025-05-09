@@ -134,7 +134,13 @@ class AllProductsViewModel @Inject constructor(
         sort: String? = null
     ) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    priceRangeMin = minPrice,
+                    priceRangeMax = maxPrice
+                )
+            }
 
             println("Filtering with price range: $minPrice - $maxPrice")
 
@@ -196,6 +202,6 @@ data class AllProductsUiState(
     val selectedGender: String? = null,
     val selectedSort: String = AllProductsViewModel.SORT_DEFAULT,
     val selectedTab: Int = 0,
-    val priceRangeMin: Int? = null,
-    val priceRangeMax: Int? = null
+    val priceRangeMin: Double? = null,
+    val priceRangeMax: Double? = null
 )

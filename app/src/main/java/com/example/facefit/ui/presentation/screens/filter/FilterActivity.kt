@@ -178,22 +178,7 @@ fun FilterScreen(
 
         FilterCategory(stringResource(R.string.price)) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = stringResource(R.string.price_filter_maintenance),
-                    color = Color(0xFFFF8800),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                Text(
-                    text = stringResource(R.string.price_filter_coming_soon),
-                    color = Color.Gray,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
-
-                var isPriceFilterDisabled by remember { mutableStateOf(true) }
+                var isPriceFilterDisabled by remember { mutableStateOf(false) }
 
                 AnimatedVisibility(visible = !isPriceFilterDisabled) {
                     Column {
@@ -288,8 +273,8 @@ fun FilterScreen(
                 onApply(
                     selectedGender,
                     selectedType,
-                    null,
-                    null,
+                    selectedPriceRange?.first,
+                    selectedPriceRange?.second,
                     selectedShape,
                     selectedMaterial
                 )
@@ -415,8 +400,7 @@ fun PriceButton(
                 else -> Color.Black
             },
             textAlign = TextAlign.Center,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            maxLines = 1
         )
     }
 }

@@ -11,6 +11,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Query
+import retrofit2.http.QueryMap
 
 interface ApiService {
     @POST(Constants.SIGNUP_ENDPOINT)
@@ -32,9 +33,8 @@ interface ApiService {
     suspend fun filterGlasses(
         @Query("type") type: String? = null,
         @Query("gender") gender: String? = null,
-        @Query("size") size: String? = null, // Keep this for API compatibility
-        @Query("minPrice") minPrice: Double? = null,
-        @Query("maxPrice") maxPrice: Double? = null,
+        @Query("size") size: String? = null,
+        @QueryMap priceRange: Map<String, String>? = null,
         @Query("shape") shape: String? = null,
         @Query("material") material: String? = null,
         @Query("sort") sort: String? = null

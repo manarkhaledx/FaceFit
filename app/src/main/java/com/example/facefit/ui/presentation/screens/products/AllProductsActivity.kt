@@ -130,7 +130,7 @@ fun AllProducts(
     val selectedTab = uiState.selectedTab
     
     LaunchedEffect(Unit) {
-
+        viewModel.loadAllProducts()
     }
 
     Scaffold(bottomBar = { AppBottomNavigation() }) { paddingValues ->
@@ -204,20 +204,6 @@ fun AllProducts(
                         Text(
                             text = stringResource(R.string.no_products_found),
                             style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = stringResource(R.string.current_filters) + " " +
-                                   (if (uiState.selectedGender != null) String.format(stringResource(R.string.filter_gender), uiState.selectedGender) + ", " else "") +
-                                   (if (uiState.selectedType != null) String.format(stringResource(R.string.filter_type), uiState.selectedType) + ", " else "") +
-                                   (if (uiState.priceRangeMin != null || uiState.priceRangeMax != null)
-                                       String.format(stringResource(R.string.filter_price), uiState.priceRangeMin ?: 0, uiState.priceRangeMax ?: 1000)
-                                   else ""),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray,
                             textAlign = TextAlign.Center
                         )
 
