@@ -177,14 +177,14 @@ fun ProductDetailScreen(
                             .fillMaxWidth()
                             .height(200.dp)
                     ) {
-Image(
-    painter = painterResource(id = R.drawable.eye_glasses),
-    contentDescription = "Product Image",
-    modifier = Modifier
-        .fillMaxSize()
-        .clip(RoundedCornerShape(8.dp)),
-    contentScale = ContentScale.Crop
-)
+                        Image(
+                            painter = painterResource(id = R.drawable.eye_glasses),
+                            contentDescription = "Product Image",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
                         Button(
                             onClick = { /* Handle AR try-on */ },
                             modifier = Modifier
@@ -544,4 +544,3 @@ fun ProductBottomNavBar(onTryOnClick: () -> Unit, onSelectLensesClick: () -> Uni
         }
     }
 }
-

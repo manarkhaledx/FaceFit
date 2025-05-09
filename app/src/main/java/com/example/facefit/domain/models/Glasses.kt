@@ -15,7 +15,6 @@ data class Glasses(
     val colors: List<String> = listOf("#000000"),
     val numberOfRatings: Int = 0,
     val rate: Double = 0.0,
-    // TODO(): List<Review>
     val reviews: List<String> = emptyList(),
     val createdAt: String,
     val numberOfSells: Int = 0,

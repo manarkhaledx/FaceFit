@@ -45,11 +45,13 @@
             android:exported="false"
             android:label="@string/title_activity_favourites"
             android:theme="@style/Theme.FaceFit" />
-        <activity
-            android:name=".ui.presentation.screens.products.ProductDetailsActivity"
-            android:exported="false"
-            android:label="@string/title_activity_product_details"
-            android:theme="@style/Theme.FaceFit" />
+<!--        <activity-->
+<!--            android:name=".ui.presentation.screens.products.ProductDetailsActivity"-->
+<!--            android:exported="true"-->
+<!--            android:label="@string/title_activity_product_details"-->
+<!--            android:theme="@style/Theme.FaceFit">-->
+
+<!--        </activity>-->
         <activity
             android:name=".ui.presentation.screens.products.AllProductsActivity"
             android:exported="true"
