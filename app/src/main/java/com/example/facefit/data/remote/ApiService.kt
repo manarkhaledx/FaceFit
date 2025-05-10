@@ -34,7 +34,7 @@ interface ApiService {
         @Query("type") type: String? = null,
         @Query("gender") gender: String? = null,
         @Query("size") size: String? = null,
-        @QueryMap priceRange: Map<String, String>? = null,
+        @QueryMap priceRange: Map<String, String> = emptyMap(),
         @Query("shape") shape: String? = null,
         @Query("material") material: String? = null,
         @Query("sort") sort: String? = null

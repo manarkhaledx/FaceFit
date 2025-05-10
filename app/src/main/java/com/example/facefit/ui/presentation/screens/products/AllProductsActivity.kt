@@ -362,7 +362,7 @@ fun GlassesItem(
                     .fillMaxWidth()
                     .aspectRatio(1f)) {
                     val imageModel = when {
-                        isPlaceholder -> R.drawable.placeholder
+                        isPlaceholder -> if (isError) R.drawable.placeholder else R.drawable.eye_glasses
                         glasses.images.isNotEmpty() -> glasses.images.first()
                         else -> R.drawable.eye_glasses
                     }
@@ -410,7 +410,7 @@ fun GlassesItem(
                     },
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
-                    color = if (isPlaceholder) Color.Gray else Color.Black,
+                    color = if (isPlaceholder) if (isError) Color.Red else Color.Gray else Color.Black,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

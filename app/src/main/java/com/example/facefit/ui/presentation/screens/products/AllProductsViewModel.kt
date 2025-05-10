@@ -156,7 +156,7 @@ class AllProductsViewModel @Inject constructor(
                 it.copy(
                     isLoading = true,
                     priceRangeMin = minPrice,
-                    priceRangeMax = maxPrice
+                    priceRangeMax = maxPrice,
                 )
             }
 
@@ -177,8 +177,8 @@ class AllProductsViewModel @Inject constructor(
                             error = null,
                             selectedType = type,
                             selectedGender = gender,
-                            priceRangeMin = minPrice?.toInt(),
-                            priceRangeMax = maxPrice?.toInt()
+                            priceRangeMin = minPrice,
+                            priceRangeMax = maxPrice,
                         )
                     }
                 }

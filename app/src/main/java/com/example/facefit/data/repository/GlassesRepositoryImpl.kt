@@ -64,38 +64,37 @@ class GlassesRepositoryImpl @Inject constructor(
         sort: String?
     ): Resource<List<Glasses>> {
         return try {
-            println("Repository - Filtering with minPrice: $minPrice, maxPrice: $maxPrice")
-
-            // Create price range map according to backend expectations
             val priceRange = mutableMapOf<String, String>()
-            minPrice?.let { priceRange["price[gte]"] = it.toString() }
-            maxPrice?.let { priceRange["price[lte]"] = it.toString() }
+            if (minPrice != null) {
+                priceRange["price[gte]"] = minPrice.toString()
+            }
+            if (maxPrice != null) {
+                priceRange["price[lte]"] = maxPrice.toString()
+            }
 
             val response = apiService.filterGlasses(
                 type = type,
                 gender = gender,
                 size = null,
-                priceRange = if (priceRange.isNotEmpty()) priceRange else null,
+                priceRange = priceRange,
                 shape = shape,
                 material = material,
                 sort = sort
             )
 
-            println("API Response: ${response.code()} - ${response.message()}")
-            println("Received ${response.body()?.size ?: 0} products")
 
             if (response.isSuccessful) {
-                Resource.Success(response.body() ?: emptyList())
+                val products = response.body() ?: emptyList()
+                Resource.Success(products)
             } else {
                 Resource.Error(
-                    context.getString(R.string.failed_to_filter_glasses, response.message()),
+                    "Failed to filter glasses: ${response.message()} (${response.code()})",
                     createPlaceholderGlasses(6)
                 )
             }
         } catch (e: Exception) {
-            println("Filter Exception: ${e.message}")
             Resource.Error(
-                e.message ?: context.getString(R.string.an_error_occurred),
+                "Error: ${e.message ?: "Unknown error"}",
                 createPlaceholderGlasses(6)
             )
         }
