@@ -59,6 +59,7 @@ import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.components.cards.ProductCard
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 import com.example.facefit.ui.presentation.screens.products.AllProductsActivity
+import com.example.facefit.ui.presentation.screens.products.ProductDetailsActivity
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -119,7 +120,15 @@ fun EyewearScreen(
                 is Resource.Success -> {
                     ProductSection(
                         title = stringResource(R.string.best_seller),
-                        products = result.data?.map { it.toProduct() } ?: emptyList()
+                        products = result.data?.map { it.toProduct() } ?: emptyList(),
+                        onProductClick = { product ->
+                            activity?.let {
+                                val intent = Intent(it, ProductDetailsActivity::class.java).apply {
+                                    putExtra("productId", product.id) // You'll need to add id to Product class
+                                }
+                                it.startActivity(intent)
+                            }
+                        }
                     )
                 }
 
@@ -148,7 +157,15 @@ fun EyewearScreen(
                 is Resource.Success -> {
                     ProductSection(
                         title = stringResource(R.string.new_arrivals),
-                        products = result.data?.map { it.toProduct() } ?: emptyList()
+                        products = result.data?.map { it.toProduct() } ?: emptyList(),
+                        onProductClick = { product ->
+                            activity?.let {
+                                val intent = Intent(it, ProductDetailsActivity::class.java).apply {
+                                    putExtra("productId", product.id) // You'll need to add id to Product class
+                                }
+                                it.startActivity(intent)
+                            }
+                        }
                     )
                 }
 
@@ -233,7 +250,7 @@ fun CameraButton() {
 
 @Composable
 fun FeaturedImagesSection() {
-    val images = listOf(R.drawable.img_notfound, R.drawable.img_notfound)
+    val images = listOf(R.drawable.img7, R.drawable.img7)
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(images) { image ->
             Card(
@@ -247,7 +264,7 @@ fun FeaturedImagesSection() {
                     painter = painterResource(id = image),
                     contentDescription = stringResource(R.string.featured_image),
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.FillWidth
                 )
             }
         }
@@ -293,17 +310,27 @@ fun CategorySection(
 }
 
 @Composable
-fun ProductSection(title: String, products: List<Product>) {
+fun ProductSection(
+    title: String,
+    products: List<Product>,
+    onProductClick: (Product) -> Unit = {}  // Add this parameter
+) {
     Column {
         Text(title, style = MaterialTheme.typography.titleLarge)
         Spacer(modifier = Modifier.height(8.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            items(products) { product -> ProductCard(product) }
+            items(products) { product ->
+                ProductCard(
+                    product = product,
+                    onClick = { onProductClick(product) }  // Pass the click handler
+                )
+            }
         }
     }
 }
 
 data class Product(
+    val id: String,  // Add this field
     val name: String,
     val price: String,
     val imageUrl: String? = null,
@@ -313,6 +340,7 @@ data class Product(
 fun Glasses.toProduct(): Product {
     val isPlaceholder = id?.startsWith("placeholder_") ?: false
     return Product(
+        id = this.id,
         name = if (isPlaceholder) "Loading..." else this.name,
         price = if (isPlaceholder) "---" else "EGP ${this.price}",
         imageUrl = this.images.firstOrNull(),

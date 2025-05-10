@@ -31,6 +31,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +40,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +52,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -57,7 +60,11 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.rememberAsyncImagePainter
 import com.example.facefit.R
+import com.example.facefit.domain.models.Glasses
 import com.example.facefit.ui.presentation.screens.prescription.PrescriptionLensActivity
 import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
@@ -65,19 +72,36 @@ import com.example.facefit.ui.theme.FaceFitTheme
 import com.example.facefit.ui.theme.Gray100
 import com.example.facefit.ui.theme.Gray200
 import com.example.facefit.ui.theme.LavenderBlue
+import com.example.facefit.ui.utils.Constants
+import dagger.hilt.android.AndroidEntryPoint
 
+// Update ProductDetailsActivity.kt
+@AndroidEntryPoint
 class ProductDetailsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
+            val productId = intent.getStringExtra("productId") ?: ""
+            val viewModel: ProductDetailsViewModel = hiltViewModel()
+
+            LaunchedEffect(productId) {
+                viewModel.loadProductDetails(productId)
+            }
+
             FaceFitTheme {
+                val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
                 ProductDetailScreen(
+                    glasses = uiState.glasses,
+                    isLoading = uiState.isLoading,
+                    error = uiState.error,
                     onBackClick = { finish() },
                     onNavigateToLenses = {
                         val intent = Intent(this, PrescriptionLensActivity::class.java)
                         startActivity(intent)
-                    }
+                    },
+                    onFavoriteClick = { viewModel.toggleFavorite() }
                 )
             }
         }
@@ -87,19 +111,44 @@ class ProductDetailsActivity : ComponentActivity() {
 @Composable
 fun ProductDetailPreview() {
     FaceFitTheme {
-        ProductDetailScreen(
-            onBackClick = { /* Handle back click */ },
-            onNavigateToLenses = { /* Handle navigate to lenses */ }
-        )
+//        ProductDetailScreen(
+//            onBackClick = { /* Handle back click */ },
+//            onNavigateToLenses = { /* Handle navigate to lenses */ }
+//        )
     }
 }
 
 @Composable
 fun ProductDetailScreen(
+    glasses: Glasses?,
+    isLoading: Boolean,
+    error: String?,
     onBackClick: () -> Unit,
     onNavigateToLenses: () -> Unit,
+    onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    if (error != null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(text = error, color = MaterialTheme.colorScheme.error)
+        }
+        return
+    }
+
+    if (glasses == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Product not found")
+        }
+        return
+    }
+
     Scaffold(
         bottomBar = {
             ProductBottomNavBar(
@@ -112,7 +161,7 @@ fun ProductDetailScreen(
             modifier = modifier
                 .fillMaxSize()
                 .background(Gray100)
-                .padding(paddingValues) // Ensure content is not overlapped by the bottom bar
+                .padding(paddingValues)
         ) {
             // Header Section
             Row(
@@ -131,7 +180,7 @@ fun ProductDetailScreen(
                 }
 
                 Text(
-                    text = "Round Glasses",
+                    text = glasses.name,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
@@ -152,11 +201,10 @@ fun ProductDetailScreen(
                     )
                 }
 
-                var isFavorite by remember { mutableStateOf(false) }
-                IconButton(onClick = { isFavorite = !isFavorite }) {
+                IconButton(onClick = onFavoriteClick) {
                     Icon(
                         painter = painterResource(
-                            id = if (isFavorite) R.drawable.heart_filled else R.drawable.heart
+                            id = if (glasses.isFavorite) R.drawable.heart_filled else R.drawable.heart
                         ),
                         contentDescription = "Favorite",
                         tint = Blue1,
@@ -164,7 +212,6 @@ fun ProductDetailScreen(
                     )
                 }
             }
-
 
             // Main Content
             LazyColumn(
@@ -176,13 +223,23 @@ fun ProductDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(200.dp)
+                            .clip(RoundedCornerShape(8.dp))
                     ) {
+                        val imageModel = remember(glasses.images) {
+                            if (glasses.images.isNotEmpty()) {
+                                "${Constants.EMULATOR_URL}/${glasses.images.first()}"
+                            } else {
+                                R.drawable.placeholder
+                            }
+                        }
                         Image(
-                            painter = painterResource(id = R.drawable.eye_glasses),
+                            painter = rememberAsyncImagePainter(
+                                model = imageModel,
+                                error = painterResource(R.drawable.placeholder),
+                                placeholder = painterResource(R.drawable.placeholder)
+                            ),
                             contentDescription = "Product Image",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clip(RoundedCornerShape(8.dp)),
+                            modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
                         Button(
@@ -214,12 +271,12 @@ fun ProductDetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            "Round Glasses",
+                            glasses.name,
                             style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "EGP 150",
+                            text = stringResource(R.string.currency_format).format(glasses.price),
                             style = TextStyle(
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight(600),
@@ -229,18 +286,29 @@ fun ProductDetailScreen(
                         )
                     }
 
-                    Text("#54321")
+                    //Text("#${glasses.id}")
                 }
 
-                val colors = listOf(Color.Yellow, Color.Blue, Color.Green, Color.Black)
-                val labels = listOf("Yellow", "Blue", "Green", "Black")
-
                 item {
+                    var selectedColorIndex by remember { mutableIntStateOf(0) }
                     Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(24.dp)
-                        ) {
-                            ColorOptionsSection(colors = colors, labels = labels)
+                        if (glasses.colors.isNotEmpty()) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(24.dp)
+                            ) {
+                                glasses.colors.take(4).forEachIndexed { index, colorString ->
+                                    val color = Color(android.graphics.Color.parseColor(colorString))
+                                    ColorOptionWithLabel(
+                                        color = color,
+                                        label = colorString,
+                                        isSelected = index == selectedColorIndex,
+                                        onClick = {
+                                            selectedColorIndex = index
+                                        }
+                                    )
+                                }
+                            }
+
                         }
                     }
                 }
@@ -260,16 +328,16 @@ fun ProductDetailScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Spacer(Modifier.height(8.dp))
-                            SpecificationRow("Shape", "Rounded")
-                            SpecificationRow("Size", "Medium 11-11-11")
-                            SpecificationRow("Weight", "20.3 gm")
-                            SpecificationRow("Material", "Plastic")
+                            SpecificationRow("Shape", glasses.shape)
+                            SpecificationRow("Size", glasses.size)
+                            SpecificationRow("Weight", "${glasses.weight} gm")
+                            SpecificationRow("Material", glasses.material)
                         }
                     }
                 }
 
                 item {
-                    ReviewsSection(11)
+                    ReviewsSection(glasses.numberOfRatings)
                 }
 
                 item {
@@ -280,18 +348,6 @@ fun ProductDetailScreen(
                             color = Black,
                         )
                     )
-                }
-
-                item {
-                    LazyRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-//                        items(4) {
-//                            GlassesItem(onClick = { /* Handle item click */ })
-//                        }
-                    }
                 }
             }
         }

@@ -1,6 +1,9 @@
 package com.example.facefit.domain.models
 
+import com.google.gson.annotations.SerializedName
+
 data class Glasses(
+    @SerializedName("_id")
     val id: String,
     val name: String,
     val price: Double,

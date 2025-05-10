@@ -16,4 +16,6 @@ interface GlassesRepository {
         material: String? = null,
         sort: String? = null
     ): Resource<List<Glasses>>
+
+    suspend fun getGlassesById(id: String): Resource<Glasses>
 }

@@ -2,6 +2,7 @@ package com.example.facefit.ui.presentation.screens.products
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -70,6 +71,7 @@ import com.example.facefit.ui.theme.FaceFitTheme
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.MaterialTheme
+import com.example.facefit.ui.utils.Constants
 
 @AndroidEntryPoint
 class AllProductsActivity : ComponentActivity() {
@@ -234,7 +236,7 @@ fun AllProducts(
                         items(uiState.products) { glasses ->
                             GlassesItem(
                                 glasses = glasses,
-                                onClick = { onClick(glasses.id) },
+                                onClick = { id -> onClick(id) },
                                 onFavoriteClick = { viewModel.toggleFavorite(glasses.id) },
                                 isError = false
                             )
@@ -343,13 +345,17 @@ fun FilterTabs(selectedTab: Int, onTabSelected: (Int) -> Unit) {
 @Composable
 fun GlassesItem(
     glasses: Glasses,
-    onClick: () -> Unit,
+    onClick: (String) -> Unit,
     onFavoriteClick: () -> Unit,
     isError: Boolean = false
 ) {
     val isPlaceholder = glasses.id?.startsWith("placeholder_") ?: false
 
-    Box(modifier = Modifier.clickable { if (!isPlaceholder) onClick() }) {
+    Box(modifier = Modifier.clickable {
+        if (!isPlaceholder && glasses.id != null) {
+            onClick(glasses.id)
+        }
+    }) {
         Card(
             modifier = Modifier.width(180.dp),
             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
@@ -363,12 +369,18 @@ fun GlassesItem(
                     .aspectRatio(1f)) {
                     val imageModel = when {
                         isPlaceholder -> if (isError) R.drawable.placeholder else R.drawable.placeholder
-                        glasses.images.isNotEmpty() -> glasses.images.first()
+                        glasses.images.isNotEmpty() -> {
+                            "${Constants.EMULATOR_URL}/${glasses.images.first()}"
+                        }
                         else -> R.drawable.placeholder
                     }
-
+                    //Log.d("ImageModel", "ImageModel value: $imageModel")
                     Image(
-                        painter = rememberAsyncImagePainter(model = imageModel),
+                        painter = rememberAsyncImagePainter(
+                            model = imageModel,
+                            error = painterResource(R.drawable.placeholder),
+                            placeholder = painterResource(R.drawable.placeholder)
+                        ),
                         contentDescription = glasses.name,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit

@@ -8,5 +8,6 @@ object Constants {
     const val NEWARRIVALS_ENDPOINT = "facefit/glasses/newarrivals"
     const val FILTER_GLASSES_ENDPOINT = "facefit/glasses/search"
     const val ALL_GLASSES_ENDPOINT = "facefit/glasses/all"
+    const val SINGLE_GLASSES_ENDPOINT = "facefit/glasses/search"
     const val EMULATOR_URL = "https://3081-41-69-93-207.ngrok-free.app"
 }
