@@ -107,7 +107,7 @@ class GlassesRepositoryImpl @Inject constructor(
                 name = "Loading...",
                 price = 0.0,
                 stock = 0,
-                images = listOf(R.drawable.eye_glasses.toString()),
+                images = listOf(R.drawable.placeholder.toString()),
                 shape = "",
                 weight = 0.0,
                 size = "",
@@ -124,4 +124,23 @@ class GlassesRepositoryImpl @Inject constructor(
             )
         }
     }
+
+    override suspend fun getGlassesById(id: String): Resource<Glasses> {
+        return try {
+            val response = apiService.getGlassesById(id)
+            if (response.isSuccessful) {
+                val glassesList = response.body() ?: emptyList()
+                if (glassesList.isNotEmpty()) {
+                    Resource.Success(glassesList.first())
+                } else {
+                    Resource.Error(context.getString(R.string.product_not_found), createPlaceholderGlasses(1).first())
+                }
+            } else {
+                Resource.Error(context.getString(R.string.failed_to_fetch_product), createPlaceholderGlasses(1).first())
+            }
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: context.getString(R.string.an_error_occurred), createPlaceholderGlasses(1).first())
+        }
+    }
+
 }

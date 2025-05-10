@@ -2,6 +2,7 @@ package com.example.facefit.ui.presentation.components.cards
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -33,16 +34,18 @@ import coil.compose.AsyncImage
 import com.example.facefit.R
 import com.example.facefit.ui.presentation.screens.home.Product
 import com.example.facefit.ui.theme.Blue1
+import com.example.facefit.ui.utils.Constants
 
 @Composable
 fun ProductCard(
     product: Product,
     modifier: Modifier = Modifier,
-    showFavorite: Boolean = true
+    showFavorite: Boolean = true,
+    onClick: () -> Unit = {}
 ) {
     var isFavorite by remember { mutableStateOf(false) }
 
-    Box(modifier = modifier) {
+    Box(modifier = modifier.clickable { onClick() }) {
         Card(
             modifier = Modifier.width(160.dp),
             elevation = if (product.isPlaceholder) CardDefaults.cardElevation(defaultElevation = 0.dp) else CardDefaults.cardElevation(defaultElevation = 6.dp),
@@ -83,7 +86,10 @@ fun ProductCard(
                         }
                     } else {
                         AsyncImage(
-                            model = product.imageUrl ?: R.drawable.placeholder,
+                            model = product.imageUrl?.let {
+                                if (it.isNotEmpty()) "${Constants.EMULATOR_URL}/$it"
+                                else R.drawable.placeholder
+                            } ?: R.drawable.placeholder,
                             contentDescription = product.name,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,

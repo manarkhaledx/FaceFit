@@ -39,4 +39,7 @@ interface ApiService {
         @Query("material") material: String? = null,
         @Query("sort") sort: String? = null
     ): Response<List<Glasses>>
+
+    @GET(Constants.SINGLE_GLASSES_ENDPOINT)
+    suspend fun getGlassesById(@Query("_id") id: String): Response<List<Glasses>>
 }

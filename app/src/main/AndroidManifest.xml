@@ -45,22 +45,18 @@
             android:exported="false"
             android:label="@string/title_activity_favourites"
             android:theme="@style/Theme.FaceFit" />
-<!--        <activity-->
-<!--            android:name=".ui.presentation.screens.products.ProductDetailsActivity"-->
-<!--            android:exported="true"-->
-<!--            android:label="@string/title_activity_product_details"-->
-<!--            android:theme="@style/Theme.FaceFit">-->
-
-<!--        </activity>-->
+        <activity
+            android:name=".ui.presentation.screens.products.ProductDetailsActivity"
+            android:exported="true"
+            android:label="@string/title_activity_product_details"
+            android:theme="@style/Theme.FaceFit">
+        </activity>
         <activity
             android:name=".ui.presentation.screens.products.AllProductsActivity"
             android:exported="true"
             android:label="@string/title_activity_all_products"
             android:theme="@style/Theme.FaceFit">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+
         </activity>
         <activity
             android:name=".ui.presentation.screens.auth.signUp.SignUpPage"
@@ -73,7 +69,10 @@
             android:exported="true"
             android:label="@string/title_activity_login_page"
             android:theme="@style/Theme.FaceFit">
-
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
         <activity
             android:name=".ui.presentation.screens.home.HomePageActivity"

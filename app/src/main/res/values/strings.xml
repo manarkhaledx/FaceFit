@@ -122,4 +122,6 @@
     <string name="category_image">Category Image</string>
 
     <string name="retry">Retry</string>
+    <string name="failed_to_fetch_product">Failed to fetch product</string>
+    <string name="product_not_found">Product not found</string>
 </resources>
