@@ -120,4 +120,6 @@
     <string name="featured_image">Featured Image</string>
     <string name="search_icon">Search Icon</string>
     <string name="category_image">Category Image</string>
+
+    <string name="retry">Retry</string>
 </resources>

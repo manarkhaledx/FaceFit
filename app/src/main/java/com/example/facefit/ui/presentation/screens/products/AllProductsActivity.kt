@@ -135,7 +135,7 @@ fun AllProducts(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedTab = uiState.selectedTab
-    
+
     LaunchedEffect(Unit) {
         viewModel.loadAllProducts()
     }
@@ -347,8 +347,8 @@ fun GlassesItem(
     onFavoriteClick: () -> Unit,
     isError: Boolean = false
 ) {
-    val isPlaceholder = glasses.id?.startsWith("placeholder_") == true
-    
+    val isPlaceholder = glasses.id?.startsWith("placeholder_") ?: false
+
     Box(modifier = Modifier.clickable { if (!isPlaceholder) onClick() }) {
         Card(
             modifier = Modifier.width(180.dp),
@@ -362,11 +362,11 @@ fun GlassesItem(
                     .fillMaxWidth()
                     .aspectRatio(1f)) {
                     val imageModel = when {
-                        isPlaceholder -> if (isError) R.drawable.placeholder else R.drawable.eye_glasses
+                        isPlaceholder -> if (isError) R.drawable.placeholder else R.drawable.placeholder
                         glasses.images.isNotEmpty() -> glasses.images.first()
-                        else -> R.drawable.eye_glasses
+                        else -> R.drawable.placeholder
                     }
-                    
+
                     Image(
                         painter = rememberAsyncImagePainter(model = imageModel),
                         contentDescription = glasses.name,
@@ -374,9 +374,9 @@ fun GlassesItem(
                         contentScale = ContentScale.Fit
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 Button(
                     onClick = { /* Try on functionality */ },
                     modifier = Modifier
@@ -399,9 +399,9 @@ fun GlassesItem(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 Text(
                     text = when {
                         isPlaceholder && isError -> stringResource(R.string.could_not_load)
@@ -414,17 +414,17 @@ fun GlassesItem(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                
+
                 Text(
-                    text = if (isPlaceholder) stringResource(R.string.price_placeholder) 
+                    text = if (isPlaceholder) stringResource(R.string.price_placeholder)
                            else stringResource(R.string.currency_format).format(glasses.price),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (isPlaceholder) Color.Gray else Color.Black
                 )
-                
+
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 if (!isPlaceholder && glasses.colors.isNotEmpty()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -438,7 +438,7 @@ fun GlassesItem(
                 }
             }
         }
-        
+
         if (!isPlaceholder) {
             IconButton(
                 onClick = { onFavoriteClick() },
@@ -450,8 +450,8 @@ fun GlassesItem(
                     painter = painterResource(
                         if (glasses.isFavorite) R.drawable.heart_filled else R.drawable.heart
                     ),
-                    contentDescription = if (glasses.isFavorite) 
-                        stringResource(R.string.desc_unmark_favorite) else 
+                    contentDescription = if (glasses.isFavorite)
+                        stringResource(R.string.desc_unmark_favorite) else
                         stringResource(R.string.desc_mark_favorite),
                     tint = Color.Blue
                 )

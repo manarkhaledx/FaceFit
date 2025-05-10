@@ -6,6 +6,7 @@ import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.repository.GlassesRepository
 import com.example.facefit.domain.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,7 +36,7 @@ class AllProductsViewModel @Inject constructor(
     }
 
     fun loadAllProducts() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { 
                 it.copy(
                     isLoading = true,
@@ -71,7 +72,7 @@ class AllProductsViewModel @Inject constructor(
     }
 
     fun filterByCategory(category: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update {
                 it.copy(isLoading = true)
             }
@@ -89,7 +90,7 @@ class AllProductsViewModel @Inject constructor(
     }
 
     fun sortProducts(sortOption: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { 
                 it.copy(
                     isLoading = true, 
@@ -123,7 +124,7 @@ class AllProductsViewModel @Inject constructor(
     }
     
     fun filterByType(tabIndex: Int) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { 
                 it.copy(
                     isLoading = true,
@@ -151,7 +152,7 @@ class AllProductsViewModel @Inject constructor(
         material: String? = null,
         sort: String? = null
     ) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update {
                 it.copy(
                     isLoading = true,
