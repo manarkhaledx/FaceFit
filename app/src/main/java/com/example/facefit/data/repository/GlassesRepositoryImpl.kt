@@ -143,4 +143,43 @@ class GlassesRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getRecommendedGlasses(
+        currentProductId: String,
+        gender: String,
+        type: String,
+        material: String
+    ): Resource<List<Glasses>> {
+        return try {
+            val response = apiService.filterGlasses(
+                type = type,
+                gender = gender,
+                material = material,
+                size = null,
+                priceRange = emptyMap(),
+                shape = null,
+                sort = null
+            )
+
+            if (response.isSuccessful) {
+                val allMatchingProducts = response.body() ?: emptyList()
+                // Filter out the current product and limit to 4 recommendations
+                val recommendations = allMatchingProducts
+                    .filter { it.id != currentProductId }
+                    .take(6)
+                Resource.Success(recommendations)
+            } else {
+                Resource.Error(
+                    "Failed to get recommendations: ${response.message()}",
+                    createPlaceholderGlasses(6)
+                )
+            }
+        } catch (e: Exception) {
+            Resource.Error(
+                "Error: ${e.message ?: "Unknown error"}",
+                createPlaceholderGlasses(6)
+            )
+        }
+    }
+
+
 }

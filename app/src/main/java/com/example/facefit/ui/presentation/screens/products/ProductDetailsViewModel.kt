@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.repository.GlassesRepository
 import com.example.facefit.domain.utils.Resource
+import com.example.facefit.ui.presentation.components.ProductItem
+import com.example.facefit.ui.presentation.components.toProductItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +23,9 @@ class ProductDetailsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ProductDetailsUiState())
     val uiState: StateFlow<ProductDetailsUiState> = _uiState.asStateFlow()
 
+    private val _recommendations = MutableStateFlow<List<ProductItem>>(emptyList())
+    val recommendations: StateFlow<List<ProductItem>> = _recommendations.asStateFlow()
+
     fun loadProductDetails(productId: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
@@ -34,6 +39,10 @@ class ProductDetailsViewModel @Inject constructor(
                             error = null
                         )
                     }
+                    // Load recommendations after product is loaded
+                    result.data?.let { glasses ->
+                        loadRecommendations(productId, glasses.gender, glasses.type, glasses.material)
+                    }
                 }
                 is Resource.Error -> {
                     _uiState.update {
@@ -44,12 +53,24 @@ class ProductDetailsViewModel @Inject constructor(
                         )
                     }
                 }
-
                 is Resource.Loading -> TODO()
             }
         }
     }
 
+    private fun loadRecommendations(productId: String, gender: String, type: String, material: String) {
+        viewModelScope.launch {
+            when (val result = repository.getRecommendedGlasses(productId, gender, type, material)) {
+                is Resource.Success -> {
+                    _recommendations.value = result.data?.map { it.toProductItem() } ?: emptyList()
+                }
+                is Resource.Error -> {
+                    // Handle error if needed
+                }
+                is Resource.Loading -> TODO()
+            }
+        }
+    }
     fun toggleFavorite() {
         _uiState.update { state ->
             state.glasses?.let { glasses ->

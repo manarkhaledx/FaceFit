@@ -18,4 +18,11 @@ interface GlassesRepository {
     ): Resource<List<Glasses>>
 
     suspend fun getGlassesById(id: String): Resource<Glasses>
+
+    suspend fun getRecommendedGlasses(
+        currentProductId: String,
+        gender: String,
+        type: String,
+        material: String
+    ): Resource<List<Glasses>>
 }

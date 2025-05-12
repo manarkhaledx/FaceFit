@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -57,6 +58,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,6 +67,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
 import com.example.facefit.R
 import com.example.facefit.domain.models.Glasses
+import com.example.facefit.ui.presentation.components.ProductItem
+import com.example.facefit.ui.presentation.components.cards.ProductCard
 import com.example.facefit.ui.presentation.screens.prescription.PrescriptionLensActivity
 import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
@@ -101,12 +105,14 @@ class ProductDetailsActivity : ComponentActivity() {
                         val intent = Intent(this, PrescriptionLensActivity::class.java)
                         startActivity(intent)
                     },
-                    onFavoriteClick = { viewModel.toggleFavorite() }
+                    onFavoriteClick = { viewModel.toggleFavorite() },
+                    activity = this // Pass the activity reference
                 )
             }
         }
     }
 }
+
 @Preview
 @Composable
 fun ProductDetailPreview() {
@@ -126,6 +132,8 @@ fun ProductDetailScreen(
     onBackClick: () -> Unit,
     onNavigateToLenses: () -> Unit,
     onFavoriteClick: () -> Unit,
+    viewModel: ProductDetailsViewModel = hiltViewModel(),
+    activity: ComponentActivity? = null,
     modifier: Modifier = Modifier
 ) {
     if (isLoading) {
@@ -148,7 +156,7 @@ fun ProductDetailScreen(
         }
         return
     }
-
+    val recommendations by viewModel.recommendations.collectAsStateWithLifecycle()
     Scaffold(
         bottomBar = {
             ProductBottomNavBar(
@@ -297,7 +305,8 @@ fun ProductDetailScreen(
                                 horizontalArrangement = Arrangement.spacedBy(24.dp)
                             ) {
                                 glasses.colors.take(4).forEachIndexed { index, colorString ->
-                                    val color = Color(android.graphics.Color.parseColor(colorString))
+                                    val color =
+                                        Color(android.graphics.Color.parseColor(colorString))
                                     ColorOptionWithLabel(
                                         color = color,
                                         label = colorString,
@@ -346,15 +355,111 @@ fun ProductDetailScreen(
                         style = TextStyle(
                             fontSize = 16.sp,
                             color = Black,
-                        )
+                            fontWeight = FontWeight.Bold
+                        ),
+                        modifier = Modifier.padding(vertical = 8.dp)
                     )
+
+                    if (recommendations.isNotEmpty()) {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        ) {
+                            items(recommendations) { recommendedProduct ->
+                                ProductCard(
+                                    productItem = recommendedProduct,
+                                    modifier = Modifier.width(160.dp),
+                                    onClick = {
+                                        activity?.let {
+                                            val intent = Intent(
+                                                it,
+                                                ProductDetailsActivity::class.java
+                                            ).apply {
+                                                putExtra("productId", recommendedProduct.id)
+                                            }
+                                            it.startActivity(intent)
+                                        }
+                                    },
+                                    onFavoriteClick = { isFavorite ->
+                                        // Handle favorite toggle if needed
+                                        // You might want to update this in your ViewModel
+                                    }
+                                )
+                            }
+                        }
+                    } else {
+                        Text(
+                            "No recommendations available",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.Gray,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    }
                 }
             }
         }
     }
 }
+@Composable
+fun RecommendedProductItem(
+    product: ProductItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .width(120.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp)
+            ) {
+                Image(
+                    painter = rememberAsyncImagePainter(
+                        model = product.imageUrl ?: R.drawable.placeholder,
+                        error = painterResource(R.drawable.placeholder),
+                        placeholder = painterResource(R.drawable.placeholder)
+                    ),
+                    contentDescription = "Recommended Product",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
 
+                // Favorite icon
+                if (product.isFavorite) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.heart_filled),
+                        contentDescription = "Favorite",
+                        tint = Blue1,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                            .size(16.dp)
+                    )
+                }
+            }
 
+            Column(modifier = Modifier.padding(8.dp)) {
+                Text(
+                    product.name,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = product.price,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
 
 
 @Composable
@@ -486,6 +591,7 @@ fun ReviewsSection(reviewsCount: Int) {
         }
     }
 }
+
 @Composable
 fun ReviewItem() {
     Card(
