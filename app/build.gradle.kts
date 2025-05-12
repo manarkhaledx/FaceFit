@@ -78,4 +78,11 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.compose.shimmer)
 
+    implementation(libs.accompanist.pager)
+    implementation(libs.accompanist.pager.indicators)
+    implementation(libs.androidx.foundation)
+    implementation(libs.androidx.foundation.layout)
+
+    implementation("io.coil-kt:coil:2.4.0")
+
 }

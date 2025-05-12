@@ -3,11 +3,13 @@ package com.example.facefit.ui.presentation.screens.products
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.facefit.domain.models.Glasses
-import com.example.facefit.domain.repository.GlassesRepository
+import com.example.facefit.domain.usecases.GetGlassesByIdUseCase
+import com.example.facefit.domain.usecases.GetRecommendedGlassesUseCase
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.components.ProductItem
 import com.example.facefit.ui.presentation.components.toProductItem
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,7 +19,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ProductDetailsViewModel @Inject constructor(
-    private val repository: GlassesRepository
+    private val getGlassesByIdUseCase: GetGlassesByIdUseCase,
+    private val getRecommendedGlassesUseCase: GetRecommendedGlassesUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProductDetailsUiState())
@@ -27,10 +30,10 @@ class ProductDetailsViewModel @Inject constructor(
     val recommendations: StateFlow<List<ProductItem>> = _recommendations.asStateFlow()
 
     fun loadProductDetails(productId: String) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isLoading = true) }
 
-            when (val result = repository.getGlassesById(productId)) {
+            when (val result = getGlassesByIdUseCase(productId)) {
                 is Resource.Success -> {
                     _uiState.update {
                         it.copy(
@@ -59,8 +62,8 @@ class ProductDetailsViewModel @Inject constructor(
     }
 
     private fun loadRecommendations(productId: String, gender: String, type: String, material: String) {
-        viewModelScope.launch {
-            when (val result = repository.getRecommendedGlasses(productId, gender, type, material)) {
+        viewModelScope.launch(Dispatchers.IO) {
+            when (val result = getRecommendedGlassesUseCase(productId, gender, type, material)) {
                 is Resource.Success -> {
                     _recommendations.value = result.data?.map { it.toProductItem() } ?: emptyList()
                 }
@@ -71,6 +74,7 @@ class ProductDetailsViewModel @Inject constructor(
             }
         }
     }
+
     fun toggleFavorite() {
         _uiState.update { state ->
             state.glasses?.let { glasses ->

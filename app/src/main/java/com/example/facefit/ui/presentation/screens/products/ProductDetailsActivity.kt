@@ -67,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
 import com.example.facefit.R
 import com.example.facefit.domain.models.Glasses
+import com.example.facefit.ui.presentation.components.ImageCarousel
 import com.example.facefit.ui.presentation.components.ProductItem
 import com.example.facefit.ui.presentation.components.cards.ProductCard
 import com.example.facefit.ui.presentation.screens.prescription.PrescriptionLensActivity
@@ -227,48 +228,11 @@ fun ProductDetailScreen(
                 contentPadding = PaddingValues(16.dp)
             ) {
                 item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                    ) {
-                        val imageModel = remember(glasses.images) {
-                            if (glasses.images.isNotEmpty()) {
-                                "${Constants.EMULATOR_URL}/${glasses.images.first()}"
-                            } else {
-                                R.drawable.placeholder
-                            }
-                        }
-                        Image(
-                            painter = rememberAsyncImagePainter(
-                                model = imageModel,
-                                error = painterResource(R.drawable.placeholder),
-                                placeholder = painterResource(R.drawable.placeholder)
-                            ),
-                            contentDescription = "Product Image",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                        Button(
-                            onClick = { /* Handle AR try-on */ },
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(end = 8.dp, bottom = 16.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = LavenderBlue,
-                                contentColor = Blue1
-                            )
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.camera),
-                                contentDescription = "Camera",
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text("AR Try-On")
-                        }
-                    }
+                    ImageCarousel(
+                        images = glasses.images,
+                        onTryOnClick = { /* Handle AR try-on */ },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
 
                 item {
