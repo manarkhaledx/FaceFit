@@ -1,8 +1,10 @@
 [versions]
+accompanistPager = "0.32.0"
 agp = "8.7.3"
 coilCompose = "2.4.0"
 composeShimmer = "1.0.0"
 converterGson = "2.9.0"
+foundationLayout = "1.8.1"
 jetpack_compose_country_code_picker_emoji = "2.2.7"
 kotlin = "2.0.0"
 coreKtx = "1.15.0"
@@ -21,7 +23,11 @@ hiltNavigationCompose = "1.2.0"
 ksp = "2.0.0-1.0.21"
 
 [libraries]
+accompanist-pager = { module = "com.google.accompanist:accompanist-pager", version.ref = "accompanistPager" }
+accompanist-pager-indicators = { module = "com.google.accompanist:accompanist-pager-indicators", version.ref = "accompanistPager" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "foundationLayout" }
+androidx-foundation-layout = { module = "androidx.compose.foundation:foundation-layout", version.ref = "foundationLayout" }
 androidx-material = { module = "androidx.compose.material:material", version.ref = "material" }
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coilCompose" }
 compose-shimmer = { module = "com.valentinilk.shimmer:compose-shimmer", version.ref = "composeShimmer" }

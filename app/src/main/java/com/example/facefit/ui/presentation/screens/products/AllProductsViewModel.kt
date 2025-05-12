@@ -3,7 +3,10 @@ package com.example.facefit.ui.presentation.screens.products
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.facefit.domain.models.Glasses
-import com.example.facefit.domain.repository.GlassesRepository
+import com.example.facefit.domain.usecases.FilterGlassesUseCase
+import com.example.facefit.domain.usecases.GetAllGlassesUseCase
+import com.example.facefit.domain.usecases.GetBestSellersUseCase
+import com.example.facefit.domain.usecases.GetNewArrivalsUseCase
 import com.example.facefit.domain.utils.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +19,10 @@ import javax.inject.Inject
 
 @HiltViewModel
 class AllProductsViewModel @Inject constructor(
-    private val repository: GlassesRepository
+    private val getAllGlassesUseCase: GetAllGlassesUseCase,
+    private val getBestSellersUseCase: GetBestSellersUseCase,
+    private val getNewArrivalsUseCase: GetNewArrivalsUseCase,
+    private val filterGlassesUseCase: FilterGlassesUseCase
 ) : ViewModel() {
 
     companion object {
@@ -45,7 +51,7 @@ class AllProductsViewModel @Inject constructor(
                 )
             }
             
-            when (val result = repository.getAllGlasses()) {
+            when (val result = getAllGlassesUseCase()) {
                 is Resource.Success -> {
                     _uiState.update {
                         it.copy(
@@ -100,9 +106,9 @@ class AllProductsViewModel @Inject constructor(
             }
             
             val result = when (sortOption) {
-                SORT_BEST_SELLERS -> repository.getBestSellers()
-                SORT_NEW_ARRIVALS -> repository.getNewArrivals()
-                else -> repository.getAllGlasses()
+                SORT_BEST_SELLERS -> getBestSellersUseCase()
+                SORT_NEW_ARRIVALS -> getNewArrivalsUseCase()
+                else -> getAllGlassesUseCase()
             }
             
             _uiState.update {
@@ -161,7 +167,7 @@ class AllProductsViewModel @Inject constructor(
                 )
             }
 
-            when (val result = repository.filterGlasses(
+            when (val result = filterGlassesUseCase(
                 type = type,
                 gender = gender,
                 minPrice = minPrice,
