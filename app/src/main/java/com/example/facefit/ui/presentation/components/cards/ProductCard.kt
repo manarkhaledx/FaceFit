@@ -18,10 +18,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,27 +28,30 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.facefit.R
-import com.example.facefit.ui.presentation.screens.home.Product
+import com.example.facefit.ui.presentation.components.ProductItem
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.utils.Constants
 
 @Composable
 fun ProductCard(
-    product: Product,
+    productItem: ProductItem,
     modifier: Modifier = Modifier,
     showFavorite: Boolean = true,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onFavoriteClick: (Boolean) -> Unit = {}
 ) {
-    var isFavorite by remember { mutableStateOf(false) }
-
     Box(modifier = modifier.clickable { onClick() }) {
         Card(
             modifier = Modifier.width(160.dp),
-            elevation = if (product.isPlaceholder) CardDefaults.cardElevation(defaultElevation = 0.dp) else CardDefaults.cardElevation(defaultElevation = 6.dp),
+            elevation = if (productItem.isPlaceholder)
+                CardDefaults.cardElevation(defaultElevation = 0.dp)
+            else
+                CardDefaults.cardElevation(defaultElevation = 6.dp),
             colors = CardDefaults.cardColors(
-                containerColor = if (product.isPlaceholder)
+                containerColor = if (productItem.isPlaceholder)
                     MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                else Color.White
+                else
+                    Color.White
             )
         ) {
             Column(modifier = Modifier.padding(8.dp)) {
@@ -61,36 +60,30 @@ fun ProductCard(
                         .height(120.dp)
                         .fillMaxWidth()
                         .background(
-                            if (product.isPlaceholder)
+                            if (productItem.isPlaceholder)
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
-                            else Color.Transparent
+                            else
+                                Color.Transparent
                         )
                 ) {
-                    if (product.isPlaceholder) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                //.shimmerEffect() // Implement or use a library
-                        ) {
+                    if (productItem.isPlaceholder) {
+                        Box(modifier = Modifier.fillMaxSize()) {
                             Image(
                                 painter = painterResource(R.drawable.placeholder),
                                 contentDescription = "Loading",
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(32.dp),
-                                contentScale = ContentScale.Fit,
-//                                colorFilter = ColorFilter.tint(
-//                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-//                                )
+                                contentScale = ContentScale.Fit
                             )
                         }
                     } else {
                         AsyncImage(
-                            model = product.imageUrl?.let {
+                            model = productItem.imageUrl?.let {
                                 if (it.isNotEmpty()) "${Constants.EMULATOR_URL}/$it"
                                 else R.drawable.placeholder
                             } ?: R.drawable.placeholder,
-                            contentDescription = product.name,
+                            contentDescription = productItem.name,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
                             placeholder = painterResource(R.drawable.placeholder),
@@ -101,35 +94,40 @@ fun ProductCard(
 
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    product.name,
+                    productItem.name,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = if (product.isPlaceholder)
+                    color = if (productItem.isPlaceholder)
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                    else Color.Black
+                    else
+                        Color.Black
                 )
                 Text(
-                    product.price,
+                    productItem.price,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (product.isPlaceholder)
+                    color = if (productItem.isPlaceholder)
                         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                    else Blue1,
+                    else
+                        Blue1,
                     fontWeight = FontWeight.Bold
                 )
             }
         }
 
-        if (showFavorite && !product.isPlaceholder) {
+        if (showFavorite && !productItem.isPlaceholder) {
             IconButton(
-                onClick = { isFavorite = !isFavorite },
+                onClick = { onFavoriteClick(!productItem.isFavorite) },
                 modifier = Modifier.align(Alignment.TopEnd)
             ) {
                 Icon(
                     painter = painterResource(
-                        if (isFavorite) R.drawable.heart_filled else R.drawable.heart
+                        if (productItem.isFavorite) R.drawable.heart_filled else R.drawable.heart
                     ),
-                    contentDescription = if (isFavorite) "Unmark Favorite" else "Mark Favorite",
+                    contentDescription = if (productItem.isFavorite)
+                        "Unmark Favorite"
+                    else
+                        "Mark Favorite",
                     tint = Blue1
                 )
             }

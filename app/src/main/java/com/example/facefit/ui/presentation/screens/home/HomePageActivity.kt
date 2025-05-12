@@ -56,8 +56,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.facefit.R
 import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.utils.Resource
+import com.example.facefit.ui.presentation.components.ProductItem
 import com.example.facefit.ui.presentation.components.cards.ProductCard
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
+import com.example.facefit.ui.presentation.components.toProductItem
 import com.example.facefit.ui.presentation.screens.products.AllProductsActivity
 import com.example.facefit.ui.presentation.screens.products.ProductDetailsActivity
 import com.example.facefit.ui.theme.Blue1
@@ -120,7 +122,7 @@ fun EyewearScreen(
                 is Resource.Success -> {
                     ProductSection(
                         title = stringResource(R.string.best_seller),
-                        products = result.data?.map { it.toProduct() } ?: emptyList(),
+                        products = result.data?.map { it.toProductItem() } ?: emptyList(),
                         onProductClick = { product ->
                             activity?.let {
                                 val intent = Intent(it, ProductDetailsActivity::class.java).apply {
@@ -136,7 +138,7 @@ fun EyewearScreen(
                     ProductSection(
                         title = stringResource(R.string.best_seller),
                         products = (result.data ?: emptyList()).map {
-                            it.toProduct().copy(name = stringResource(R.string.could_not_load))
+                            it.toProductItem().copy(name = stringResource(R.string.could_not_load))
                         }
                     )
                 }
@@ -145,7 +147,7 @@ fun EyewearScreen(
                     ProductSection(
                         title = stringResource(R.string.best_seller),
                         products = (result.data ?: emptyList()).map {
-                            it.toProduct().copy(name = stringResource(R.string.loading), price = stringResource(R.string.price_placeholder))
+                            it.toProductItem().copy(name = stringResource(R.string.loading), price = stringResource(R.string.price_placeholder))
                         }
                     )
                 }
@@ -157,7 +159,7 @@ fun EyewearScreen(
                 is Resource.Success -> {
                     ProductSection(
                         title = stringResource(R.string.new_arrivals),
-                        products = result.data?.map { it.toProduct() } ?: emptyList(),
+                        products = result.data?.map { it.toProductItem() } ?: emptyList(),
                         onProductClick = { product ->
                             activity?.let {
                                 val intent = Intent(it, ProductDetailsActivity::class.java).apply {
@@ -173,7 +175,7 @@ fun EyewearScreen(
                     ProductSection(
                         title = stringResource(R.string.new_arrivals),
                         products = (result.data ?: emptyList()).map {
-                            it.toProduct().copy(name = stringResource(R.string.could_not_load))
+                            it.toProductItem().copy(name = stringResource(R.string.could_not_load))
                         }
                     )
                 }
@@ -182,7 +184,7 @@ fun EyewearScreen(
                     ProductSection(
                         title = stringResource(R.string.new_arrivals),
                         products = (result.data ?: emptyList()).map {
-                            it.toProduct().copy(name = stringResource(R.string.loading), price = stringResource(R.string.price_placeholder))
+                            it.toProductItem().copy(name = stringResource(R.string.loading), price = stringResource(R.string.price_placeholder))
                         }
                     )
                 }
@@ -312,8 +314,8 @@ fun CategorySection(
 @Composable
 fun ProductSection(
     title: String,
-    products: List<Product>,
-    onProductClick: (Product) -> Unit = {}  // Add this parameter
+    products: List<ProductItem>,  // Changed from List<Glasses>
+    onProductClick: (ProductItem) -> Unit = {}  // Changed from (Glasses) -> Unit
 ) {
     Column {
         Text(title, style = MaterialTheme.typography.titleLarge)
@@ -321,32 +323,15 @@ fun ProductSection(
         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             items(products) { product ->
                 ProductCard(
-                    product = product,
-                    onClick = { onProductClick(product) }  // Pass the click handler
+                    productItem = product,  // No need to convert since it's already ProductItem
+                    onClick = { onProductClick(product) }
                 )
             }
         }
     }
 }
 
-data class Product(
-    val id: String,  // Add this field
-    val name: String,
-    val price: String,
-    val imageUrl: String? = null,
-    val isPlaceholder: Boolean = false
-)
 
-fun Glasses.toProduct(): Product {
-    val isPlaceholder = id?.startsWith("placeholder_") ?: false
-    return Product(
-        id = this.id,
-        name = if (isPlaceholder) "Loading..." else this.name,
-        price = if (isPlaceholder) "---" else "EGP ${this.price}",
-        imageUrl = this.images.firstOrNull(),
-        isPlaceholder = isPlaceholder
-    )
-}
 
 fun getCategories() = listOf(
     "Men" to R.drawable.men_glasses,
