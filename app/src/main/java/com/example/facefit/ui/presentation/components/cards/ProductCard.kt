@@ -18,6 +18,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -35,12 +38,27 @@ import com.example.facefit.ui.utils.Constants
 @Composable
 fun ProductCard(
     productItem: ProductItem,
+    favoriteStatus: Map<String, Boolean>,
+    pendingFavorites: Set<String>,
     modifier: Modifier = Modifier,
     showFavorite: Boolean = true,
     onClick: () -> Unit = {},
-    onFavoriteClick: (Boolean) -> Unit = {}
+    onFavoriteClick: () -> Unit = {}
 ) {
-    Box(modifier = modifier.clickable { onClick() }) {
+
+    val isFavorite by remember(productItem.id, favoriteStatus, pendingFavorites) {
+        derivedStateOf {
+            if (productItem.isPlaceholder) false
+            else {
+                val baseStatus = favoriteStatus[productItem.id] ?: productItem.isFavorite
+                if (pendingFavorites.contains(productItem.id)) !baseStatus else baseStatus
+            }
+        }
+    }
+
+    Box(modifier = modifier.clickable(
+        enabled = !productItem.isPlaceholder,
+        onClick = onClick)) {
         Card(
             modifier = Modifier.width(160.dp),
             elevation = if (productItem.isPlaceholder)
@@ -117,18 +135,16 @@ fun ProductCard(
 
         if (showFavorite && !productItem.isPlaceholder) {
             IconButton(
-                onClick = { onFavoriteClick(!productItem.isFavorite) },
-                modifier = Modifier.align(Alignment.TopEnd)
+                onClick = onFavoriteClick,
+                modifier = Modifier.align(Alignment.TopEnd),
+                enabled = !pendingFavorites.contains(productItem.id)
             ) {
                 Icon(
                     painter = painterResource(
-                        if (productItem.isFavorite) R.drawable.heart_filled else R.drawable.heart
+                        if (isFavorite) R.drawable.heart_filled else R.drawable.heart
                     ),
-                    contentDescription = if (productItem.isFavorite)
-                        "Unmark Favorite"
-                    else
-                        "Mark Favorite",
-                    tint = Blue1
+                    contentDescription = if (isFavorite)  "Unmark Favorite"
+                    else  "Mark Favorite"
                 )
             }
         }

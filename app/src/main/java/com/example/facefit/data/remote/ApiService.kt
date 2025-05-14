@@ -2,14 +2,18 @@ package com.example.facefit.data.remote
 
 import com.example.facefit.data.models.requests.LoginRequest
 import com.example.facefit.data.models.requests.SignUpRequest
+import com.example.facefit.data.models.responses.FavoritesResponse
 import com.example.facefit.data.models.responses.LoginResponse
 import com.example.facefit.data.models.responses.SignUpResponse
 import com.example.facefit.domain.models.Glasses
 import com.example.facefit.ui.utils.Constants
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.QueryMap
 
@@ -42,4 +46,14 @@ interface ApiService {
 
     @GET(Constants.SINGLE_GLASSES_ENDPOINT)
     suspend fun getGlassesById(@Query("_id") id: String): Response<List<Glasses>>
+
+    @GET("facefit/customers/favorites")
+    suspend fun getFavorites(@Header("Authorization") token: String): Response<FavoritesResponse<List<Glasses>>>
+
+    @POST("facefit/customers/favorites/{glassesid}")
+    suspend fun toggleFavorite(
+        @Header("Authorization") token: String,
+        @Path("glassesid") glassesId: String
+    ): Response<Unit>
+
 }

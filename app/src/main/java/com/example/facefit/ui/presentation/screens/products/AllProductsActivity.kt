@@ -2,10 +2,10 @@ package com.example.facefit.ui.presentation.screens.products
 
 import android.content.Intent
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -71,10 +71,12 @@ import com.example.facefit.ui.theme.FaceFitTheme
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.derivedStateOf
 import com.example.facefit.ui.utils.Constants
 
 @AndroidEntryPoint
 class AllProductsActivity : ComponentActivity() {
+    private val viewModel: AllProductsViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -127,6 +129,10 @@ class AllProductsActivity : ComponentActivity() {
             }
         }
     }
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadFavorites()
+    }
 }
 
 @Composable
@@ -136,6 +142,9 @@ fun AllProducts(
     viewModel: AllProductsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val favoriteStatus by viewModel.favoriteStatus.collectAsStateWithLifecycle()
+    val pendingFavorites by viewModel.pendingFavorites.collectAsStateWithLifecycle()
+
     val selectedTab = uiState.selectedTab
 
     LaunchedEffect(Unit) {
@@ -171,8 +180,12 @@ fun AllProducts(
                         items(createPlaceholderGlasses(6)) { glasses ->
                             GlassesItem(
                                 glasses = glasses,
-                                onClick = {},
-                                onFavoriteClick = {},
+                                favoriteStatus = favoriteStatus,
+                                pendingFavorites = pendingFavorites,
+                                onClick = { id -> onClick(id) },
+                                onFavoriteClick = {
+                                    viewModel.toggleFavorite(glasses.id)
+                                },
                                 isError = false
                             )
                         }
@@ -194,9 +207,13 @@ fun AllProducts(
                             items(createPlaceholderGlasses(6)) { glasses ->
                                 GlassesItem(
                                     glasses = glasses,
-                                    onClick = {},
-                                    onFavoriteClick = {},
-                                    isError = true
+                                    favoriteStatus = favoriteStatus,
+                                    pendingFavorites = pendingFavorites,
+                                    onClick = { id -> onClick(id) },
+                                    onFavoriteClick = {
+                                        viewModel.toggleFavorite(glasses.id)
+                                    },
+                                    isError = false
                                 )
                             }
                         }
@@ -236,8 +253,12 @@ fun AllProducts(
                         items(uiState.products) { glasses ->
                             GlassesItem(
                                 glasses = glasses,
+                                favoriteStatus = favoriteStatus,
+                                pendingFavorites = pendingFavorites,
                                 onClick = { id -> onClick(id) },
-                                onFavoriteClick = { viewModel.toggleFavorite(glasses.id) },
+                                onFavoriteClick = {
+                                    viewModel.toggleFavorite(glasses.id)
+                                },
                                 isError = false
                             )
                         }
@@ -345,11 +366,20 @@ fun FilterTabs(selectedTab: Int, onTabSelected: (Int) -> Unit) {
 @Composable
 fun GlassesItem(
     glasses: Glasses,
+    favoriteStatus: Map<String, Boolean>,
+    pendingFavorites: Set<String>,
     onClick: (String) -> Unit,
     onFavoriteClick: () -> Unit,
     isError: Boolean = false
 ) {
     val isPlaceholder = glasses.id?.startsWith("placeholder_") ?: false
+
+    val isFavorite by remember(glasses.id, favoriteStatus, pendingFavorites) {
+        derivedStateOf {
+            val baseStatus = favoriteStatus[glasses.id] ?: false
+            if (pendingFavorites.contains(glasses.id)) !baseStatus else baseStatus
+        }
+    }
 
     Box(modifier = Modifier.clickable {
         if (!isPlaceholder && glasses.id != null) {
@@ -453,19 +483,20 @@ fun GlassesItem(
 
         if (!isPlaceholder) {
             IconButton(
-                onClick = { onFavoriteClick() },
+                onClick = {
+                    onFavoriteClick()
+                },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(4.dp)
             ) {
                 Icon(
                     painter = painterResource(
-                        if (glasses.isFavorite) R.drawable.heart_filled else R.drawable.heart
+                        if (isFavorite) R.drawable.heart_filled else R.drawable.heart
                     ),
-                    contentDescription = if (glasses.isFavorite)
+                    contentDescription = if (isFavorite)
                         stringResource(R.string.desc_unmark_favorite) else
-                        stringResource(R.string.desc_mark_favorite),
-                    tint = Color.Blue
+                        stringResource(R.string.desc_mark_favorite)
                 )
             }
         }

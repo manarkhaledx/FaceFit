@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -42,15 +43,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -76,11 +77,8 @@ import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 import com.example.facefit.ui.theme.Gray100
 import com.example.facefit.ui.theme.Gray200
-import com.example.facefit.ui.theme.LavenderBlue
-import com.example.facefit.ui.utils.Constants
 import dagger.hilt.android.AndroidEntryPoint
 
-// Update ProductDetailsActivity.kt
 @AndroidEntryPoint
 class ProductDetailsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -98,6 +96,7 @@ class ProductDetailsActivity : ComponentActivity() {
                 val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
                 ProductDetailScreen(
+                    viewModel = viewModel,
                     glasses = uiState.glasses,
                     isLoading = uiState.isLoading,
                     error = uiState.error,
@@ -106,8 +105,7 @@ class ProductDetailsActivity : ComponentActivity() {
                         val intent = Intent(this, PrescriptionLensActivity::class.java)
                         startActivity(intent)
                     },
-                    onFavoriteClick = { viewModel.toggleFavorite() },
-                    activity = this // Pass the activity reference
+                    activity = this
                 )
             }
         }
@@ -132,11 +130,21 @@ fun ProductDetailScreen(
     error: String?,
     onBackClick: () -> Unit,
     onNavigateToLenses: () -> Unit,
-    onFavoriteClick: () -> Unit,
     viewModel: ProductDetailsViewModel = hiltViewModel(),
     activity: ComponentActivity? = null,
     modifier: Modifier = Modifier
 ) {
+
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val favoriteStatus by viewModel.favoriteStatus.collectAsStateWithLifecycle()
+    val pendingFavorites by viewModel.pendingFavorites.collectAsStateWithLifecycle()
+
+    val glasses = uiState.glasses
+    val isFavorite = glasses?.id?.let { id ->
+        val baseStatus = favoriteStatus[id] ?: false
+        if (pendingFavorites.contains(id)) !baseStatus else baseStatus
+    } ?: false
+
     if (isLoading) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
@@ -210,15 +218,27 @@ fun ProductDetailScreen(
                     )
                 }
 
-                IconButton(onClick = onFavoriteClick) {
-                    Icon(
-                        painter = painterResource(
-                            id = if (glasses.isFavorite) R.drawable.heart_filled else R.drawable.heart
-                        ),
-                        contentDescription = "Favorite",
-                        tint = Blue1,
-                        modifier = Modifier.size(24.dp)
-                    )
+                IconButton(
+                    onClick = { glasses?.id?.let { viewModel.toggleFavorite(it) } },
+                    enabled = !pendingFavorites.contains(glasses?.id)
+                ) {
+                    if (pendingFavorites.contains(glasses?.id)) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(
+                            painter = painterResource(
+                                id = if (isFavorite) R.drawable.heart_filled else R.drawable.heart
+                            ),
+                            modifier = Modifier
+                                .size(24.dp)
+                                .graphicsLayer {
+                                    scaleX = if (pendingFavorites.contains(glasses.id)) 0.8f else 1f
+                                    scaleY = if (pendingFavorites.contains(glasses.id)) 0.8f else 1f
+                                }
+                                .animateContentSize(),
+                            contentDescription = if (isFavorite) "Unmark Favorite" else "Mark Favorite"
+                        )
+                    }
                 }
             }
 
@@ -330,8 +350,17 @@ fun ProductDetailScreen(
                             modifier = Modifier.padding(vertical = 8.dp)
                         ) {
                             items(recommendations) { recommendedProduct ->
+                                val isRecFavorite by remember(recommendedProduct.id, favoriteStatus, pendingFavorites) {
+                                    derivedStateOf {
+                                        val baseStatus = favoriteStatus[recommendedProduct.id] ?: false
+                                        if (pendingFavorites.contains(recommendedProduct.id)) !baseStatus else baseStatus
+                                    }
+                                }
+
                                 ProductCard(
-                                    productItem = recommendedProduct,
+                                    productItem = recommendedProduct.copy(isFavorite = isRecFavorite),
+                                    favoriteStatus = favoriteStatus,
+                                    pendingFavorites = pendingFavorites,
                                     modifier = Modifier.width(160.dp),
                                     onClick = {
                                         activity?.let {
@@ -344,9 +373,8 @@ fun ProductDetailScreen(
                                             it.startActivity(intent)
                                         }
                                     },
-                                    onFavoriteClick = { isFavorite ->
-                                        // Handle favorite toggle if needed
-                                        // You might want to update this in your ViewModel
+                                    onFavoriteClick = {
+                                        viewModel.toggleRecommendedFavorite(recommendedProduct.id)
                                     }
                                 )
                             }

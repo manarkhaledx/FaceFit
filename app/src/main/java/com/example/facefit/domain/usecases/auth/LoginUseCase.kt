@@ -1,4 +1,4 @@
-package com.example.facefit.domain.usecases
+package com.example.facefit.domain.usecases.auth
 
 import com.example.facefit.data.models.requests.LoginRequest
 import com.example.facefit.domain.repository.AuthRepository

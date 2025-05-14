@@ -2,9 +2,12 @@ package com.example.facefit.ui.presentation.screens.products
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.facefit.data.local.TokenManager
 import com.example.facefit.domain.models.Glasses
-import com.example.facefit.domain.usecases.GetGlassesByIdUseCase
-import com.example.facefit.domain.usecases.GetRecommendedGlassesUseCase
+import com.example.facefit.domain.usecases.favorites.GetFavoritesUseCase
+import com.example.facefit.domain.usecases.favorites.ToggleFavoriteUseCase
+import com.example.facefit.domain.usecases.glasses.GetGlassesByIdUseCase
+import com.example.facefit.domain.usecases.glasses.GetRecommendedGlassesUseCase
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.components.ProductItem
 import com.example.facefit.ui.presentation.components.toProductItem
@@ -20,7 +23,10 @@ import javax.inject.Inject
 @HiltViewModel
 class ProductDetailsViewModel @Inject constructor(
     private val getGlassesByIdUseCase: GetGlassesByIdUseCase,
-    private val getRecommendedGlassesUseCase: GetRecommendedGlassesUseCase
+    private val getRecommendedGlassesUseCase: GetRecommendedGlassesUseCase,
+    private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
+    private val authManager: TokenManager,
+    private val getFavoritesUseCase: GetFavoritesUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProductDetailsUiState())
@@ -29,10 +35,17 @@ class ProductDetailsViewModel @Inject constructor(
     private val _recommendations = MutableStateFlow<List<ProductItem>>(emptyList())
     val recommendations: StateFlow<List<ProductItem>> = _recommendations.asStateFlow()
 
+    private val _favoriteStatus = MutableStateFlow<Map<String, Boolean>>(emptyMap())
+    val favoriteStatus: StateFlow<Map<String, Boolean>> = _favoriteStatus.asStateFlow()
+
+    private val _pendingFavorites = MutableStateFlow<Set<String>>(emptySet())
+    val pendingFavorites: StateFlow<Set<String>> = _pendingFavorites.asStateFlow()
+
+
     fun loadProductDetails(productId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isLoading = true) }
-
+            loadFavorites()
             when (val result = getGlassesByIdUseCase(productId)) {
                 is Resource.Success -> {
                     _uiState.update {
@@ -42,10 +55,7 @@ class ProductDetailsViewModel @Inject constructor(
                             error = null
                         )
                     }
-                    // Load recommendations after product is loaded
-                    result.data?.let { glasses ->
-                        loadRecommendations(productId, glasses.gender, glasses.type, glasses.material)
-                    }
+                    result.data?.let { loadRecommendations(it.id, it.gender, it.type, it.material) }
                 }
                 is Resource.Error -> {
                     _uiState.update {
@@ -56,7 +66,7 @@ class ProductDetailsViewModel @Inject constructor(
                         )
                     }
                 }
-                is Resource.Loading -> TODO()
+                is Resource.Loading -> Unit
             }
         }
     }
@@ -68,20 +78,51 @@ class ProductDetailsViewModel @Inject constructor(
                     _recommendations.value = result.data?.map { it.toProductItem() } ?: emptyList()
                 }
                 is Resource.Error -> {
-                    // Handle error if needed
+
                 }
                 is Resource.Loading -> TODO()
             }
         }
     }
 
-    fun toggleFavorite() {
-        _uiState.update { state ->
-            state.glasses?.let { glasses ->
-                state.copy(glasses = glasses.copy(isFavorite = !glasses.isFavorite))
-            } ?: state
+    private fun loadFavorites() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val token = authManager.getToken() ?: return@launch
+            when (val result = getFavoritesUseCase(token)) {
+                is Resource.Success -> {
+                    _favoriteStatus.update {
+                        result.data?.associate { it.id to true } ?: emptyMap()
+                    }
+                }
+                is Resource.Error -> TODO()
+                is Resource.Loading -> TODO()
+            }
         }
     }
+
+    fun toggleFavorite(productId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val token = authManager.getToken() ?: return@launch
+            val currentStatus = _favoriteStatus.value[productId] ?: false
+
+            _favoriteStatus.update { it + (productId to !currentStatus) }
+            _pendingFavorites.update { it + productId }
+
+            when (val result = toggleFavoriteUseCase(token, productId)) {
+                is Resource.Success -> loadFavorites() // Confirm with server
+                is Resource.Error -> {
+                    _favoriteStatus.update { it + (productId to currentStatus) }
+                }
+
+                is Resource.Loading -> TODO()
+            }
+
+            _pendingFavorites.update { it - productId }
+        }
+    }
+
+    fun toggleRecommendedFavorite(productId: String) = toggleFavorite(productId)
+
 }
 
 data class ProductDetailsUiState(

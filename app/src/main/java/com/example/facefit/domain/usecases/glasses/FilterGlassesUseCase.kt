@@ -1,4 +1,4 @@
-package com.example.facefit.domain.usecases
+package com.example.facefit.domain.usecases.glasses
 
 import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.repository.GlassesRepository

@@ -6,7 +6,7 @@ import com.example.facefit.data.local.TokenManager
 import com.example.facefit.data.models.requests.LoginRequest
 import com.example.facefit.data.models.responses.ErrorResponse
 import com.example.facefit.data.models.responses.LoginResponse
-import com.example.facefit.domain.usecases.LoginUseCase
+import com.example.facefit.domain.usecases.auth.LoginUseCase
 import com.example.facefit.domain.utils.Resource
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel

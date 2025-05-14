@@ -7,7 +7,7 @@ data class ProductItem(
     val name: String,
     val price: String,
     val imageUrl: String? = null,
-    val isFavorite: Boolean,
+    val isFavorite: Boolean = false,
     val isPlaceholder: Boolean = false
 )
 
