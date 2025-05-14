@@ -5,7 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.facefit.data.models.requests.SignUpRequest
 import com.example.facefit.data.models.responses.SignUpResponse
-import com.example.facefit.domain.usecases.SignUpUseCase
+import com.example.facefit.domain.usecases.auth.SignUpUseCase
 import com.example.facefit.domain.utils.Resource
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel

@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,7 +55,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.facefit.R
-import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.components.ProductItem
 import com.example.facefit.ui.presentation.components.cards.ProductCard
@@ -68,6 +68,7 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class HomePageActivity : ComponentActivity() {
+    private val viewModel: HomeViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -78,6 +79,11 @@ class HomePageActivity : ComponentActivity() {
             }
         }
     }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadFavorites()
+    }
 }
 
 @Composable
@@ -87,6 +93,8 @@ fun EyewearScreen(
 ) {
     val bestSellers by viewModel.bestSellers.collectAsStateWithLifecycle()
     val newArrivals by viewModel.newArrivals.collectAsStateWithLifecycle()
+    val favoriteStatus by viewModel.favoriteStatus.collectAsStateWithLifecycle()
+    val pendingFavorites by viewModel.pendingFavorites.collectAsStateWithLifecycle()
     val categories = getCategories()
 
     Scaffold(
@@ -123,13 +131,21 @@ fun EyewearScreen(
                     ProductSection(
                         title = stringResource(R.string.best_seller),
                         products = result.data?.map { it.toProductItem() } ?: emptyList(),
+                        favoriteStatus = favoriteStatus,
+                        pendingFavorites = pendingFavorites,
                         onProductClick = { product ->
                             activity?.let {
                                 val intent = Intent(it, ProductDetailsActivity::class.java).apply {
-                                    putExtra("productId", product.id) // You'll need to add id to Product class
+                                    putExtra(
+                                        "productId",
+                                        product.id
+                                    ) // You'll need to add id to Product class
                                 }
                                 it.startActivity(intent)
                             }
+                        },
+                        onFavoriteClick = { productId ->
+                            viewModel.toggleFavorite(productId)
                         }
                     )
                 }
@@ -138,8 +154,15 @@ fun EyewearScreen(
                     ProductSection(
                         title = stringResource(R.string.best_seller),
                         products = (result.data ?: emptyList()).map {
-                            it.toProductItem().copy(name = stringResource(R.string.could_not_load))
-                        }
+                            it.toProductItem().copy(
+                                name = stringResource(R.string.could_not_load),
+                                isPlaceholder = true
+                            )
+                        },
+                        favoriteStatus = favoriteStatus,
+                        pendingFavorites = pendingFavorites,
+                        onProductClick = {},
+                        onFavoriteClick = {}
                     )
                 }
 
@@ -147,8 +170,16 @@ fun EyewearScreen(
                     ProductSection(
                         title = stringResource(R.string.best_seller),
                         products = (result.data ?: emptyList()).map {
-                            it.toProductItem().copy(name = stringResource(R.string.loading), price = stringResource(R.string.price_placeholder))
-                        }
+                            it.toProductItem().copy(
+                                name = stringResource(R.string.loading),
+                                price = stringResource(R.string.price_placeholder),
+                                isPlaceholder = true
+                            )
+                        },
+                        favoriteStatus = favoriteStatus,
+                        pendingFavorites = pendingFavorites,
+                        onProductClick = {},
+                        onFavoriteClick = {}
                     )
                 }
             }
@@ -160,13 +191,21 @@ fun EyewearScreen(
                     ProductSection(
                         title = stringResource(R.string.new_arrivals),
                         products = result.data?.map { it.toProductItem() } ?: emptyList(),
+                        favoriteStatus = favoriteStatus,
+                        pendingFavorites = pendingFavorites,
                         onProductClick = { product ->
                             activity?.let {
                                 val intent = Intent(it, ProductDetailsActivity::class.java).apply {
-                                    putExtra("productId", product.id) // You'll need to add id to Product class
+                                    putExtra(
+                                        "productId",
+                                        product.id
+                                    ) // You'll need to add id to Product class
                                 }
                                 it.startActivity(intent)
                             }
+                        },
+                        onFavoriteClick = { productId ->
+                            viewModel.toggleFavorite(productId)
                         }
                     )
                 }
@@ -175,8 +214,15 @@ fun EyewearScreen(
                     ProductSection(
                         title = stringResource(R.string.new_arrivals),
                         products = (result.data ?: emptyList()).map {
-                            it.toProductItem().copy(name = stringResource(R.string.could_not_load))
-                        }
+                            it.toProductItem().copy(
+                                name = stringResource(R.string.could_not_load),
+                                isPlaceholder = true
+                            )
+                        },
+                        favoriteStatus = favoriteStatus,
+                        pendingFavorites = pendingFavorites,
+                        onProductClick = {},
+                        onFavoriteClick = {}
                     )
                 }
 
@@ -184,8 +230,16 @@ fun EyewearScreen(
                     ProductSection(
                         title = stringResource(R.string.new_arrivals),
                         products = (result.data ?: emptyList()).map {
-                            it.toProductItem().copy(name = stringResource(R.string.loading), price = stringResource(R.string.price_placeholder))
-                        }
+                            it.toProductItem().copy(
+                                name = stringResource(R.string.loading),
+                                price = stringResource(R.string.price_placeholder),
+                                isPlaceholder = true
+                            )
+                        },
+                        favoriteStatus = favoriteStatus,
+                        pendingFavorites = pendingFavorites,
+                        onProductClick = {},
+                        onFavoriteClick = {}
                     )
                 }
             }
@@ -206,7 +260,13 @@ fun SearchBarWithCameraButton() {
         TextField(
             value = searchText,
             onValueChange = { searchText = it },
-            placeholder = { Text(stringResource(R.string.search), fontSize = 14.sp, color = Color.Gray) },
+            placeholder = {
+                Text(
+                    stringResource(R.string.search),
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            },
             shape = RoundedCornerShape(20.dp),
             singleLine = true,
             textStyle = LocalTextStyle.current.copy(fontSize = 16.sp),
@@ -275,7 +335,7 @@ fun FeaturedImagesSection() {
 
 @Composable
 fun CategorySection(
-    title: String, 
+    title: String,
     categories: List<Pair<String, Int>>,
     onCategoryClick: (String) -> Unit = {}
 ) {
@@ -314,8 +374,11 @@ fun CategorySection(
 @Composable
 fun ProductSection(
     title: String,
-    products: List<ProductItem>,  // Changed from List<Glasses>
-    onProductClick: (ProductItem) -> Unit = {}  // Changed from (Glasses) -> Unit
+    products: List<ProductItem>,
+    favoriteStatus: Map<String, Boolean>,
+    pendingFavorites: Set<String>,
+    onProductClick: (ProductItem) -> Unit = {},
+    onFavoriteClick: (String) -> Unit = {}
 ) {
     Column {
         Text(title, style = MaterialTheme.typography.titleLarge)
@@ -323,14 +386,17 @@ fun ProductSection(
         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             items(products) { product ->
                 ProductCard(
-                    productItem = product,  // No need to convert since it's already ProductItem
-                    onClick = { onProductClick(product) }
+                    productItem = product,
+                    favoriteStatus = favoriteStatus,
+                    pendingFavorites = pendingFavorites,
+                    showFavorite = !product.isPlaceholder,
+                    onClick = { if (!product.isPlaceholder) onProductClick(product) },
+                    onFavoriteClick = { if (!product.isPlaceholder) onFavoriteClick(product.id) }
                 )
             }
         }
     }
 }
-
 
 
 fun getCategories() = listOf(
