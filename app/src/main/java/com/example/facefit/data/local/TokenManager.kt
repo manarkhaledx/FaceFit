@@ -14,14 +14,29 @@ class TokenManager @Inject constructor(
     }
 
     fun saveToken(token: String) {
+        println("DEBUG: Saving token: ${token.take(10)}...")
         sharedPreferences.edit().putString("auth_token", token).apply()
     }
 
     fun getToken(): String? {
-        return sharedPreferences.getString("auth_token", null)
+        val token = sharedPreferences.getString("auth_token", null)
+        if (token.isNullOrBlank()) {
+            println("DEBUG: Token is null or blank")
+            return null
+        }
+
+        // Basic validation (adjust based on your token format)
+        if (token.split('.').size != 3) {
+            println("DEBUG: Token appears malformed (invalid JWT structure)")
+            clearToken()
+            return null
+        }
+
+        return token
     }
 
     fun clearToken() {
+        println("DEBUG: Clearing token")
         sharedPreferences.edit().remove("auth_token").apply()
     }
 }

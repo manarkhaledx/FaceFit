@@ -118,7 +118,6 @@ class GlassesRepositoryImpl @Inject constructor(
                 createdAt = "",
                 numberOfRatings = 0,
                 rate = 0.0,
-                reviews = emptyList(),
                 numberOfSells = 0,
                 isFavorite = false
             )

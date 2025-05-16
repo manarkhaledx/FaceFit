@@ -11,5 +11,8 @@ object Constants {
     const val SINGLE_GLASSES_ENDPOINT = "facefit/glasses/search"
     const val FAVORITES_ENDPOINT = "facefit/customers/favorites/{glassesid}"
     const val GET_FAVORITES_ENDPOINT = "facefit/customers/favorites"
-    const val EMULATOR_URL = "https://ca5e-41-68-172-76.ngrok-free.app"
+    const val GET_REVIEWS_ENDPOINT = "facefit/reviews/{glassesId}"
+    const val GET_CUSTOMER_PROFILE_ENDPOINT = "facefit/customers/profile"
+    const val SUBMIT_REVIEW_ENDPOINT = "/facefit/reviews/add"
+    const val EMULATOR_URL = "https://facefit.onrender.com"
 }
