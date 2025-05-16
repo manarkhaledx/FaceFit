@@ -27,9 +27,11 @@
             android:theme="@style/Theme.FaceFit" />
         <activity
             android:name=".ui.presentation.screens.reviews.CustomersReviewsActivity"
-            android:exported="false"
+            android:exported="true"
             android:label="@string/title_activity_customers_reviews"
-            android:theme="@style/Theme.FaceFit" />
+            android:theme="@style/Theme.FaceFit">
+
+        </activity>
         <activity
             android:name=".ui.presentation.screens.cart.ShoppingCartActivity"
             android:exported="false"

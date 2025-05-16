@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
@@ -61,6 +62,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -68,10 +70,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
 import com.example.facefit.R
 import com.example.facefit.domain.models.Glasses
+import com.example.facefit.domain.models.Review
 import com.example.facefit.ui.presentation.components.ImageCarousel
 import com.example.facefit.ui.presentation.components.ProductItem
 import com.example.facefit.ui.presentation.components.cards.ProductCard
 import com.example.facefit.ui.presentation.screens.prescription.PrescriptionLensActivity
+import com.example.facefit.ui.presentation.screens.reviews.CustomersReviewsActivity
 import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
@@ -81,6 +85,7 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class ProductDetailsActivity : ComponentActivity() {
+    private val viewModel: ProductDetailsViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -105,10 +110,21 @@ class ProductDetailsActivity : ComponentActivity() {
                         val intent = Intent(this, PrescriptionLensActivity::class.java)
                         startActivity(intent)
                     },
+                    onNavigateToReviews = { productId ->
+                        val intent = Intent(this, CustomersReviewsActivity::class.java).apply {
+                            putExtra("productId", productId)
+                        }
+                        startActivity(intent)
+                    },
                     activity = this
                 )
             }
         }
+    }
+    override fun onResume() {
+        super.onResume()
+        val productId = intent.getStringExtra("productId") ?: ""
+        viewModel.loadReviews(productId)
     }
 }
 
@@ -130,6 +146,7 @@ fun ProductDetailScreen(
     error: String?,
     onBackClick: () -> Unit,
     onNavigateToLenses: () -> Unit,
+    onNavigateToReviews: (String) -> Unit,
     viewModel: ProductDetailsViewModel = hiltViewModel(),
     activity: ComponentActivity? = null,
     modifier: Modifier = Modifier
@@ -138,6 +155,8 @@ fun ProductDetailScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val favoriteStatus by viewModel.favoriteStatus.collectAsStateWithLifecycle()
     val pendingFavorites by viewModel.pendingFavorites.collectAsStateWithLifecycle()
+    val reviews by viewModel.reviews.collectAsStateWithLifecycle()
+    val recommendations by viewModel.recommendations.collectAsStateWithLifecycle()
 
     val glasses = uiState.glasses
     val isFavorite = glasses?.id?.let { id ->
@@ -153,8 +172,23 @@ fun ProductDetailScreen(
     }
 
     if (error != null) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = error, color = MaterialTheme.colorScheme.error)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Button(
+                onClick = { glasses?.id?.let { viewModel.retryLoadingReviews(it) } }
+            ) {
+                Text("Retry")
+            }
         }
         return
     }
@@ -165,7 +199,7 @@ fun ProductDetailScreen(
         }
         return
     }
-    val recommendations by viewModel.recommendations.collectAsStateWithLifecycle()
+
     Scaffold(
         bottomBar = {
             ProductBottomNavBar(
@@ -330,7 +364,10 @@ fun ProductDetailScreen(
                 }
 
                 item {
-                    ReviewsSection(glasses.numberOfRatings)
+                    ReviewsSection(
+                        viewModel = viewModel,
+                        onSeeAllClick = { onNavigateToReviews(glasses.id) }
+                    )
                 }
 
                 item {
@@ -522,7 +559,12 @@ fun SpecificationRow(label: String, value: String) {
 }
 
 @Composable
-fun ReviewsSection(reviewsCount: Int) {
+fun ReviewsSection(
+    viewModel: ProductDetailsViewModel = hiltViewModel(),
+    onSeeAllClick: () -> Unit
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -534,58 +576,95 @@ fun ReviewsSection(reviewsCount: Int) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "Reviews(${reviewsCount})",
+                "Reviews(${uiState.reviews.size})",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             TextButton(
-                onClick = { /* Handle see all */ },
+                onClick = onSeeAllClick,
                 colors = ButtonDefaults.textButtonColors(contentColor = Blue1)
             ) {
-                Text(
-                    "See all",
-                    style = MaterialTheme.typography.bodyMedium.copy(textDecoration = TextDecoration.Underline)
-                )
+                Text("See all", style = MaterialTheme.typography.bodyMedium.copy(
+                    textDecoration = TextDecoration.Underline
+                ))
             }
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "4.0",
+                text = "%.1f".format(uiState.averageRating),
                 style = TextStyle(
                     fontSize = 16.sp,
                     fontWeight = FontWeight(600),
                     color = Black,
-
-                    )
+                )
             )
             Spacer(Modifier.width(8.dp))
-            Row {
-                repeat(4) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.rate_star_filled),
-                        contentDescription = null,
-                        tint = Blue1,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Icon(
-                    painter = painterResource(id = R.drawable.rate_star),
-                    contentDescription = null,
-                    tint = Blue1,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            StarRating(rating = uiState.averageRating, starSize = 20.dp)
         }
 
-        repeat(2) { // Repeat the review item twice
-            ReviewItem()
+        if (uiState.reviews.isNotEmpty()) {
+            Column {
+                uiState.reviews.take(2).forEach { review ->
+                    ReviewItem(review = review)
+                }
+            }
+        } else {
+            Text(
+                "No reviews yet",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
         }
     }
 }
 
 @Composable
-fun ReviewItem() {
+fun StarRating(
+    rating: Double,
+    individualRating: Int? = null,
+    starSize: Dp
+) {
+    val starsToShow = individualRating?.toDouble() ?: rating
+
+    val fullStars = starsToShow.toInt()
+    val hasHalfStar = (starsToShow - fullStars) >= 0.5 && individualRating == null
+
+    Row {
+        repeat(fullStars) {
+            Icon(
+                painter = painterResource(id = R.drawable.rate_star_filled),
+                contentDescription = null,
+                tint = Blue1,
+                modifier = Modifier.size(starSize)
+            )
+        }
+
+        if (hasHalfStar) {
+            Icon(
+                painter = painterResource(id = R.drawable.rate_star_filled),
+                contentDescription = null,
+                tint = Blue1,
+                modifier = Modifier.size(starSize)
+            )
+        }
+
+        repeat(5 - fullStars - if (hasHalfStar) 1 else 0) {
+            Icon(
+                painter = painterResource(id = R.drawable.rate_star),
+                contentDescription = null,
+                tint = Blue1,
+                modifier = Modifier.size(starSize)
+            )
+        }
+    }
+}
+
+@Composable
+fun ReviewItem(
+    review: Review
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -599,12 +678,12 @@ fun ReviewItem() {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    "User Name",
+                    text = review.user.displayName,
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "12/2/2024",
+                    text = review.getFormattedDate(),
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 14.sp),
                     color = Color.Gray
                 )
@@ -612,27 +691,16 @@ fun ReviewItem() {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                repeat(4) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.rate_star_filled),
-                        contentDescription = null,
-                        tint = Blue1,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-                Icon(
-                    painter = painterResource(id = R.drawable.rate_star),
-                    contentDescription = null,
-                    tint = Blue1,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
+            StarRating(
+                rating = 0.0,
+                individualRating = review.rating,
+                starSize = 16.dp
+            )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                "Lorem ipsum dolor sit amet consectetur...",
+                text = review.comment,
                 style = MaterialTheme.typography.bodyMedium,
                 fontSize = 14.sp,
                 modifier = Modifier.fillMaxWidth()

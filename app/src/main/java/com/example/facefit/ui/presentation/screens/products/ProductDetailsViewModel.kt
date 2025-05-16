@@ -3,11 +3,15 @@ package com.example.facefit.ui.presentation.screens.products
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.facefit.data.local.TokenManager
+import com.example.facefit.data.models.User
 import com.example.facefit.domain.models.Glasses
+import com.example.facefit.domain.models.Review
+import com.example.facefit.domain.usecases.auth.GetUserProfileUseCase
 import com.example.facefit.domain.usecases.favorites.GetFavoritesUseCase
 import com.example.facefit.domain.usecases.favorites.ToggleFavoriteUseCase
 import com.example.facefit.domain.usecases.glasses.GetGlassesByIdUseCase
 import com.example.facefit.domain.usecases.glasses.GetRecommendedGlassesUseCase
+import com.example.facefit.domain.usecases.reviews.GetReviewsUseCase
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.components.ProductItem
 import com.example.facefit.ui.presentation.components.toProductItem
@@ -26,7 +30,9 @@ class ProductDetailsViewModel @Inject constructor(
     private val getRecommendedGlassesUseCase: GetRecommendedGlassesUseCase,
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val authManager: TokenManager,
-    private val getFavoritesUseCase: GetFavoritesUseCase
+    private val getFavoritesUseCase: GetFavoritesUseCase,
+    private val getReviewsUseCase: GetReviewsUseCase,
+    private val getUserProfileUseCase: GetUserProfileUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProductDetailsUiState())
@@ -41,11 +47,18 @@ class ProductDetailsViewModel @Inject constructor(
     private val _pendingFavorites = MutableStateFlow<Set<String>>(emptySet())
     val pendingFavorites: StateFlow<Set<String>> = _pendingFavorites.asStateFlow()
 
+    private val _reviews = MutableStateFlow<List<Review>>(emptyList())
+    val reviews: StateFlow<List<Review>> = _reviews.asStateFlow()
+
+    private val _userProfile = MutableStateFlow<User?>(null)
+    val userProfile: StateFlow<User?> = _userProfile.asStateFlow()
+
 
     fun loadProductDetails(productId: String) {
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isLoading = true) }
             loadFavorites()
+            loadUserProfile()
             when (val result = getGlassesByIdUseCase(productId)) {
                 is Resource.Success -> {
                     _uiState.update {
@@ -55,7 +68,10 @@ class ProductDetailsViewModel @Inject constructor(
                             error = null
                         )
                     }
-                    result.data?.let { loadRecommendations(it.id, it.gender, it.type, it.material) }
+                    result.data?.let {
+                        loadRecommendations(it.id, it.gender, it.type, it.material)
+                        loadReviews(it.id)
+                    }
                 }
                 is Resource.Error -> {
                     _uiState.update {
@@ -123,10 +139,82 @@ class ProductDetailsViewModel @Inject constructor(
 
     fun toggleRecommendedFavorite(productId: String) = toggleFavorite(productId)
 
+    fun loadReviews(glassesId: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val token = authManager.getToken()
+            if (token == null) {
+                _uiState.update {
+                    it.copy(error = "Authentication required to view reviews")
+                }
+                return@launch
+            }
+
+            when (val result = getReviewsUseCase(token, glassesId)) {
+                is Resource.Success -> {
+                    val reviews = result.data ?: emptyList()
+
+                    val averageRating = if (reviews.isNotEmpty()) {
+                        reviews.mapNotNull { it.rating?.toDouble() }.average()
+                    } else {
+                        0.0
+                    }
+
+                    _uiState.update {
+                        it.copy(
+                            reviews = reviews,
+                            averageRating = averageRating,
+                            error = null
+                        )
+                    }
+
+                    _uiState.value.glasses?.let { currentGlasses ->
+                        _uiState.update { state ->
+                            state.copy(
+                                glasses = currentGlasses.copy(
+                                    rate = averageRating,
+                                    numberOfRatings = reviews.size
+                                )
+                            )
+                        }
+                    }
+                }
+                is Resource.Error -> {
+                    _uiState.update {
+                        it.copy(error = result.message ?: "Failed to load reviews")
+                    }
+                }
+                is Resource.Loading -> {
+                    // Handle loading state if needed
+                }
+            }
+        }
+    }
+
+    private fun loadUserProfile() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val token = authManager.getToken() ?: return@launch
+            when (val result = getUserProfileUseCase(token)) {
+                is Resource.Success -> {
+                    _userProfile.value = result.data
+                }
+                is Resource.Error -> {
+                    // Handle error
+                }
+                is Resource.Loading -> Unit
+            }
+        }
+    }
+
+    fun retryLoadingReviews(glassesId: String) {
+        loadReviews(glassesId)
+    }
+
 }
 
 data class ProductDetailsUiState(
     val glasses: Glasses? = null,
+    val reviews: List<Review> = emptyList(),
+    val averageRating: Double = 0.0,
     val isLoading: Boolean = false,
     val error: String? = null
 )

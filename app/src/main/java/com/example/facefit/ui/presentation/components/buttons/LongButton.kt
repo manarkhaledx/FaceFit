@@ -31,11 +31,3 @@ fun LongButton(text: String, onClick: () -> Unit) {
         Text(text, fontSize = 16.sp)
     }
 }
-
-@Preview(showBackground = true)
-@Composable
-fun CustomersReviewsPreview() {
-    FaceFitTheme {
-        CustomersReviewsScreen {}
-    }
-}

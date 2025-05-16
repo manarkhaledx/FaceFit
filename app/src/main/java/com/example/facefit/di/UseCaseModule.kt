@@ -5,12 +5,15 @@ import com.example.facefit.data.repository.FavoritesRepositoryImpl
 import com.example.facefit.domain.repository.AuthRepository
 import com.example.facefit.domain.repository.FavoritesRepository
 import com.example.facefit.domain.repository.GlassesRepository
+import com.example.facefit.domain.repository.ReviewRepository
+import com.example.facefit.domain.usecases.auth.GetUserProfileUseCase
 import com.example.facefit.domain.usecases.glasses.GetBestSellersUseCase
 import com.example.facefit.domain.usecases.glasses.GetNewArrivalsUseCase
 import com.example.facefit.domain.usecases.auth.LoginUseCase
 import com.example.facefit.domain.usecases.auth.SignUpUseCase
 import com.example.facefit.domain.usecases.favorites.GetFavoritesUseCase
 import com.example.facefit.domain.usecases.favorites.ToggleFavoriteUseCase
+import com.example.facefit.domain.usecases.reviews.GetReviewsUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -63,5 +66,17 @@ object UseCaseModule {
         apiService: ApiService
     ): FavoritesRepository {
         return FavoritesRepositoryImpl(apiService)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetReviewsUseCase(repository: ReviewRepository): GetReviewsUseCase {
+        return GetReviewsUseCase(repository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetCustomerProfileUseCase(repository: ReviewRepository): GetUserProfileUseCase {
+        return GetUserProfileUseCase(repository)
     }
 }
