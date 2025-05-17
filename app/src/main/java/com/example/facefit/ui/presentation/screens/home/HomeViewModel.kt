@@ -45,6 +45,18 @@ class HomeViewModel @Inject constructor(
     private val _pendingFavorites = MutableStateFlow<Set<String>>(emptySet())
     val pendingFavorites: StateFlow<Set<String>> = _pendingFavorites.asStateFlow()
 
+    private val _searchResults = MutableStateFlow<Resource<List<Glasses>>>(Resource.Success(emptyList()))
+    val searchResults: StateFlow<Resource<List<Glasses>>> = _searchResults.asStateFlow()
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _searchPage = MutableStateFlow(1)
+    val searchPage: StateFlow<Int> = _searchPage.asStateFlow()
+
+    private val _hasMoreSearchResults = MutableStateFlow(true)
+    val hasMoreSearchResults: StateFlow<Boolean> = _hasMoreSearchResults.asStateFlow()
+
     init {
         getBestSellers()
         getNewArrivals()
@@ -129,6 +141,63 @@ class HomeViewModel @Inject constructor(
 
             _pendingFavorites.update { it - productId }
         }
+    }
+
+    fun onSearchQueryChanged(query: String) {
+        _searchQuery.value = query
+        if (query.isBlank()) {
+            _searchResults.value = Resource.Success(emptyList())
+        } else {
+            performSearch(query)
+        }
+    }
+
+    fun loadMoreSearchResults() {
+        if (_hasMoreSearchResults.value) {
+            _searchPage.value += 1
+            performSearch(_searchQuery.value)
+        }
+    }
+
+    private fun performSearch(query: String) {
+        viewModelScope.launch {
+            if (_searchPage.value == 1) {
+                _searchResults.value = Resource.Loading()
+            }
+
+            try {
+                val allProducts = mutableListOf<Glasses>()
+                (bestSellers.value as? Resource.Success)?.data?.let { allProducts.addAll(it) }
+                (newArrivals.value as? Resource.Success)?.data?.let { allProducts.addAll(it) }
+
+                val filtered = allProducts.filter {
+                    it.name.contains(query, ignoreCase = true)
+                }
+
+                val pageSize = 10
+                val startIndex = (_searchPage.value - 1) * pageSize
+                val endIndex = minOf(startIndex + pageSize, filtered.size)
+                val pagedResults = filtered.subList(startIndex, endIndex)
+
+                _hasMoreSearchResults.value = endIndex < filtered.size
+
+                if (_searchPage.value == 1) {
+                    _searchResults.value = Resource.Success(pagedResults)
+                } else {
+                    val currentResults = (_searchResults.value as? Resource.Success)?.data ?: emptyList()
+                    _searchResults.value = Resource.Success(currentResults + pagedResults)
+                }
+            } catch (e: Exception) {
+                _searchResults.value = Resource.Error(e.message ?: "Error during search")
+            }
+        }
+    }
+
+    fun resetSearch() {
+        _searchPage.value = 1
+        _hasMoreSearchResults.value = true
+        _searchQuery.value = ""
+        _searchResults.value = Resource.Success(emptyList())
     }
 
     fun refresh() {
