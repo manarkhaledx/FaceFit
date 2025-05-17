@@ -6,17 +6,22 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,10 +31,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.TabRowDefaults.Divider
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -44,7 +52,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -52,9 +63,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.example.facefit.R
+import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.components.ProductItem
 import com.example.facefit.ui.presentation.components.cards.ProductCard
@@ -64,6 +78,7 @@ import com.example.facefit.ui.presentation.screens.products.AllProductsActivity
 import com.example.facefit.ui.presentation.screens.products.ProductDetailsActivity
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
+import com.example.facefit.ui.utils.Constants
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -108,8 +123,19 @@ fun EyewearScreen(
                 .padding(16.dp)
         ) {
             Spacer(modifier = Modifier.height(24.dp))
-            SearchBarWithCameraButton()
+            SearchBar(
+                viewModel = viewModel,
+                onProductClick = { product ->
+                    activity?.let {
+                        val intent = Intent(it, ProductDetailsActivity::class.java).apply {
+                            putExtra("productId", product.id)
+                        }
+                        it.startActivity(intent)
+                    }
+                }
+            )
             Spacer(modifier = Modifier.height(24.dp))
+
             FeaturedImagesSection()
             Spacer(modifier = Modifier.height(24.dp))
             CategorySection(
@@ -126,6 +152,7 @@ fun EyewearScreen(
             )
             Spacer(modifier = Modifier.height(24.dp))
 
+
             when (val result = bestSellers) {
                 is Resource.Success -> {
                     ProductSection(
@@ -135,12 +162,13 @@ fun EyewearScreen(
                         pendingFavorites = pendingFavorites,
                         onProductClick = { product ->
                             activity?.let {
-                                val intent = Intent(it, ProductDetailsActivity::class.java).apply {
-                                    putExtra(
-                                        "productId",
-                                        product.id
-                                    ) // You'll need to add id to Product class
-                                }
+                                val intent =
+                                    Intent(it, ProductDetailsActivity::class.java).apply {
+                                        putExtra(
+                                            "productId",
+                                            product.id
+                                        )
+                                    }
                                 it.startActivity(intent)
                             }
                         },
@@ -195,12 +223,13 @@ fun EyewearScreen(
                         pendingFavorites = pendingFavorites,
                         onProductClick = { product ->
                             activity?.let {
-                                val intent = Intent(it, ProductDetailsActivity::class.java).apply {
-                                    putExtra(
-                                        "productId",
-                                        product.id
-                                    ) // You'll need to add id to Product class
-                                }
+                                val intent =
+                                    Intent(it, ProductDetailsActivity::class.java).apply {
+                                        putExtra(
+                                            "productId",
+                                            product.id
+                                        )
+                                    }
                                 it.startActivity(intent)
                             }
                         },
@@ -247,19 +276,31 @@ fun EyewearScreen(
     }
 }
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchBarWithCameraButton() {
+fun SearchBar(
+    viewModel: HomeViewModel = hiltViewModel(),
+    onProductClick: (ProductItem) -> Unit = {}
+) {
     var searchText by remember { mutableStateOf("") }
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+    val hasMoreResults by viewModel.hasMoreSearchResults.collectAsStateWithLifecycle()
+    var isSearchActive by remember { mutableStateOf(false) }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
+    Box {
         TextField(
             value = searchText,
-            onValueChange = { searchText = it },
+            onValueChange = {
+                searchText = it
+                if (it.isNotBlank()) {
+                    viewModel.resetSearch()
+                    viewModel.onSearchQueryChanged(it)
+                    isSearchActive = true
+                } else {
+                    isSearchActive = false
+                }
+            },
             placeholder = {
                 Text(
                     stringResource(R.string.search),
@@ -271,24 +312,287 @@ fun SearchBarWithCameraButton() {
             singleLine = true,
             textStyle = LocalTextStyle.current.copy(fontSize = 16.sp),
             modifier = Modifier
-                .weight(1f)
-                .height(56.dp),
-            trailingIcon = {
-                Icon(
-                    painter = painterResource(id = R.drawable.search_icon),
-                    contentDescription = stringResource(R.string.search_icon),
-                    tint = Color.Gray
-                )
-            },
+                .fillMaxWidth()
+                .height(56.dp)
+                .zIndex(2f),
             colors = TextFieldDefaults.textFieldColors(
                 containerColor = Color.White,
                 unfocusedIndicatorColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent
-            )
+            ),
+            trailingIcon = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (searchResults is Resource.Loading && searchText.isNotBlank()) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = Color.Gray
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+
+                    if (searchText.isNotBlank()) {
+                        IconButton(
+                            onClick = {
+                                searchText = ""
+                                viewModel.resetSearch()
+                                isSearchActive = false
+                            }
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.close),
+                                contentDescription = "Clear search",
+                                tint = Color.Gray
+                            )
+                        }
+                    } else {
+                        Icon(
+                            painter = painterResource(id = R.drawable.search_icon),
+                            contentDescription = stringResource(R.string.search_icon),
+                            tint = Color.Gray
+                        )
+                    }
+                }
+            }
         )
 
-        Spacer(modifier = Modifier.width(8.dp))
-        CameraButton()
+        if (isSearchActive) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 60.dp)
+                    .zIndex(3f)
+            ) {
+                SearchResultsDropdown(
+                    searchResults = searchResults,
+                    hasMoreResults = hasMoreResults,
+                    onProductClick = onProductClick,
+                    onLoadMore = { viewModel.loadMoreSearchResults() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(8.dp, RoundedCornerShape(12.dp))
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.3f))
+                    .zIndex(1f)
+                    .pointerInput(Unit) {
+                        detectTapGestures {
+                            isSearchActive = false
+                            searchText = ""
+                            viewModel.resetSearch()
+                        }
+                    }
+            )
+        }
+    }
+}
+
+@Composable
+fun SearchResultsDropdown(
+    searchResults: Resource<List<Glasses>>,
+    hasMoreResults: Boolean,
+    onProductClick: (ProductItem) -> Unit,
+    onLoadMore: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+
+    val uniqueItems = remember(searchResults) {
+        when (searchResults) {
+            is Resource.Success -> searchResults.data?.distinctBy { it.id } ?: emptyList()
+            else -> emptyList()
+        }
+    }
+
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        when (searchResults) {
+            is Resource.Loading -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(80.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Text("Searching...", color = Color.Gray)
+                    }
+                }
+            }
+
+            is Resource.Success -> {
+                //val results = searchResults.data ?: emptyList()
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    if (uniqueItems.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No products found",
+                                color = Color.Gray
+                            )
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 400.dp)
+                        ) {
+                            val scrollState = rememberScrollState()
+
+                            Column(
+                                modifier = Modifier
+                                    .verticalScroll(scrollState)
+                                    .fillMaxWidth()
+                            ) {
+                                uniqueItems.forEach { glasses ->
+                                    SearchResultItem(
+                                        glasses = glasses,
+                                        onClick = { onProductClick(glasses.toProductItem()) }
+                                    )
+                                    Divider(
+                                        modifier = Modifier.padding(horizontal = 16.dp),
+                                        thickness = 0.5.dp,
+                                        color = Color.LightGray.copy(alpha = 0.5f)
+                                    )
+                                }
+
+                                if (hasMoreResults) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { onLoadMore() }
+                                            .padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "Load More",
+                                            color = Blue1,
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (scrollState.maxValue > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .width(4.dp)
+                                        .fillMaxHeight()
+                                        .padding(top = 8.dp, bottom = 8.dp, end = 2.dp),
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(40.dp)
+                                            .offset(y = (scrollState.value.toFloat() / scrollState.maxValue.toFloat() *
+                                                    (scrollState.maxValue - 40.dp.value)).dp)
+                                            .background(
+                                                color = Color.Gray.copy(alpha = 0.5f),
+                                                shape = RoundedCornerShape(2.dp)
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            is Resource.Error -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Error: ${searchResults.message?.take(30)}...",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SearchResultItem(
+    glasses: Glasses,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(50.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            if (glasses.images.isNotEmpty()) {
+                AsyncImage(
+                    model = "${Constants.EMULATOR_URL}/${glasses.images.first()}",
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Icon(
+                    painter = painterResource(id = R.drawable.placeholder),
+                    contentDescription = "Placeholder",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = glasses.name,
+                style = MaterialTheme.typography.bodyLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = "$${"%.2f".format(glasses.price)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+        }
+
+        Icon(
+            painter = painterResource(id = R.drawable.arrow_right),
+            contentDescription = "Go to product",
+            tint = Color.Gray
+        )
     }
 }
 
