@@ -16,13 +16,23 @@ data class Glasses(
     val type: String,
     val gender: String,
     val colors: List<String> = listOf("#000000"),
-    val numberOfRatings: Int = 0,
-    val rate: Double = 0.0,
-    val reviews: List<String> = emptyList(),
     val createdAt: String,
     val numberOfSells: Int = 0,
-    val isFavorite: Boolean = false
-){
+    val isFavorite: Boolean = false,
+    val tryOn: Boolean = false,
+    val arModels: ARModels? = null
+) {
     fun isInStock(): Boolean = stock > 0
     fun isSunglasses(): Boolean = type == "sunglasses"
 }
+
+data class ARModels(
+    @SerializedName("modelArmsOBJ") val armsObj: String?,
+    @SerializedName("modelArmsMTL") val armsMtl: String?,
+    @SerializedName("modelLensesOBJ") val lensesObj: String?,
+    @SerializedName("modelLensesMTL") val lensesMtl: String?,
+    @SerializedName("modelFrameOBJ") val frameObj: String?,
+    @SerializedName("modelFrameMTL") val frameMtl: String?,
+    @SerializedName("modelArmsMaterial") val armsMaterials: List<String>?,
+    @SerializedName("modelFrameMaterial") val frameMaterials: List<String>?
+)
