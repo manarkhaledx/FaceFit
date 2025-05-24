@@ -163,19 +163,9 @@ class ProductDetailsViewModel @Inject constructor(
                         it.copy(
                             reviews = reviews,
                             averageRating = averageRating,
+                            numberOfRatings = reviews.size,
                             error = null
                         )
-                    }
-
-                    _uiState.value.glasses?.let { currentGlasses ->
-                        _uiState.update { state ->
-                            state.copy(
-                                glasses = currentGlasses.copy(
-                                    rate = averageRating,
-                                    numberOfRatings = reviews.size
-                                )
-                            )
-                        }
                     }
                 }
                 is Resource.Error -> {
@@ -215,6 +205,7 @@ data class ProductDetailsUiState(
     val glasses: Glasses? = null,
     val reviews: List<Review> = emptyList(),
     val averageRating: Double = 0.0,
+    val numberOfRatings: Int = 0,
     val isLoading: Boolean = false,
     val error: String? = null
 )

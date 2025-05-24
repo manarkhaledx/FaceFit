@@ -104,22 +104,21 @@ class GlassesRepositoryImpl @Inject constructor(
         return List(count) { index ->
             Glasses(
                 id = "placeholder_$index",
-                name = "Loading...",
+                name = "Placeholder Glasses $index",
                 price = 0.0,
+                images = emptyList(),
+                colors = emptyList(),
+                isFavorite = false,
                 stock = 0,
-                images = listOf(R.drawable.placeholder.toString()),
                 shape = "",
                 weight = 0.0,
                 size = "",
                 material = "",
                 type = "",
                 gender = "",
-                colors = listOf("#000000"),
                 createdAt = "",
-                numberOfRatings = 0,
-                rate = 0.0,
-                numberOfSells = 0,
-                isFavorite = false
+                tryOn = false,
+                arModels = null
             )
         }
     }

@@ -50,7 +50,8 @@ import kotlinx.coroutines.launch
 fun ImageCarousel(
     images: List<String>,
     onTryOnClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isTryOnEnabled: Boolean = false
 ) {
     val effectiveImages = if (images.isNotEmpty()) images else listOf("placeholder")
     val pagerState = rememberPagerState(pageCount = { effectiveImages.size })
@@ -99,23 +100,25 @@ fun ImageCarousel(
             }
 
             // Try-on button
-            Button(
-                onClick = onTryOnClick,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 8.dp, bottom = 16.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = LavenderBlue,
-                    contentColor = Blue1
-                )
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.camera),
-                    contentDescription = "Camera",
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text("AR Try-On")
+            if (isTryOnEnabled) {
+                Button(
+                    onClick = onTryOnClick,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 8.dp, bottom = 16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = LavenderBlue,
+                        contentColor = Blue1
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.camera),
+                        contentDescription = "Camera",
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("AR Try-On")
+                }
             }
 
             // Only show navigation buttons if there's more than one image

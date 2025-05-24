@@ -63,6 +63,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.firebase.annotations)
+    implementation(libs.material)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -84,5 +85,9 @@ dependencies {
     implementation(libs.androidx.foundation.layout)
 
     implementation("io.coil-kt:coil:2.4.0")
+
+    implementation ("com.google.ar:core:1.46.0")
+    implementation ("de.javagl:obj:0.4.0")
+    implementation ("androidx.appcompat:appcompat:1.6.1")
 
 }

@@ -2,4 +2,16 @@
 <resources>
 
     <style name="Theme.FaceFit" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Base theme variation without ActionBar -->
+    <style name="Theme.FaceFit.NoActionBar" parent="Theme.FaceFit">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+    <!-- Fullscreen version for AR -->
+    <style name="Theme.FaceFit.NoActionBar.Fullscreen" parent="Theme.FaceFit.NoActionBar">
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+    </style>
 </resources>

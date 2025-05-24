@@ -68,6 +68,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
+import com.example.facefit.AR.augmentedfaces.AugmentedFacesActivity
 import com.example.facefit.R
 import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.models.Review
@@ -203,8 +204,27 @@ fun ProductDetailScreen(
     Scaffold(
         bottomBar = {
             ProductBottomNavBar(
-                onTryOnClick = { /* Handle Try-On */ },
-                onSelectLensesClick = onNavigateToLenses
+                onTryOnClick = {
+                    glasses?.let { product ->
+                        if (product.tryOn && product.arModels != null) {
+                            activity?.let {
+                                val intent = Intent(it, AugmentedFacesActivity::class.java).apply {
+                                    putExtra("FRAME_PATH", product.arModels.frameObj)
+                                    putExtra("FRAME_MTL_PATH", product.arModels.frameMtl)
+                                    putExtra("LENSES_PATH", product.arModels.lensesObj)
+                                    putExtra("LENSES_MTL_PATH", product.arModels.lensesMtl)
+                                    putExtra("ARMS_PATH", product.arModels.armsObj)
+                                    putExtra("ARMS_MTL_PATH", product.arModels.armsMtl)
+                                    putExtra("FRAME_MATERIALS", product.arModels.frameMaterials?.toTypedArray())
+                                    putExtra("ARMS_MATERIALS", product.arModels.armsMaterials?.toTypedArray())
+                                }
+                                it.startActivity(intent)
+                            }
+                        }
+                    }
+                },
+                onSelectLensesClick = onNavigateToLenses,
+                isTryOnEnabled = glasses?.tryOn == true && glasses.arModels != null
             )
         }
     ) { paddingValues ->
@@ -284,8 +304,27 @@ fun ProductDetailScreen(
                 item {
                     ImageCarousel(
                         images = glasses.images,
-                        onTryOnClick = { /* Handle AR try-on */ },
-                        modifier = Modifier.fillMaxWidth()
+                        onTryOnClick = {
+                            glasses?.let { product ->
+                                if (product.tryOn && product.arModels != null) {
+                                    activity?.let {
+                                        val intent = Intent(it, AugmentedFacesActivity::class.java).apply {
+                                            putExtra("FRAME_PATH", product.arModels.frameObj)
+                                            putExtra("FRAME_MTL_PATH", product.arModels.frameMtl)
+                                            putExtra("LENSES_PATH", product.arModels.lensesObj)
+                                            putExtra("LENSES_MTL_PATH", product.arModels.lensesMtl)
+                                            putExtra("ARMS_PATH", product.arModels.armsObj)
+                                            putExtra("ARMS_MTL_PATH", product.arModels.armsMtl)
+                                            putExtra("FRAME_MATERIALS", product.arModels.frameMaterials?.toTypedArray())
+                                            putExtra("ARMS_MATERIALS", product.arModels.armsMaterials?.toTypedArray())
+                                        }
+                                        it.startActivity(intent)
+                                    }
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        isTryOnEnabled = glasses?.tryOn == true && glasses.arModels != null
                     )
                 }
 
@@ -710,7 +749,11 @@ fun ReviewItem(
 }
 
 @Composable
-fun ProductBottomNavBar(onTryOnClick: () -> Unit, onSelectLensesClick: () -> Unit) {
+fun ProductBottomNavBar(
+    onTryOnClick: () -> Unit,
+    onSelectLensesClick: () -> Unit,
+    isTryOnEnabled: Boolean = false
+) {
     Surface(
         shadowElevation = 8.dp,
         modifier = Modifier
@@ -723,31 +766,35 @@ fun ProductBottomNavBar(onTryOnClick: () -> Unit, onSelectLensesClick: () -> Uni
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-
             // Try-On Button
             Button(
                 onClick = { onTryOnClick() },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.White,
-                    contentColor = Blue1
+                    contentColor = if (isTryOnEnabled) Blue1 else Color.Gray
                 ),
-                border = BorderStroke(1.dp, Blue1),
+                border = BorderStroke(1.dp, if (isTryOnEnabled) Blue1 else Color.Gray),
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier
                     .weight(1f)
-                    .height(48.dp)
+                    .height(48.dp),
+                enabled = isTryOnEnabled
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.camera), // Replace with your icon
+                    painter = painterResource(id = R.drawable.camera),
                     contentDescription = "Try-On Icon",
                     modifier = Modifier.size(20.dp),
-                    tint = Blue1
+                    tint = if (isTryOnEnabled) Blue1 else Color.Gray
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "Try-On", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = "Try-On",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (isTryOnEnabled) Blue1 else Color.Gray
+                )
             }
 
-            Spacer(modifier = Modifier.width(16.dp)) // Space between buttons
+            Spacer(modifier = Modifier.width(16.dp))
 
             // Select Lenses Button
             Button(

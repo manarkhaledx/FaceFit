@@ -1,5 +1,6 @@
 package com.example.facefit.ui.presentation.screens.products
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -72,6 +73,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.platform.LocalContext
+import com.example.facefit.AR.augmentedfaces.AugmentedFacesActivity
 import com.example.facefit.ui.utils.Constants
 
 @AndroidEntryPoint
@@ -186,6 +189,21 @@ fun AllProducts(
                                 onFavoriteClick = {
                                     viewModel.toggleFavorite(glasses.id)
                                 },
+                                onTryOnClick = { context ->
+                                    if (glasses.tryOn && glasses.arModels != null) {
+                                        val intent = Intent(context, AugmentedFacesActivity::class.java).apply {
+                                            putExtra("FRAME_PATH", glasses.arModels.frameObj)
+                                            putExtra("FRAME_MTL_PATH", glasses.arModels.frameMtl)
+                                            putExtra("LENSES_PATH", glasses.arModels.lensesObj)
+                                            putExtra("LENSES_MTL_PATH", glasses.arModels.lensesMtl)
+                                            putExtra("ARMS_PATH", glasses.arModels.armsObj)
+                                            putExtra("ARMS_MTL_PATH", glasses.arModels.armsMtl)
+                                            putExtra("FRAME_MATERIALS", glasses.arModels.frameMaterials?.toTypedArray())
+                                            putExtra("ARMS_MATERIALS", glasses.arModels.armsMaterials?.toTypedArray())
+                                        }
+                                        context.startActivity(intent)
+                                    }
+                                },
                                 isError = false
                             )
                         }
@@ -212,6 +230,21 @@ fun AllProducts(
                                     onClick = { id -> onClick(id) },
                                     onFavoriteClick = {
                                         viewModel.toggleFavorite(glasses.id)
+                                    },
+                                    onTryOnClick = { context ->
+                                        if (glasses.tryOn && glasses.arModels != null) {
+                                            val intent = Intent(context, AugmentedFacesActivity::class.java).apply {
+                                                putExtra("FRAME_PATH", glasses.arModels.frameObj)
+                                                putExtra("FRAME_MTL_PATH", glasses.arModels.frameMtl)
+                                                putExtra("LENSES_PATH", glasses.arModels.lensesObj)
+                                                putExtra("LENSES_MTL_PATH", glasses.arModels.lensesMtl)
+                                                putExtra("ARMS_PATH", glasses.arModels.armsObj)
+                                                putExtra("ARMS_MTL_PATH", glasses.arModels.armsMtl)
+                                                putExtra("FRAME_MATERIALS", glasses.arModels.frameMaterials?.toTypedArray())
+                                                putExtra("ARMS_MATERIALS", glasses.arModels.armsMaterials?.toTypedArray())
+                                            }
+                                            context.startActivity(intent)
+                                        }
                                     },
                                     isError = false
                                 )
@@ -258,6 +291,21 @@ fun AllProducts(
                                 onClick = { id -> onClick(id) },
                                 onFavoriteClick = {
                                     viewModel.toggleFavorite(glasses.id)
+                                },
+                                onTryOnClick = { context ->
+                                    if (glasses.tryOn && glasses.arModels != null) {
+                                        val intent = Intent(context, AugmentedFacesActivity::class.java).apply {
+                                            putExtra("FRAME_PATH", "${Constants.EMULATOR_URL}${glasses.arModels.frameObj}")
+                                            putExtra("FRAME_MTL_PATH", "${Constants.EMULATOR_URL}${glasses.arModels.frameMtl}")
+                                            putExtra("LENSES_PATH", "${Constants.EMULATOR_URL}${glasses.arModels.lensesObj}")
+                                            putExtra("LENSES_MTL_PATH", "${Constants.EMULATOR_URL}${glasses.arModels.lensesMtl}")
+                                            putExtra("ARMS_PATH", "${Constants.EMULATOR_URL}${glasses.arModels.armsObj}")
+                                            putExtra("ARMS_MTL_PATH", "${Constants.EMULATOR_URL}${glasses.arModels.armsMtl}")
+                                            putExtra("FRAME_MATERIALS", glasses.arModels.frameMaterials?.map { "${Constants.EMULATOR_URL}$it" }?.toTypedArray())
+                                            putExtra("ARMS_MATERIALS", glasses.arModels.armsMaterials?.map { "${Constants.EMULATOR_URL}$it" }?.toTypedArray())
+                                        }
+                                        context.startActivity(intent)
+                                    }
                                 },
                                 isError = false
                             )
@@ -370,8 +418,10 @@ fun GlassesItem(
     pendingFavorites: Set<String>,
     onClick: (String) -> Unit,
     onFavoriteClick: () -> Unit,
+    onTryOnClick: (Context) -> Unit,
     isError: Boolean = false
 ) {
+    val context = LocalContext.current
     val isPlaceholder = glasses.id?.startsWith("placeholder_") ?: false
 
     val isFavorite by remember(glasses.id, favoriteStatus, pendingFavorites) {
@@ -404,7 +454,6 @@ fun GlassesItem(
                         }
                         else -> R.drawable.placeholder
                     }
-                    //Log.d("ImageModel", "ImageModel value: $imageModel")
                     Image(
                         painter = rememberAsyncImagePainter(
                             model = imageModel,
@@ -420,7 +469,11 @@ fun GlassesItem(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Button(
-                    onClick = { /* Try on functionality */ },
+                    onClick = {
+                        if (glasses.tryOn && glasses.arModels != null) {
+                            onTryOnClick(context)
+                        }
+                    },
                     modifier = Modifier
                         .width(72.dp)
                         .height(30.dp)
@@ -431,7 +484,7 @@ fun GlassesItem(
                     ),
                     border = BorderStroke(1.dp, Blue1),
                     contentPadding = PaddingValues(4.dp),
-                    enabled = !isPlaceholder
+                    enabled = !isPlaceholder && glasses.tryOn && glasses.arModels != null
                 ) {
                     Text(
                         stringResource(R.string.try_on),
@@ -459,7 +512,7 @@ fun GlassesItem(
 
                 Text(
                     text = if (isPlaceholder) stringResource(R.string.price_placeholder)
-                           else stringResource(R.string.currency_format).format(glasses.price),
+                    else stringResource(R.string.currency_format).format(glasses.price),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (isPlaceholder) Color.Gray else Color.Black
