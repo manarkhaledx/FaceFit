@@ -51,6 +51,8 @@ import coil.compose.rememberImagePainter
 import com.example.facefit.R
 import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.utils.Resource
+import com.example.facefit.ui.presentation.base.RefreshableViewModel
+import com.example.facefit.ui.presentation.components.PullToRefreshContainer
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 import com.example.facefit.ui.presentation.screens.products.ProductDetailsActivity
 import com.example.facefit.ui.theme.FaceFitTheme
@@ -90,51 +92,50 @@ fun FavouritesScreen(
 ) {
     val favoritesState by viewModel.favoritesState.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) {
-        viewModel.loadFavorites()
-    }
+    val isRefreshing = favoritesState is Resource.Loading
 
     Scaffold(
         bottomBar = { AppBottomNavigation() }
     ) { innerPadding ->
-        when (favoritesState) {
-            is Resource.Loading -> {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator()
-                }
-            }
-
-            is Resource.Success -> {
-                val favorites =
-                    (favoritesState as Resource.Success<List<Glasses>>).data ?: emptyList()
-                if (favorites.isEmpty()) {
+        PullToRefreshContainer(
+            isRefreshing = isRefreshing,
+            onRefresh = { (viewModel as? RefreshableViewModel)?.refresh() },
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            when (favoritesState) {
+                is Resource.Loading -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("No favorites yet")
+                        CircularProgressIndicator()
                     }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                    ) {
-                        items(favorites) { glasses ->
-                            FavouriteItem(
-                                glasses = glasses,
-                                onToggleFavorite = { viewModel.toggleFavorite(glasses.id) },
-                                onClick = { onProductClick(glasses.id) }
-                            )
+                }
+
+                is Resource.Success -> {
+                    val favorites = (favoritesState as Resource.Success<List<Glasses>>).data ?: emptyList()
+                    if (favorites.isEmpty()) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text("No favorites yet")
+                        }
+                    } else {
+                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                            items(favorites) { glasses ->
+                                FavouriteItem(
+                                    glasses = glasses,
+                                    onToggleFavorite = { viewModel.toggleFavorite(glasses.id) },
+                                    onClick = { onProductClick(glasses.id) }
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            is Resource.Error -> {
-                val message = (favoritesState as Resource.Error<List<Glasses>>).message
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(message ?: "Unknown error")
-                        Button(onClick = { viewModel.loadFavorites() }) {
-                            Text("Retry")
+                is Resource.Error -> {
+                    val message = (favoritesState as Resource.Error<List<Glasses>>).message
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(message ?: "Unknown error")
+                            Button(onClick = { viewModel.loadFavorites() }) {
+                                Text("Retry")
+                            }
                         }
                     }
                 }
@@ -142,6 +143,7 @@ fun FavouritesScreen(
         }
     }
 }
+
 
 @Composable
 fun FavouriteItem(

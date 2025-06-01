@@ -12,6 +12,7 @@ import com.example.facefit.domain.usecases.glasses.GetAllGlassesUseCase
 import com.example.facefit.domain.usecases.glasses.GetBestSellersUseCase
 import com.example.facefit.domain.usecases.glasses.GetNewArrivalsUseCase
 import com.example.facefit.domain.utils.Resource
+import com.example.facefit.ui.presentation.base.RefreshableViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +31,7 @@ class AllProductsViewModel @Inject constructor(
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val getFavoritesUseCase: GetFavoritesUseCase,
     private val authManager: TokenManager
-) : ViewModel() {
+) : ViewModel(), RefreshableViewModel {
 
     companion object {
         const val SORT_DEFAULT = "Default"
@@ -261,6 +262,10 @@ class AllProductsViewModel @Inject constructor(
 
             _pendingFavorites.update { it - productId }
         }
+    }
+    override fun refresh() {
+        loadAllProducts()
+        loadFavorites()
     }
 }
 

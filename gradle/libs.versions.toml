@@ -1,5 +1,6 @@
 [versions]
 accompanistPager = "0.32.0"
+accompanistSwiperefresh = "0.30.1"
 agp = "8.7.3"
 coilCompose = "2.4.0"
 composeShimmer = "1.0.0"
@@ -26,6 +27,7 @@ materialVersion = "1.12.0"
 [libraries]
 accompanist-pager = { module = "com.google.accompanist:accompanist-pager", version.ref = "accompanistPager" }
 accompanist-pager-indicators = { module = "com.google.accompanist:accompanist-pager-indicators", version.ref = "accompanistPager" }
+accompanist-swiperefresh = { module = "com.google.accompanist:accompanist-swiperefresh", version.ref = "accompanistSwiperefresh" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-foundation = { module = "androidx.compose.foundation:foundation", version.ref = "foundationLayout" }
 androidx-foundation-layout = { module = "androidx.compose.foundation:foundation-layout", version.ref = "foundationLayout" }

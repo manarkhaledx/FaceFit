@@ -13,6 +13,7 @@ import com.example.facefit.domain.usecases.glasses.GetGlassesByIdUseCase
 import com.example.facefit.domain.usecases.glasses.GetRecommendedGlassesUseCase
 import com.example.facefit.domain.usecases.reviews.GetReviewsUseCase
 import com.example.facefit.domain.utils.Resource
+import com.example.facefit.ui.presentation.base.RefreshableViewModel
 import com.example.facefit.ui.presentation.components.ProductItem
 import com.example.facefit.ui.presentation.components.toProductItem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -33,7 +34,7 @@ class ProductDetailsViewModel @Inject constructor(
     private val getFavoritesUseCase: GetFavoritesUseCase,
     private val getReviewsUseCase: GetReviewsUseCase,
     private val getUserProfileUseCase: GetUserProfileUseCase
-) : ViewModel() {
+) : ViewModel(), RefreshableViewModel {
 
     private val _uiState = MutableStateFlow(ProductDetailsUiState())
     val uiState: StateFlow<ProductDetailsUiState> = _uiState.asStateFlow()
@@ -198,7 +199,10 @@ class ProductDetailsViewModel @Inject constructor(
     fun retryLoadingReviews(glassesId: String) {
         loadReviews(glassesId)
     }
-
+    override fun refresh() {
+        val productId = uiState.value.glasses?.id ?: return
+        loadProductDetails(productId)
+    }
 }
 
 data class ProductDetailsUiState(

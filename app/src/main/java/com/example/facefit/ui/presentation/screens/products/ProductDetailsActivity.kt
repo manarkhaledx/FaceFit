@@ -74,6 +74,7 @@ import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.models.Review
 import com.example.facefit.ui.presentation.components.ImageCarousel
 import com.example.facefit.ui.presentation.components.ProductItem
+import com.example.facefit.ui.presentation.components.PullToRefreshContainer
 import com.example.facefit.ui.presentation.components.cards.ProductCard
 import com.example.facefit.ui.presentation.screens.prescription.PrescriptionLensActivity
 import com.example.facefit.ui.presentation.screens.reviews.CustomersReviewsActivity
@@ -227,7 +228,15 @@ fun ProductDetailScreen(
                 isTryOnEnabled = glasses?.tryOn == true && glasses.arModels != null
             )
         }
-    ) { paddingValues ->
+    ) {  paddingValues ->
+        PullToRefreshContainer(
+            isRefreshing = isLoading,
+            onRefresh = { viewModel.refresh() },
+            modifier = modifier
+                .fillMaxSize()
+                .background(Gray100)
+                .padding(paddingValues)
+        ) {
         Column(
             modifier = modifier
                 .fillMaxSize()
@@ -426,9 +435,14 @@ fun ProductDetailScreen(
                             modifier = Modifier.padding(vertical = 8.dp)
                         ) {
                             items(recommendations) { recommendedProduct ->
-                                val isRecFavorite by remember(recommendedProduct.id, favoriteStatus, pendingFavorites) {
+                                val isRecFavorite by remember(
+                                    recommendedProduct.id,
+                                    favoriteStatus,
+                                    pendingFavorites
+                                ) {
                                     derivedStateOf {
-                                        val baseStatus = favoriteStatus[recommendedProduct.id] ?: false
+                                        val baseStatus =
+                                            favoriteStatus[recommendedProduct.id] ?: false
                                         if (pendingFavorites.contains(recommendedProduct.id)) !baseStatus else baseStatus
                                     }
                                 }
@@ -463,6 +477,7 @@ fun ProductDetailScreen(
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
                     }
+                }
                 }
             }
         }

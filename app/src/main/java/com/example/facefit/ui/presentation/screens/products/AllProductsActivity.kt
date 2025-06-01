@@ -75,6 +75,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.platform.LocalContext
 import com.example.facefit.AR.augmentedfaces.AugmentedFacesActivity
+import com.example.facefit.ui.presentation.base.RefreshableViewModel
+import com.example.facefit.ui.presentation.components.PullToRefreshContainer
 import com.example.facefit.ui.utils.Constants
 
 @AndroidEntryPoint
@@ -155,6 +157,10 @@ fun AllProducts(
     }
 
     Scaffold(bottomBar = { AppBottomNavigation() }) { paddingValues ->
+        PullToRefreshContainer(
+            isRefreshing = uiState.isLoading,
+            onRefresh = { (viewModel as? RefreshableViewModel)?.refresh() }
+        ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -191,15 +197,24 @@ fun AllProducts(
                                 },
                                 onTryOnClick = { context ->
                                     if (glasses.tryOn && glasses.arModels != null) {
-                                        val intent = Intent(context, AugmentedFacesActivity::class.java).apply {
+                                        val intent = Intent(
+                                            context,
+                                            AugmentedFacesActivity::class.java
+                                        ).apply {
                                             putExtra("FRAME_PATH", glasses.arModels.frameObj)
                                             putExtra("FRAME_MTL_PATH", glasses.arModels.frameMtl)
                                             putExtra("LENSES_PATH", glasses.arModels.lensesObj)
                                             putExtra("LENSES_MTL_PATH", glasses.arModels.lensesMtl)
                                             putExtra("ARMS_PATH", glasses.arModels.armsObj)
                                             putExtra("ARMS_MTL_PATH", glasses.arModels.armsMtl)
-                                            putExtra("FRAME_MATERIALS", glasses.arModels.frameMaterials?.toTypedArray())
-                                            putExtra("ARMS_MATERIALS", glasses.arModels.armsMaterials?.toTypedArray())
+                                            putExtra(
+                                                "FRAME_MATERIALS",
+                                                glasses.arModels.frameMaterials?.toTypedArray()
+                                            )
+                                            putExtra(
+                                                "ARMS_MATERIALS",
+                                                glasses.arModels.armsMaterials?.toTypedArray()
+                                            )
                                         }
                                         context.startActivity(intent)
                                     }
@@ -209,6 +224,7 @@ fun AllProducts(
                         }
                     }
                 }
+
                 uiState.error != null -> {
                     Column {
                         Text(
@@ -233,15 +249,30 @@ fun AllProducts(
                                     },
                                     onTryOnClick = { context ->
                                         if (glasses.tryOn && glasses.arModels != null) {
-                                            val intent = Intent(context, AugmentedFacesActivity::class.java).apply {
+                                            val intent = Intent(
+                                                context,
+                                                AugmentedFacesActivity::class.java
+                                            ).apply {
                                                 putExtra("FRAME_PATH", glasses.arModels.frameObj)
-                                                putExtra("FRAME_MTL_PATH", glasses.arModels.frameMtl)
+                                                putExtra(
+                                                    "FRAME_MTL_PATH",
+                                                    glasses.arModels.frameMtl
+                                                )
                                                 putExtra("LENSES_PATH", glasses.arModels.lensesObj)
-                                                putExtra("LENSES_MTL_PATH", glasses.arModels.lensesMtl)
+                                                putExtra(
+                                                    "LENSES_MTL_PATH",
+                                                    glasses.arModels.lensesMtl
+                                                )
                                                 putExtra("ARMS_PATH", glasses.arModels.armsObj)
                                                 putExtra("ARMS_MTL_PATH", glasses.arModels.armsMtl)
-                                                putExtra("FRAME_MATERIALS", glasses.arModels.frameMaterials?.toTypedArray())
-                                                putExtra("ARMS_MATERIALS", glasses.arModels.armsMaterials?.toTypedArray())
+                                                putExtra(
+                                                    "FRAME_MATERIALS",
+                                                    glasses.arModels.frameMaterials?.toTypedArray()
+                                                )
+                                                putExtra(
+                                                    "ARMS_MATERIALS",
+                                                    glasses.arModels.armsMaterials?.toTypedArray()
+                                                )
                                             }
                                             context.startActivity(intent)
                                         }
@@ -252,6 +283,7 @@ fun AllProducts(
                         }
                     }
                 }
+
                 uiState.products.isEmpty() -> {
                     Column(
                         modifier = Modifier
@@ -276,6 +308,7 @@ fun AllProducts(
                         }
                     }
                 }
+
                 else -> {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
@@ -294,15 +327,44 @@ fun AllProducts(
                                 },
                                 onTryOnClick = { context ->
                                     if (glasses.tryOn && glasses.arModels != null) {
-                                        val intent = Intent(context, AugmentedFacesActivity::class.java).apply {
-                                            putExtra("FRAME_PATH", "${Constants.EMULATOR_URL}${glasses.arModels.frameObj}")
-                                            putExtra("FRAME_MTL_PATH", "${Constants.EMULATOR_URL}${glasses.arModels.frameMtl}")
-                                            putExtra("LENSES_PATH", "${Constants.EMULATOR_URL}${glasses.arModels.lensesObj}")
-                                            putExtra("LENSES_MTL_PATH", "${Constants.EMULATOR_URL}${glasses.arModels.lensesMtl}")
-                                            putExtra("ARMS_PATH", "${Constants.EMULATOR_URL}${glasses.arModels.armsObj}")
-                                            putExtra("ARMS_MTL_PATH", "${Constants.EMULATOR_URL}${glasses.arModels.armsMtl}")
-                                            putExtra("FRAME_MATERIALS", glasses.arModels.frameMaterials?.map { "${Constants.EMULATOR_URL}$it" }?.toTypedArray())
-                                            putExtra("ARMS_MATERIALS", glasses.arModels.armsMaterials?.map { "${Constants.EMULATOR_URL}$it" }?.toTypedArray())
+                                        val intent = Intent(
+                                            context,
+                                            AugmentedFacesActivity::class.java
+                                        ).apply {
+                                            putExtra(
+                                                "FRAME_PATH",
+                                                "${Constants.EMULATOR_URL}${glasses.arModels.frameObj}"
+                                            )
+                                            putExtra(
+                                                "FRAME_MTL_PATH",
+                                                "${Constants.EMULATOR_URL}${glasses.arModels.frameMtl}"
+                                            )
+                                            putExtra(
+                                                "LENSES_PATH",
+                                                "${Constants.EMULATOR_URL}${glasses.arModels.lensesObj}"
+                                            )
+                                            putExtra(
+                                                "LENSES_MTL_PATH",
+                                                "${Constants.EMULATOR_URL}${glasses.arModels.lensesMtl}"
+                                            )
+                                            putExtra(
+                                                "ARMS_PATH",
+                                                "${Constants.EMULATOR_URL}${glasses.arModels.armsObj}"
+                                            )
+                                            putExtra(
+                                                "ARMS_MTL_PATH",
+                                                "${Constants.EMULATOR_URL}${glasses.arModels.armsMtl}"
+                                            )
+                                            putExtra(
+                                                "FRAME_MATERIALS",
+                                                glasses.arModels.frameMaterials?.map { "${Constants.EMULATOR_URL}$it" }
+                                                    ?.toTypedArray()
+                                            )
+                                            putExtra(
+                                                "ARMS_MATERIALS",
+                                                glasses.arModels.armsMaterials?.map { "${Constants.EMULATOR_URL}$it" }
+                                                    ?.toTypedArray()
+                                            )
                                         }
                                         context.startActivity(intent)
                                     }
@@ -312,6 +374,7 @@ fun AllProducts(
                         }
                     }
                 }
+            }
             }
         }
     }
