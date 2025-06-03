@@ -34,6 +34,7 @@ class LoginViewModel @Inject constructor(
 
     fun login(email: String, password: String) {
         // Validate fields before submission
+        _errorMessage.value = null
         val emailError = validateEmail(email)
         val passwordError = validatePassword(password)
 

@@ -89,10 +89,12 @@ fun ReviewScreen(
     isSubmitting: Boolean = false,
     error: String? = null
 ) {
+
     var rating by remember { mutableStateOf(0) }
     var comment by remember { mutableStateOf("") }
     var showValidationError by remember { mutableStateOf(false) }
-
+    val isRatingError = showValidationError && rating == 0
+    val isCommentError = showValidationError && comment.isBlank()
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -143,21 +145,17 @@ fun ReviewScreen(
                 )
             }
 
-            // Show validation error
-            if (showValidationError) {
-                Text(
-                    text = "Please select a rating and write a comment",
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
 
             ReviewSection(
                 rating = rating,
                 onRatingChange = { rating = it },
                 comment = comment,
-                onCommentChange = { comment = it }
+                onCommentChange = { comment = it },
+                isRatingError = isRatingError,
+                isCommentError = isCommentError
             )
+
+
         }
     }
 }
@@ -167,7 +165,9 @@ fun ReviewSection(
     rating: Int,
     onRatingChange: (Int) -> Unit,
     comment: String,
-    onCommentChange: (String) -> Unit
+    onCommentChange: (String) -> Unit,
+    isRatingError: Boolean = false,
+    isCommentError: Boolean = false
 ) {
     Column(
         modifier = Modifier
@@ -176,28 +176,63 @@ fun ReviewSection(
             .border(1.dp, Color.LightGray, shape = RoundedCornerShape(12.dp))
             .padding(16.dp)
     ) {
-        Text("What's your fair rate for your glasses?*", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+
+        Text(
+            text = "What's your fair rate for your glasses?*",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (isRatingError) MaterialTheme.colorScheme.error else Color.Black
+        )
+
         Spacer(modifier = Modifier.height(4.dp))
+
         StarRating(
             rating = rating,
             onRatingSelected = onRatingChange
         )
+
         Spacer(modifier = Modifier.height(4.dp))
-        Text("Click to rate the product", fontSize = 14.sp, color = Color.Gray)
+
+        Text(
+            text = "Click to rate the product",
+            fontSize = 14.sp,
+            color = Color.Gray
+        )
+
         Spacer(modifier = Modifier.height(16.dp))
-        Text("Let us know your overall product experience*", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+
+        Text(
+            text = "Let us know your overall product experience*",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+
         Spacer(modifier = Modifier.height(8.dp))
+
         OutlinedTextField(
             value = comment,
             onValueChange = onCommentChange,
-            placeholder = { Text("Describe your overall product experience to let others know it", fontSize = 14.sp, color = Color.Gray) },
+            placeholder = {
+                Text(
+                    "Describe your overall product experience to let others know it",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(120.dp),
-            shape = RoundedCornerShape(8.dp)
+            shape = RoundedCornerShape(8.dp),
+            isError = isCommentError,
+            supportingText = {
+                if (isCommentError) {
+                    Text("Comment is required", color = MaterialTheme.colorScheme.error)
+                }
+            }
         )
     }
 }
+
 
 @Composable
 fun StarRating(
