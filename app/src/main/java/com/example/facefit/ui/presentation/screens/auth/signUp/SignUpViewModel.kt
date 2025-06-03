@@ -1,5 +1,6 @@
 package com.example.facefit.ui.presentation.screens.auth.signUp
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.facefit.data.models.requests.SignUpRequest
@@ -16,6 +17,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import retrofit2.Response
 import javax.inject.Inject
+import com.example.facefit.data.models.responses.ErrorResponse
 
 @HiltViewModel
 class SignUpViewModel @Inject constructor(
@@ -151,29 +153,61 @@ class SignUpViewModel @Inject constructor(
         } else {
             try {
                 val errorBody = response.errorBody()?.string()
+                Log.e("SIGNUP_ERROR_BODY", errorBody ?: "No error body")
+
+                if (errorBody.isNullOrEmpty()) {
+                    _signUpState.value = Resource.Error("Empty error response")
+                    return
+                }
+
                 val errorResponse = gson.fromJson(errorBody, ErrorResponse::class.java)
+                var hasFieldError = false
 
                 errorResponse?.errors?.forEach { error ->
-                    when (error.field) {
-                        "firstName" -> _uiState.update { it.copy(firstNameError = error.message) }
-                        "lastName" -> _uiState.update { it.copy(lastNameError = error.message) }
-                        "phone" -> _uiState.update { it.copy(phoneError = error.message) }
-                        "email" -> _uiState.update { it.copy(emailError = error.message) }
-                        "password" -> _uiState.update { it.copy(passwordError = error.message) }
-                        "confirmPassword" -> _uiState.update {
-                            it.copy(confirmPasswordError = error.message)
+                    val field = error.field
+                    val message = error.message
+
+                    Log.d("SIGNUP_FIELD_ERROR", "Field: $field | Message: $message")
+
+                    if (!field.isNullOrEmpty() && !message.isNullOrEmpty()) {
+                        hasFieldError = true
+                        when (field) {
+                            "firstName" -> _uiState.update { it.copy(firstNameError = message) }
+                            "lastName" -> _uiState.update { it.copy(lastNameError = message) }
+                            "phone" -> _uiState.update { it.copy(phoneError = message) }
+                            "password" -> _uiState.update { it.copy(passwordError = message) }
+                            "confirmPassword" -> _uiState.update {
+                                it.copy(confirmPasswordError = message)
+                            }
+
+                            "email" -> {
+                                // 💥 فرض إعادة البناء يدويًا علشان Compose يعيد رسم حقل الإيميل
+                                val current = _uiState.value
+                                _uiState.value = current.copy(
+                                    email = current.email + " ",
+                                    emailError = message
+                                )
+                                _uiState.value = _uiState.value.copy(email = current.email.trim())
+                                Log.d("EMAIL_ERROR_STATE", _uiState.value.emailError ?: "no error")
+                            }
                         }
                     }
                 }
 
-                _signUpState.value = Resource.Error(
-                    errorResponse?.message ?: "Sign up failed"
-                )
+                if (hasFieldError) {
+                    _signUpState.value = Resource.Error("") // ما نعرضش Snackbar
+                } else {
+                    val fallback = errorResponse?.errors?.firstOrNull()?.message ?: "Sign up failed"
+                    _signUpState.value = Resource.Error(fallback)
+                }
+
             } catch (e: Exception) {
+                Log.e("SIGNUP_PARSE_ERROR", "Parsing failed: ${e.localizedMessage}")
                 _signUpState.value = Resource.Error("Failed to parse error response")
             }
         }
     }
+
 }
 
 data class SignUpUiState(
@@ -190,13 +224,3 @@ data class SignUpUiState(
     val passwordError: String? = null,
     val confirmPasswordError: String? = null
 )
-
-data class ErrorResponse(
-    val message: String?,
-    val errors: List<FieldError> = emptyList()
-) {
-    data class FieldError(
-        val field: String,
-        val message: String
-    )
-}

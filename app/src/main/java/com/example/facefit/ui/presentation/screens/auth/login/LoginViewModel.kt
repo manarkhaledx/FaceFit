@@ -99,12 +99,14 @@ class LoginViewModel @Inject constructor(
             val errorBody = response.errorBody()?.string()
             val errorResponse = gson.fromJson(errorBody, ErrorResponse::class.java)
 
-            if (!errorResponse?.errors.isNullOrEmpty()) {
-                val errorsMap = errorResponse?.errors?.associate { it.field to it.message } ?: emptyMap()
-                _fieldErrors.value = errorsMap
-                _loginState.value = Resource.Error("Please fix the form errors")
-                return
-            }
+if (!errorResponse?.errors.isNullOrEmpty()) {
+    val errorsMap = errorResponse?.errors
+        ?.mapNotNull { it.field?.let { field -> it.message?.let { msg -> field to msg } } }
+        ?.toMap() ?: emptyMap()
+    _fieldErrors.value = errorsMap
+    _loginState.value = Resource.Error("Please fix the form errors")
+    return
+}
 
             val errorMessage = when {
                 errorBody?.contains("Customer not found") == true -> "Email not registered"

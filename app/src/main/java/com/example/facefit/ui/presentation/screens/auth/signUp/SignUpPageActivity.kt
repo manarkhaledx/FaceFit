@@ -2,6 +2,7 @@ package com.example.facefit.ui.presentation.screens.auth.signUp
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -95,17 +96,14 @@ fun SignUpScreen(
     val confirmPasswordVisible = remember { mutableStateOf(false) }
 
     LaunchedEffect(signUpState) {
-        when (signUpState) {
-            is Resource.Success -> onSignUpSuccess()
-            is Resource.Error -> {
-                val errorMessage = (signUpState as Resource.Error).message
-                scope.launch {
-                    snackBarHostState.showSnackbar(errorMessage ?: "Sign up failed")
-                }
+        val message = (signUpState as? Resource.Error)?.message
+        if (!message.isNullOrBlank()) {
+            scope.launch {
+                snackBarHostState.showSnackbar(message)
             }
-            else -> {}
         }
     }
+
 
     Scaffold(
         snackbarHost = { SnackbarHost(hostState = snackBarHostState) }
@@ -186,7 +184,10 @@ fun SignUpScreen(
             OutlinedTextField(
                 value = uiState.email,
                 onValueChange = { viewModel.updateEmail(it) },
-                label = { Text(stringResource(id = R.string.email)) },
+                label = {
+                    Log.d("UI_REBUILD", "Email field rebuilt with error: ${uiState.emailError}")
+                    Text(stringResource(id = R.string.email))
+                },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),

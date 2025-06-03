@@ -21,15 +21,17 @@ object SignUpValidator {
         }
     }
 
-    fun validateEmail(email: String): String? {
+    fun validateEmail(email: String, emailAlreadyExists: Boolean = false): String? {
         val trimmed = email.trim()
         return when {
             trimmed.isBlank() -> "Email is required"
             " " in trimmed -> "Email cannot contain spaces"
             !android.util.Patterns.EMAIL_ADDRESS.matcher(trimmed).matches() -> "Invalid email format"
+            emailAlreadyExists -> "This email is already in use"
             else -> null
         }
     }
+
 
 
     fun validatePhone(phone: String): String? {
