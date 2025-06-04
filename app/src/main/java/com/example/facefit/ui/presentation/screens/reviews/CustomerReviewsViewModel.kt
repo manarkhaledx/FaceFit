@@ -7,6 +7,7 @@ import com.example.facefit.domain.models.Review
 import com.example.facefit.domain.usecases.reviews.GetReviewsUseCase
 import com.example.facefit.domain.usecases.reviews.SubmitReviewUseCase
 import com.example.facefit.domain.utils.Resource
+import com.example.facefit.domain.utils.validators.ReviewValidator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,6 +54,7 @@ class CustomerReviewsViewModel @Inject constructor(
                         )
                     }
                 }
+
                 is Resource.Error -> {
                     _uiState.update {
                         it.copy(
@@ -69,6 +71,17 @@ class CustomerReviewsViewModel @Inject constructor(
 
 
     fun submitReview(glassesId: String, rating: Int, comment: String) {
+        val errors = ReviewValidator.validateReview(glassesId, rating, comment)
+        if (errors.isNotEmpty()) {
+            _uiState.update {
+                it.copy(
+                    isSubmittingReview = false,
+                    error = errors.values.firstOrNull()
+                )
+            }
+            return
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update { it.copy(isSubmittingReview = true, error = null) }
 
@@ -88,25 +101,28 @@ class CustomerReviewsViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             isSubmittingReview = false,
-                            reviewSubmitted = true
+                            reviewSubmitted = true,
+                            error = null
                         )
                     }
-                    loadReviews(glassesId)
                 }
+
                 is Resource.Error -> {
                     _uiState.update {
                         it.copy(
                             isSubmittingReview = false,
-                            error = result.message ?: "Failed to submit review"
+                            error = result.message ?: "An error occurred"
                         )
                     }
                 }
-                is Resource.Loading -> Unit
+
+                else -> Unit
             }
         }
     }
-}
 
+
+}
 data class CustomerReviewsUiState(
     val reviews: List<Review> = emptyList(),
     val averageRating: Double = 0.0,

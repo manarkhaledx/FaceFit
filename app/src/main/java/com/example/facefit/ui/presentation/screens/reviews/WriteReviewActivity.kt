@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.facefit.R
+import com.example.facefit.domain.utils.validators.ReviewValidator
 import com.example.facefit.ui.presentation.components.buttons.LongButton
 import com.example.facefit.ui.theme.FaceFitTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -113,16 +114,12 @@ fun ReviewScreen(
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                LongButton(
-                    text = if (isSubmitting) "Submitting..." else "Submit",
-                    onClick = {
-                        if (rating == 0 || comment.isBlank()) {
-                            showValidationError = true
-                        } else {
-                            showValidationError = false
-                            onSubmit(rating, comment)
-                        }
-                    }
+               ReviewSubmitButton(
+                    rating = rating,
+                    comment = comment,
+                    isSubmitting = isSubmitting,
+                    onSubmit = onSubmit,
+                    setShowValidationError = { showValidationError = it }
                 )
             }
         }
@@ -157,6 +154,79 @@ fun ReviewScreen(
 
 
         }
+    }
+}
+@Composable
+fun ReviewSubmitButton(
+    rating: Int,
+    comment: String,
+    isSubmitting: Boolean,
+    onSubmit: (Int, String) -> Unit,
+    setShowValidationError: (Boolean) -> Unit
+) {
+    LongButton(
+        text = if (isSubmitting) "Submitting..." else "Submit",
+        onClick = {
+            val errors = ReviewValidator.validateReview("temp", rating, comment)
+            setShowValidationError(errors.isNotEmpty())
+            if (errors.isEmpty()) {
+                onSubmit(rating, comment)
+            }
+        }
+    )
+}
+@Composable
+fun FormattedRatingText(averageRating: Double) {
+    val averageFormatted = String.format("%.1f", averageRating)
+    Text(
+        text = "$averageFormatted",
+        fontSize = 40.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(end = 8.dp)
+    )
+}
+
+@Composable
+fun ReviewTextField(
+    comment: String,
+    onCommentChange: (String) -> Unit
+) {
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = comment,
+            onValueChange = {
+                onCommentChange(it)
+                errorMessage = ReviewValidator.validateComment(it)
+            },
+            placeholder = {
+                Text(
+                    "Describe your overall product experience to let others know it",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp),
+            shape = RoundedCornerShape(8.dp),
+            isError = errorMessage != null,
+            supportingText = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (errorMessage != null) {
+                        Text(errorMessage ?: "", color = MaterialTheme.colorScheme.error)
+                    }
+                    Text(
+                        "${comment.length} / 500",
+                        modifier = Modifier.align(Alignment.End),
+                        fontSize = 12.sp,
+                        color = if (comment.length > 500) MaterialTheme.colorScheme.error else Color.Gray
+                    )
+                }
+            },
+            maxLines = 6
+        )
     }
 }
 
@@ -209,27 +279,10 @@ fun ReviewSection(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        OutlinedTextField(
-            value = comment,
-            onValueChange = onCommentChange,
-            placeholder = {
-                Text(
-                    "Describe your overall product experience to let others know it",
-                    fontSize = 14.sp,
-                    color = Color.Gray
-                )
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp),
-            shape = RoundedCornerShape(8.dp),
-            isError = isCommentError,
-            supportingText = {
-                if (isCommentError) {
-                    Text("Comment is required", color = MaterialTheme.colorScheme.error)
-                }
-            }
-        )
+      ReviewTextField(
+                comment = comment,
+                onCommentChange = onCommentChange
+            )
     }
 }
 

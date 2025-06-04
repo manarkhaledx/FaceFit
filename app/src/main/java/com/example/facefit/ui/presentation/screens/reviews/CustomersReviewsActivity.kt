@@ -133,7 +133,7 @@ fun CustomersReviewsScreen(
                         .padding(16.dp)
                 ) {
                     ReviewSummary(
-                        averageRating = uiState.averageRating,
+                      averageRating = String.format("%.1f", uiState.averageRating).toDouble(),
                         reviewCount = uiState.reviews.size
                     )
 
@@ -145,6 +145,34 @@ fun CustomersReviewsScreen(
                     }
                 }
             }
+        }
+    }
+}
+@Composable
+fun StaticStarRating(
+    rating: Double,
+    modifier: Modifier = Modifier,
+    starSize: Int = 24
+) {
+    val fullStars = rating.toInt().coerceIn(0, 5)
+    val emptyStars = 5 - fullStars
+
+    Row(modifier = modifier) {
+        repeat(fullStars) {
+            Icon(
+                painter = painterResource(id = R.drawable.rate_star_filled),
+                contentDescription = "Filled Star",
+                modifier = Modifier.size(starSize.dp),
+                tint = Color.Unspecified
+            )
+        }
+        repeat(emptyStars) {
+            Icon(
+                painter = painterResource(id = R.drawable.rate_star),
+                contentDescription = "Empty Star",
+                modifier = Modifier.size(starSize.dp),
+                tint = Color.Unspecified
+            )
         }
     }
 }
@@ -169,22 +197,8 @@ fun ReviewSummary(averageRating: Double, reviewCount: Int) {
                 modifier = Modifier.padding(end = 8.dp)
             )
             Column {
-                Row {
-                    repeat(4) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.rate_star_filled),
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp),
-                            tint = Color.Unspecified
-                        )
-                    }
-                    Icon(
-                        painter = painterResource(id = R.drawable.rate_star),
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = Color.Unspecified
-                    )
-                }
+                StaticStarRating(rating = averageRating)
+
                 Text(
                     text = "$reviewCount customer ratings",
                     fontSize = 14.sp,
