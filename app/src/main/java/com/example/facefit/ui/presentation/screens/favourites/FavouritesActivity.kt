@@ -22,13 +22,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.Card
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.CircularProgressIndicator
+import androidx.compose.material.Colors
 //noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.Icon
 //noinspection UsingMaterialAndMaterial3Libraries
@@ -62,6 +66,7 @@ import com.example.facefit.ui.presentation.base.RefreshableViewModel
 import com.example.facefit.ui.presentation.components.PullToRefreshContainer
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 import com.example.facefit.ui.presentation.screens.products.ProductDetailsActivity
+import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 import com.example.facefit.ui.utils.Constants
 import dagger.hilt.android.AndroidEntryPoint
@@ -137,12 +142,17 @@ fun FavouritesScreen(
                 }
 
                 is Resource.Error -> {
-                    val message = (favoritesState as Resource.Error<List<Glasses>>).message
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(message ?: "Unknown error")
-                            Button(onClick = { viewModel.loadFavorites() }) {
-                                Text("Retry")
+                    val message = (favoritesState as Resource.Error<List<Glasses>>).message ?: "Unknown error"
+                    if (message.contains("network", ignoreCase = true) || message.contains("Unable to resolve host", ignoreCase = true)) {
+                        NoInternetScreen()
+
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(message)
+                                Button(onClick = { viewModel.loadFavorites() }) {
+                                    Text("Retry")
+                                }
                             }
                         }
                     }
@@ -258,11 +268,12 @@ fun EmptyFavoritesScreen(onExploreClick: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.favourite_empty),
-                contentDescription = "No favorites illustration",
-                modifier = Modifier.height(180.dp)
-            )
+Image(
+    painter = painterResource(id = R.drawable.favourite_empty),
+    contentDescription = "No favorites illustration",
+    modifier = Modifier.height(180.dp),
+    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Blue1)
+)
 
             Text(
                 text = "No favourites yet",
@@ -279,6 +290,39 @@ fun EmptyFavoritesScreen(onExploreClick: () -> Unit) {
             )
 
         }
+    }
+}
+@Composable
+fun NoInternetScreen() {
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.no_int),
+            contentDescription = "No internet illustration",
+            modifier = Modifier.height(180.dp)
+        )
+
+        Text(
+            text = "No Internet Connection",
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            color = Color.Black
+        )
+
+        Text(
+            text = "Please check your connection and try again.",
+            fontSize = 14.sp,
+            color = Color.Gray,
+            textAlign = TextAlign.Center
+        )
     }
 }
 

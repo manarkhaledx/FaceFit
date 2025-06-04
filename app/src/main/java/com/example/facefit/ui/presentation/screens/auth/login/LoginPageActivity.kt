@@ -53,6 +53,7 @@ import com.example.facefit.ui.presentation.components.textfields.EmailField
 import com.example.facefit.ui.presentation.components.textfields.PasswordField
 import com.example.facefit.ui.presentation.screens.home.HomePageActivity
 import com.example.facefit.ui.presentation.screens.auth.signUp.SignUpPage
+import com.example.facefit.ui.presentation.screens.splash.ShrinkOverlay
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -188,6 +189,7 @@ fun LoginScreen(
             }
         }
     }
+    ShrinkOverlay()
 }
 
 @Composable
