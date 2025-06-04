@@ -33,7 +33,8 @@ class LoginViewModel @Inject constructor(
     val errorMessage: StateFlow<String?> = _errorMessage
 
     fun login(email: String, password: String) {
-        // Validate fields before submission
+        _loginState.value = null
+
         _errorMessage.value = null
         val emailError = validateEmail(email)
         val passwordError = validatePassword(password)
@@ -123,10 +124,15 @@ if (!errorResponse?.errors.isNullOrEmpty()) {
     }
 
     private fun handleGenericError(e: Exception) {
-        val message = e.message ?: "An unexpected error occurred"
+        val message = if (e.message?.contains("Unable to resolve host", ignoreCase = true) == true) {
+            "Please check your internet connection."
+        } else {
+            e.message ?: "An unexpected error occurred"
+        }
         _errorMessage.value = message
         _loginState.value = Resource.Error(message)
     }
+
 
     fun clearFieldError(field: String) {
         _fieldErrors.value -= field

@@ -1,28 +1,32 @@
 package com.example.facefit.ui.presentation.screens.auth.signUp
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.facefit.data.local.TokenManager
+import com.example.facefit.data.models.requests.LoginRequest
 import com.example.facefit.data.models.requests.SignUpRequest
+import com.example.facefit.data.models.responses.ErrorResponse
 import com.example.facefit.data.models.responses.SignUpResponse
+import com.example.facefit.domain.usecases.auth.LoginUseCase
 import com.example.facefit.domain.usecases.auth.SignUpUseCase
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.domain.utils.validators.SignUpValidator
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import retrofit2.Response
 import javax.inject.Inject
-import com.example.facefit.data.models.responses.ErrorResponse
 
 @HiltViewModel
 class SignUpViewModel @Inject constructor(
     private val signUpUseCase: SignUpUseCase,
+    private val loginUseCase: LoginUseCase,
+    private val tokenManager: TokenManager,
     private val gson: Gson
+
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SignUpUiState())
@@ -30,7 +34,8 @@ class SignUpViewModel @Inject constructor(
 
     private val _signUpState = MutableStateFlow<Resource<Unit>?>(null)
     val signUpState = _signUpState.asStateFlow()
-
+    private var tempEmail = ""
+    private var tempPassword = ""
     fun updateFirstName(firstName: String) {
         val trimmed = firstName.trim()
         _uiState.update { currentState ->
@@ -127,6 +132,8 @@ class SignUpViewModel @Inject constructor(
         }
 
         _signUpState.value = Resource.Loading()
+        tempEmail = currentState.email
+        tempPassword = currentState.password
 
         viewModelScope.launch {
             try {
@@ -146,68 +153,63 @@ class SignUpViewModel @Inject constructor(
             }
         }
     }
+    private suspend fun handleLoginAfterSignUp() {
+        val loginRequest = LoginRequest(email = tempEmail, password = tempPassword)
+        val loginResponse = loginUseCase(loginRequest)
 
+        if (loginResponse.isSuccessful) {
+            loginResponse.body()?.data?.token?.let { token ->
+                tokenManager.saveToken(token)
+                _signUpState.value = Resource.Success(Unit)
+            } ?: run {
+                _signUpState.value = Resource.Error("Login failed after sign up")
+            }
+        } else {
+            _signUpState.value = Resource.Error("Login failed after sign up")
+        }
+    }
     private fun handleSignUpResponse(response: Response<SignUpResponse>) {
         if (response.isSuccessful) {
-            _signUpState.value = Resource.Success(Unit)
+            viewModelScope.launch {
+                handleLoginAfterSignUp()
+            }
         } else {
             try {
                 val errorBody = response.errorBody()?.string()
-                Log.e("SIGNUP_ERROR_BODY", errorBody ?: "No error body")
-
-                if (errorBody.isNullOrEmpty()) {
-                    _signUpState.value = Resource.Error("Empty error response")
-                    return
-                }
-
                 val errorResponse = gson.fromJson(errorBody, ErrorResponse::class.java)
-                var hasFieldError = false
 
+                var hasFieldError = false
                 errorResponse?.errors?.forEach { error ->
                     val field = error.field
                     val message = error.message
-
-                    Log.d("SIGNUP_FIELD_ERROR", "Field: $field | Message: $message")
-
                     if (!field.isNullOrEmpty() && !message.isNullOrEmpty()) {
                         hasFieldError = true
-                        when (field) {
-                            "firstName" -> _uiState.update { it.copy(firstNameError = message) }
-                            "lastName" -> _uiState.update { it.copy(lastNameError = message) }
-                            "phone" -> _uiState.update { it.copy(phoneError = message) }
-                            "password" -> _uiState.update { it.copy(passwordError = message) }
-                            "confirmPassword" -> _uiState.update {
-                                it.copy(confirmPasswordError = message)
-                            }
-
-                            "email" -> {
-                                // 💥 فرض إعادة البناء يدويًا علشان Compose يعيد رسم حقل الإيميل
-                                val current = _uiState.value
-                                _uiState.value = current.copy(
-                                    email = current.email + " ",
-                                    emailError = message
-                                )
-                                _uiState.value = _uiState.value.copy(email = current.email.trim())
-                                Log.d("EMAIL_ERROR_STATE", _uiState.value.emailError ?: "no error")
+                        _uiState.update { current ->
+                            when (field) {
+                                "firstName" -> current.copy(firstNameError = message)
+                                "lastName" -> current.copy(lastNameError = message)
+                                "phone" -> current.copy(phoneError = message)
+                                "email" -> current.copy(emailError = message)
+                                "password" -> current.copy(passwordError = message)
+                                "confirmPassword" -> current.copy(confirmPasswordError = message)
+                                else -> current
                             }
                         }
                     }
                 }
 
                 if (hasFieldError) {
-                    _signUpState.value = Resource.Error("") // ما نعرضش Snackbar
+                    _signUpState.value = Resource.Error("")
                 } else {
                     val fallback = errorResponse?.errors?.firstOrNull()?.message ?: "Sign up failed"
                     _signUpState.value = Resource.Error(fallback)
                 }
 
             } catch (e: Exception) {
-                Log.e("SIGNUP_PARSE_ERROR", "Parsing failed: ${e.localizedMessage}")
                 _signUpState.value = Resource.Error("Failed to parse error response")
             }
         }
     }
-
 }
 
 data class SignUpUiState(

@@ -3,6 +3,7 @@ package com.example.facefit.ui.presentation.screens.products
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -75,7 +76,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.ui.platform.LocalContext
 import com.example.facefit.AR.augmentedfaces.AugmentedFacesActivity
+
 import com.example.facefit.ui.presentation.base.RefreshableViewModel
+import com.example.facefit.ui.presentation.components.GlobalErrorToast
 import com.example.facefit.ui.presentation.components.PullToRefreshContainer
 import com.example.facefit.ui.utils.Constants
 
@@ -151,6 +154,10 @@ fun AllProducts(
     val pendingFavorites by viewModel.pendingFavorites.collectAsStateWithLifecycle()
 
     val selectedTab = uiState.selectedTab
+    val toastTrigger by viewModel.toastTrigger.collectAsStateWithLifecycle()
+
+    GlobalErrorToast(errorMessage = uiState.error, trigger = toastTrigger)
+
 
     LaunchedEffect(Unit) {
         viewModel.loadAllProducts()
@@ -226,12 +233,11 @@ fun AllProducts(
                 }
 
                 uiState.error != null -> {
-                    Column {
-                        Text(
-                            text = uiState.error ?: stringResource(R.string.error_loading_products),
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(16.dp)
-                        )
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
                             contentPadding = PaddingValues(16.dp),

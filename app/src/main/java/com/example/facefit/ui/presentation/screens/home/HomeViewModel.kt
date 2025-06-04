@@ -29,6 +29,8 @@ class HomeViewModel @Inject constructor(
     private val getFavoritesUseCase: GetFavoritesUseCase,
     private val authManager: TokenManager
 ) : ViewModel(), RefreshableViewModel {
+    private val _toastTrigger = MutableStateFlow(0)
+    val toastTrigger: StateFlow<Int> = _toastTrigger.asStateFlow()
     private val _bestSellers = MutableStateFlow<Resource<List<Glasses>>>(Resource.Loading())
     val bestSellers: StateFlow<Resource<List<Glasses>>> = _bestSellers
 
@@ -68,13 +70,21 @@ class HomeViewModel @Inject constructor(
 
     private fun getBestSellers() {
         viewModelScope.launch {
-            _bestSellers.value = getBestSellersUseCase()
+            val result = getBestSellersUseCase()
+            _bestSellers.value = result
+            if (result is Resource.Error) {
+                _toastTrigger.update { it + 1 }
+            }
         }
     }
 
     private fun getNewArrivals() {
         viewModelScope.launch {
-            _newArrivals.value = getNewArrivalsUseCase()
+            val result = getNewArrivalsUseCase()
+            _newArrivals.value = result
+            if (result is Resource.Error) {
+                _toastTrigger.update { it + 1 }
+            }
         }
     }
 

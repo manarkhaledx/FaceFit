@@ -3,6 +3,7 @@ package com.example.facefit.ui.presentation.screens.auth.signUp
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -39,6 +40,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -94,15 +96,34 @@ fun SignUpScreen(
 
     val passwordVisible = remember { mutableStateOf(false) }
     val confirmPasswordVisible = remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     LaunchedEffect(signUpState) {
-        val message = (signUpState as? Resource.Error)?.message
-        if (!message.isNullOrBlank()) {
-            scope.launch {
-                snackBarHostState.showSnackbar(message)
+        when (signUpState) {
+            is Resource.Success -> {
+                Toast.makeText(
+                    context,
+                    "Account created successfully!",
+                    Toast.LENGTH_SHORT
+                ).show()
+                onSignUpSuccess()
             }
+
+            is Resource.Error -> {
+                val error = signUpState as? Resource.Error
+                val message = error?.message
+                if (!message.isNullOrBlank()) {
+                    scope.launch {
+                        snackBarHostState.showSnackbar(message)
+                    }
+                }
+            }
+
+            else -> {}
         }
     }
+
+
 
 
     Scaffold(
@@ -183,11 +204,17 @@ fun SignUpScreen(
 
             OutlinedTextField(
                 value = uiState.email,
-                onValueChange = { viewModel.updateEmail(it) },
-                label = {
-                    Log.d("UI_REBUILD", "Email field rebuilt with error: ${uiState.emailError}")
-                    Text(stringResource(id = R.string.email))
+                onValueChange = { input ->
+                    val atIndex = input.indexOf('@')
+                    val normalized = if (atIndex != -1 && atIndex + 1 < input.length) {
+                        input.substring(0, atIndex + 1) + input.substring(atIndex + 1).lowercase()
+                    } else {
+                        input
+                    }
+
+                    viewModel.updateEmail(normalized)
                 },
+                label = { Text(stringResource(id = R.string.email)) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
@@ -202,6 +229,7 @@ fun SignUpScreen(
                     }
                 }
             )
+
 
             PasswordField(
                 password = uiState.password,
@@ -268,8 +296,11 @@ fun EgyptPhoneNumberField(
         onValueChange = {
             if (it.all { char -> char.isDigit() }) {
                 localPhone = it.take(11)
-                onPhoneNumberChange("+20$localPhone")
+                val normalized = if (localPhone.startsWith("0")) localPhone.drop(1) else localPhone
+
+                onPhoneNumberChange("+20$normalized")
             }
+
         },
         label = { Text("Phone Number") },
         leadingIcon = {

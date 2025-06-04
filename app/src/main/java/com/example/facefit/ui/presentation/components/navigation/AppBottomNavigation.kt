@@ -93,11 +93,13 @@ fun AppBottomNavigation() {
                     },
                     selected = selectedItem == index,
                     onClick = {
-                        selectedItem = index
-                        when (item.title) {
-                            "Home" -> context.startActivity(Intent(context, HomePageActivity::class.java))
-                            "Products" -> context.startActivity(Intent(context, AllProductsActivity::class.java))
-                            "Favourites" -> context.startActivity(Intent(context, FavouritesActivity::class.java))
+                        if (selectedItem != index) {
+                            selectedItem = index
+                            when (item.title) {
+                                "Home" -> context.startActivity(Intent(context, HomePageActivity::class.java))
+                                "Products" -> context.startActivity(Intent(context, AllProductsActivity::class.java))
+                                "Favourites" -> context.startActivity(Intent(context, FavouritesActivity::class.java))
+                            }
                         }
                     },
                     modifier = Modifier.weight(1f)

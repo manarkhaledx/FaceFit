@@ -34,18 +34,20 @@ object SignUpValidator {
 
 
 
-    fun validatePhone(phone: String): String? {
-        return when {
-            phone.isBlank() -> "Phone number is required"
-            !phone.startsWith("+20") -> "Phone number must start with +20"
-            !phone.matches(Regex("^\\+201[0125][0-9]{8}$")) ->
-                "Phone number must start with 010, 011, 012, or 015"
-            phone.length != 13 -> "Phone number must be 11 digits"
-            !phone.substring(3).all { it.isDigit() } -> "Phone number must contain only digits"
-
-            else -> null
-        }
+fun validatePhone(phone: String): String? {
+    var number = phone.removePrefix("+20").replace(" ", "")
+    if (number.startsWith("0")) {
+        number = number.drop(1)
     }
+    return when {
+        number.isBlank() -> "Phone number is required"
+        number.length != 10 -> "Phone number must be 10 digits"
+        !number.matches(Regex("^1[0125][0-9]{8}$")) ->
+            "Phone number must start with 010, 011, 012, or 015"
+        else -> null
+    }
+}
+
 
 
     fun validatePassword(password: String): String? {

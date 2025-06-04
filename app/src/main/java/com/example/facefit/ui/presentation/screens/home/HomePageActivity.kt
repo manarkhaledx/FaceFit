@@ -71,6 +71,7 @@ import com.example.facefit.R
 import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.base.RefreshableViewModel
+import com.example.facefit.ui.presentation.components.GlobalErrorToast
 import com.example.facefit.ui.presentation.components.ProductItem
 import com.example.facefit.ui.presentation.components.PullToRefreshContainer
 import com.example.facefit.ui.presentation.components.cards.ProductCard
@@ -115,6 +116,13 @@ fun EyewearScreen(
     val pendingFavorites by viewModel.pendingFavorites.collectAsStateWithLifecycle()
     val categories = getCategories()
     val isRefreshing = bestSellers is Resource.Loading || newArrivals is Resource.Loading
+    val toastTrigger by viewModel.toastTrigger.collectAsStateWithLifecycle()
+    val errorMessage = listOf(bestSellers, newArrivals)
+        .firstOrNull { it is Resource.Error }
+        ?.let { (it as Resource.Error).message }
+
+    GlobalErrorToast(errorMessage = errorMessage, trigger = toastTrigger)
+
     Scaffold(
         bottomBar = { AppBottomNavigation() }
     ) { paddingValues ->
