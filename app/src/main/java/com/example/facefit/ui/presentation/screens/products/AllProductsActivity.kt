@@ -3,7 +3,6 @@ package com.example.facefit.ui.presentation.screens.products
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -39,11 +38,13 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,7 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -64,23 +65,20 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
+import com.example.facefit.AR.augmentedfaces.AugmentedFacesActivity
 import com.example.facefit.R
 import com.example.facefit.domain.models.Glasses
+import com.example.facefit.ui.presentation.components.GlobalErrorToast
+import com.example.facefit.ui.presentation.components.PullToRefreshContainer
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 import com.example.facefit.ui.presentation.screens.filter.FilterScreenOverlay
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
+import com.example.facefit.ui.utils.Constants
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.ui.platform.LocalContext
-import com.example.facefit.AR.augmentedfaces.AugmentedFacesActivity
-
+import androidx.compose.ui.layout.ContentScale
 import com.example.facefit.ui.presentation.base.RefreshableViewModel
-import com.example.facefit.ui.presentation.components.GlobalErrorToast
-import com.example.facefit.ui.presentation.components.PullToRefreshContainer
-import com.example.facefit.ui.utils.Constants
 
 @AndroidEntryPoint
 class AllProductsActivity : ComponentActivity() {
@@ -92,6 +90,7 @@ class AllProductsActivity : ComponentActivity() {
             var showFilter by remember { mutableStateOf(false) }
             val viewModel: AllProductsViewModel = hiltViewModel()
             val categoryFilter = intent.getStringExtra("CATEGORY_FILTER")
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
             LaunchedEffect(categoryFilter) {
                 if (categoryFilter != null) {
@@ -130,7 +129,8 @@ class AllProductsActivity : ComponentActivity() {
                                     shape = shape,
                                     material = material
                                 )
-                            }
+                            },
+                            currentFilters = uiState.activeFilters
                         )
                     }
                 }
@@ -152,12 +152,9 @@ fun AllProducts(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val favoriteStatus by viewModel.favoriteStatus.collectAsStateWithLifecycle()
     val pendingFavorites by viewModel.pendingFavorites.collectAsStateWithLifecycle()
-
-    val selectedTab = uiState.selectedTab
     val toastTrigger by viewModel.toastTrigger.collectAsStateWithLifecycle()
 
     GlobalErrorToast(errorMessage = uiState.error, trigger = toastTrigger)
-
 
     LaunchedEffect(Unit) {
         viewModel.loadAllProducts()
@@ -168,76 +165,25 @@ fun AllProducts(
             isRefreshing = uiState.isLoading,
             onRefresh = { (viewModel as? RefreshableViewModel)?.refresh() }
         ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.White)
-                .padding(paddingValues)
-        ) {
-            TopBar(
-                selectedOption = uiState.selectedSort,
-                onOptionSelected = { viewModel.sortProducts(it) },
-                onFilterClick = onFilterClick
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            FilterTabs(
-                selectedTab = selectedTab,
-                onTabSelected = { viewModel.filterByType(it) }
-            )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White)
+                    .padding(paddingValues)
+            ) {
+                TopBar(
+                    selectedOption = uiState.selectedSort,
+                    onOptionSelected = { viewModel.sortProducts(it) },
+                    onFilterClick = onFilterClick
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                FilterTabs(
+                    selectedTab = uiState.selectedTab,
+                    onTabSelected = { viewModel.filterByType(it) }
+                )
 
-            when {
-                uiState.isLoading -> {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        contentPadding = PaddingValues(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(createPlaceholderGlasses(6)) { glasses ->
-                            GlassesItem(
-                                glasses = glasses,
-                                favoriteStatus = favoriteStatus,
-                                pendingFavorites = pendingFavorites,
-                                onClick = { id -> onClick(id) },
-                                onFavoriteClick = {
-                                    viewModel.toggleFavorite(glasses.id)
-                                },
-                                onTryOnClick = { context ->
-                                    if (glasses.tryOn && glasses.arModels != null) {
-                                        val intent = Intent(
-                                            context,
-                                            AugmentedFacesActivity::class.java
-                                        ).apply {
-                                            putExtra("FRAME_PATH", glasses.arModels.frameObj)
-                                            putExtra("FRAME_MTL_PATH", glasses.arModels.frameMtl)
-                                            putExtra("LENSES_PATH", glasses.arModels.lensesObj)
-                                            putExtra("LENSES_MTL_PATH", glasses.arModels.lensesMtl)
-                                            putExtra("ARMS_PATH", glasses.arModels.armsObj)
-                                            putExtra("ARMS_MTL_PATH", glasses.arModels.armsMtl)
-                                            putExtra(
-                                                "FRAME_MATERIALS",
-                                                glasses.arModels.frameMaterials?.toTypedArray()
-                                            )
-                                            putExtra(
-                                                "ARMS_MATERIALS",
-                                                glasses.arModels.armsMaterials?.toTypedArray()
-                                            )
-                                        }
-                                        context.startActivity(intent)
-                                    }
-                                },
-                                isError = false
-                            )
-                        }
-                    }
-                }
-
-                uiState.error != null -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
-                    ) {
+                when {
+                    uiState.isLoading -> {
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
                             contentPadding = PaddingValues(16.dp),
@@ -260,15 +206,9 @@ fun AllProducts(
                                                 AugmentedFacesActivity::class.java
                                             ).apply {
                                                 putExtra("FRAME_PATH", glasses.arModels.frameObj)
-                                                putExtra(
-                                                    "FRAME_MTL_PATH",
-                                                    glasses.arModels.frameMtl
-                                                )
+                                                putExtra("FRAME_MTL_PATH", glasses.arModels.frameMtl)
                                                 putExtra("LENSES_PATH", glasses.arModels.lensesObj)
-                                                putExtra(
-                                                    "LENSES_MTL_PATH",
-                                                    glasses.arModels.lensesMtl
-                                                )
+                                                putExtra("LENSES_MTL_PATH", glasses.arModels.lensesMtl)
                                                 putExtra("ARMS_PATH", glasses.arModels.armsObj)
                                                 putExtra("ARMS_MTL_PATH", glasses.arModels.armsMtl)
                                                 putExtra(
@@ -288,99 +228,156 @@ fun AllProducts(
                             }
                         }
                     }
-                }
 
-                uiState.products.isEmpty() -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.Center,
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = stringResource(R.string.no_products_found),
-                            style = MaterialTheme.typography.titleMedium,
-                            textAlign = TextAlign.Center
-                        )
-
-                        Spacer(modifier = Modifier.height(16.dp))
-
-                        Button(
-                            onClick = { viewModel.loadAllProducts() },
-                            colors = ButtonDefaults.buttonColors(containerColor = Blue1)
+                    uiState.error != null -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
                         ) {
-                            Text(stringResource(R.string.clear_filters))
+                            LazyVerticalGrid(
+                                columns = GridCells.Fixed(2),
+                                contentPadding = PaddingValues(16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                items(createPlaceholderGlasses(6)) { glasses ->
+                                    GlassesItem(
+                                        glasses = glasses,
+                                        favoriteStatus = favoriteStatus,
+                                        pendingFavorites = pendingFavorites,
+                                        onClick = { id -> onClick(id) },
+                                        onFavoriteClick = {
+                                            viewModel.toggleFavorite(glasses.id)
+                                        },
+                                        onTryOnClick = { context ->
+                                            if (glasses.tryOn && glasses.arModels != null) {
+                                                val intent = Intent(
+                                                    context,
+                                                    AugmentedFacesActivity::class.java
+                                                ).apply {
+                                                    putExtra("FRAME_PATH", glasses.arModels.frameObj)
+                                                    putExtra(
+                                                        "FRAME_MTL_PATH",
+                                                        glasses.arModels.frameMtl
+                                                    )
+                                                    putExtra("LENSES_PATH", glasses.arModels.lensesObj)
+                                                    putExtra(
+                                                        "LENSES_MTL_PATH",
+                                                        glasses.arModels.lensesMtl
+                                                    )
+                                                    putExtra("ARMS_PATH", glasses.arModels.armsObj)
+                                                    putExtra("ARMS_MTL_PATH", glasses.arModels.armsMtl)
+                                                    putExtra(
+                                                        "FRAME_MATERIALS",
+                                                        glasses.arModels.frameMaterials?.toTypedArray()
+                                                    )
+                                                    putExtra(
+                                                        "ARMS_MATERIALS",
+                                                        glasses.arModels.armsMaterials?.toTypedArray()
+                                                    )
+                                                }
+                                                context.startActivity(intent)
+                                            }
+                                        },
+                                        isError = false
+                                    )
+                                }
+                            }
                         }
                     }
-                }
 
-                else -> {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        contentPadding = PaddingValues(16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        items(uiState.products) { glasses ->
-                            GlassesItem(
-                                glasses = glasses,
-                                favoriteStatus = favoriteStatus,
-                                pendingFavorites = pendingFavorites,
-                                onClick = { id -> onClick(id) },
-                                onFavoriteClick = {
-                                    viewModel.toggleFavorite(glasses.id)
-                                },
-                                onTryOnClick = { context ->
-                                    if (glasses.tryOn && glasses.arModels != null) {
-                                        val intent = Intent(
-                                            context,
-                                            AugmentedFacesActivity::class.java
-                                        ).apply {
-                                            putExtra(
-                                                "FRAME_PATH",
-                                                "${Constants.EMULATOR_URL}${glasses.arModels.frameObj}"
-                                            )
-                                            putExtra(
-                                                "FRAME_MTL_PATH",
-                                                "${Constants.EMULATOR_URL}${glasses.arModels.frameMtl}"
-                                            )
-                                            putExtra(
-                                                "LENSES_PATH",
-                                                "${Constants.EMULATOR_URL}${glasses.arModels.lensesObj}"
-                                            )
-                                            putExtra(
-                                                "LENSES_MTL_PATH",
-                                                "${Constants.EMULATOR_URL}${glasses.arModels.lensesMtl}"
-                                            )
-                                            putExtra(
-                                                "ARMS_PATH",
-                                                "${Constants.EMULATOR_URL}${glasses.arModels.armsObj}"
-                                            )
-                                            putExtra(
-                                                "ARMS_MTL_PATH",
-                                                "${Constants.EMULATOR_URL}${glasses.arModels.armsMtl}"
-                                            )
-                                            putExtra(
-                                                "FRAME_MATERIALS",
-                                                glasses.arModels.frameMaterials?.map { "${Constants.EMULATOR_URL}$it" }
-                                                    ?.toTypedArray()
-                                            )
-                                            putExtra(
-                                                "ARMS_MATERIALS",
-                                                glasses.arModels.armsMaterials?.map { "${Constants.EMULATOR_URL}$it" }
-                                                    ?.toTypedArray()
-                                            )
-                                        }
-                                        context.startActivity(intent)
-                                    }
-                                },
-                                isError = false
+                    uiState.products.isEmpty() -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = stringResource(R.string.no_products_found),
+                                style = MaterialTheme.typography.titleMedium,
+                                textAlign = TextAlign.Center
                             )
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Button(
+                                onClick = { viewModel.clearFilters() },
+                                colors = ButtonDefaults.buttonColors(containerColor = Blue1)
+                            ) {
+                                Text(stringResource(R.string.clear_filters))
+                            }
+                        }
+                    }
+
+                    else -> {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            contentPadding = PaddingValues(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            items(uiState.products) { glasses ->
+                                GlassesItem(
+                                    glasses = glasses,
+                                    favoriteStatus = favoriteStatus,
+                                    pendingFavorites = pendingFavorites,
+                                    onClick = { id -> onClick(id) },
+                                    onFavoriteClick = {
+                                        viewModel.toggleFavorite(glasses.id)
+                                    },
+                                    onTryOnClick = { context ->
+                                        if (glasses.tryOn && glasses.arModels != null) {
+                                            val intent = Intent(
+                                                context,
+                                                AugmentedFacesActivity::class.java
+                                            ).apply {
+                                                putExtra(
+                                                    "FRAME_PATH",
+                                                    "${Constants.EMULATOR_URL}${glasses.arModels.frameObj}"
+                                                )
+                                                putExtra(
+                                                    "FRAME_MTL_PATH",
+                                                    "${Constants.EMULATOR_URL}${glasses.arModels.frameMtl}"
+                                                )
+                                                putExtra(
+                                                    "LENSES_PATH",
+                                                    "${Constants.EMULATOR_URL}${glasses.arModels.lensesObj}"
+                                                )
+                                                putExtra(
+                                                    "LENSES_MTL_PATH",
+                                                    "${Constants.EMULATOR_URL}${glasses.arModels.lensesMtl}"
+                                                )
+                                                putExtra(
+                                                    "ARMS_PATH",
+                                                    "${Constants.EMULATOR_URL}${glasses.arModels.armsObj}"
+                                                )
+                                                putExtra(
+                                                    "ARMS_MTL_PATH",
+                                                    "${Constants.EMULATOR_URL}${glasses.arModels.armsMtl}"
+                                                )
+                                                putExtra(
+                                                    "FRAME_MATERIALS",
+                                                    glasses.arModels.frameMaterials?.map { "${Constants.EMULATOR_URL}$it" }
+                                                        ?.toTypedArray()
+                                                )
+                                                putExtra(
+                                                    "ARMS_MATERIALS",
+                                                    glasses.arModels.armsMaterials?.map { "${Constants.EMULATOR_URL}$it" }
+                                                        ?.toTypedArray()
+                                                )
+                                            }
+                                            context.startActivity(intent)
+                                        }
+                                    },
+                                    isError = false
+                                )
+                            }
                         }
                     }
                 }
-            }
             }
         }
     }

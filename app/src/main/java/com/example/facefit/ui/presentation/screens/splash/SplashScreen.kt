@@ -1,13 +1,14 @@
 package com.example.facefit.ui.presentation.screens.splash
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.EaseOutBack
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+//noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,6 +30,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.hypot
 
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun SplashScreen(onAnimationFinish: () -> Unit) {
     val circleRadius = remember { Animatable(0f) }
@@ -37,26 +39,24 @@ fun SplashScreen(onAnimationFinish: () -> Unit) {
     val screenSize = LocalConfiguration.current
     val density = LocalDensity.current
     val maxRadius = remember(screenSize) {
-        with(density) {
-            hypot(
-                screenSize.screenWidthDp.toFloat(),
-                screenSize.screenHeightDp.toFloat()
-            ) * density.density
-        }
+        hypot(
+            screenSize.screenWidthDp.toFloat(),
+            screenSize.screenHeightDp.toFloat()
+        ) * density.density
     }
 
     LaunchedEffect(Unit) {
-        // 1. Show text for 1000ms
+
         delay(1000)
         showText = false
 
-        // 2. Expand circle
+
         circleRadius.animateTo(
             targetValue = maxRadius,
             animationSpec = tween(durationMillis = 400, easing = FastOutSlowInEasing)
         )
 
-        // 3. Navigate
+
         onAnimationFinish()
     }
 
