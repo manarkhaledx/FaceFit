@@ -1,7 +1,11 @@
 package com.example.facefit.ui.presentation.screens.products
 
+import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -54,6 +58,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -159,48 +164,47 @@ fun ProductDetailScreen(
     val pendingFavorites by viewModel.pendingFavorites.collectAsStateWithLifecycle()
     val reviews by viewModel.reviews.collectAsStateWithLifecycle()
     val recommendations by viewModel.recommendations.collectAsStateWithLifecycle()
-
+    val context = LocalContext.current
+    uiState.error?.let { errorMsg ->
+        LaunchedEffect(errorMsg) {
+            Toast.makeText(
+                context,
+                errorMsg,
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
     val glasses = uiState.glasses
     val isFavorite = glasses?.id?.let { id ->
         val baseStatus = favoriteStatus[id] ?: false
         if (pendingFavorites.contains(id)) !baseStatus else baseStatus
     } ?: false
 
-    if (isLoading) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-        return
-    }
+
 
     if (error != null) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = error,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            Button(
-                onClick = { glasses?.id?.let { viewModel.retryLoadingReviews(it) } }
-            ) {
-                Text("Retry")
-            }
+        LaunchedEffect(error) {
+            Toast.makeText(
+                context,
+                error,
+                Toast.LENGTH_SHORT
+            ).show()
         }
+    }
+
+
+    if (isLoading && glasses == null) {
+        ProductDetailPlaceholderUI() // 👈 shimmer or placeholder composable
         return
     }
 
-    if (glasses == null) {
+    if (!isLoading && glasses == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Text("Product not found")
         }
         return
     }
+
 
     Scaffold(
         bottomBar = {
@@ -259,18 +263,20 @@ fun ProductDetailScreen(
                     )
                 }
 
-                Text(
-                    text = glasses.name,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = Color.Black,
-                    modifier = Modifier
-                        .padding(start = 8.dp)
-                        .weight(1f),
-                    textAlign = TextAlign.Center
-                )
+                glasses?.let {
+                    Text(
+                        text = it.name,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = Color.Black,
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .weight(1f),
+                        textAlign = TextAlign.Center
+                    )
+                }
 
                 IconButton(onClick = { /* Handle share */ }) {
                     Icon(
@@ -282,8 +288,14 @@ fun ProductDetailScreen(
                 }
 
                 IconButton(
-                    onClick = { glasses?.id?.let { viewModel.toggleFavorite(it) } },
-                    enabled = !pendingFavorites.contains(glasses?.id)
+                    onClick = {
+                        if (!isConnected(context)) {
+                            Toast.makeText(context, "No internet connection", Toast.LENGTH_SHORT).show()
+                        } else {
+                            glasses?.id?.let { viewModel.toggleFavorite(it) }
+                        }
+                    },
+                            enabled = !pendingFavorites.contains(glasses?.id)
                 ) {
                     if (pendingFavorites.contains(glasses?.id)) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -295,8 +307,12 @@ fun ProductDetailScreen(
                             modifier = Modifier
                                 .size(24.dp)
                                 .graphicsLayer {
-                                    scaleX = if (pendingFavorites.contains(glasses.id)) 0.8f else 1f
-                                    scaleY = if (pendingFavorites.contains(glasses.id)) 0.8f else 1f
+                                    if (glasses != null) {
+                                        scaleX = if (pendingFavorites.contains(glasses.id)) 0.8f else 1f
+                                    }
+                                    if (glasses != null) {
+                                        scaleY = if (pendingFavorites.contains(glasses.id)) 0.8f else 1f
+                                    }
                                 }
                                 .animateContentSize(),
                             contentDescription = if (isFavorite) "Unmark Favorite" else "Mark Favorite"
@@ -304,6 +320,7 @@ fun ProductDetailScreen(
                     }
                 }
             }
+            val isConnected = remember { isConnected(context) }
 
             // Main Content
             LazyColumn(
@@ -311,30 +328,37 @@ fun ProductDetailScreen(
                 contentPadding = PaddingValues(16.dp)
             ) {
                 item {
-                    ImageCarousel(
-                        images = glasses.images,
-                        onTryOnClick = {
-                            glasses?.let { product ->
-                                if (product.tryOn && product.arModels != null) {
-                                    activity?.let {
-                                        val intent = Intent(it, AugmentedFacesActivity::class.java).apply {
-                                            putExtra("FRAME_PATH", product.arModels.frameObj)
-                                            putExtra("FRAME_MTL_PATH", product.arModels.frameMtl)
-                                            putExtra("LENSES_PATH", product.arModels.lensesObj)
-                                            putExtra("LENSES_MTL_PATH", product.arModels.lensesMtl)
-                                            putExtra("ARMS_PATH", product.arModels.armsObj)
-                                            putExtra("ARMS_MTL_PATH", product.arModels.armsMtl)
-                                            putExtra("FRAME_MATERIALS", product.arModels.frameMaterials?.toTypedArray())
-                                            putExtra("ARMS_MATERIALS", product.arModels.armsMaterials?.toTypedArray())
+                    if (glasses != null) {
+                        ImageCarousel(
+                            images = glasses.images,
+                            onTryOnClick = {
+                                if (!isConnected(context)) {
+                                    Toast.makeText(context, "No internet connection", Toast.LENGTH_SHORT).show()
+                                    return@ImageCarousel
+                                }
+                                glasses?.let { product ->
+                                    if (product.tryOn && product.arModels != null) {
+                                        activity?.let {
+                                            val intent = Intent(it, AugmentedFacesActivity::class.java).apply {
+                                                putExtra("FRAME_PATH", product.arModels.frameObj)
+                                                putExtra("FRAME_MTL_PATH", product.arModels.frameMtl)
+                                                putExtra("LENSES_PATH", product.arModels.lensesObj)
+                                                putExtra("LENSES_MTL_PATH", product.arModels.lensesMtl)
+                                                putExtra("ARMS_PATH", product.arModels.armsObj)
+                                                putExtra("ARMS_MTL_PATH", product.arModels.armsMtl)
+                                                putExtra("FRAME_MATERIALS", product.arModels.frameMaterials?.toTypedArray())
+                                                putExtra("ARMS_MATERIALS", product.arModels.armsMaterials?.toTypedArray())
+                                            }
+                                            it.startActivity(intent)
                                         }
-                                        it.startActivity(intent)
                                     }
                                 }
-                            }
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        isTryOnEnabled = glasses?.tryOn == true && glasses.arModels != null
-                    )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            isTryOnEnabled = glasses?.tryOn == true && glasses.arModels != null && isConnected
+                        )
+
+                    }
                 }
 
                 item {
@@ -344,20 +368,24 @@ fun ProductDetailScreen(
                             .padding(vertical = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            glasses.name,
-                            style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = stringResource(R.string.currency_format).format(glasses.price),
-                            style = TextStyle(
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight(600),
-                                color = Color(0xFF111928),
-                                letterSpacing = 0.8.sp,
+                        if (glasses != null) {
+                            Text(
+                                glasses.name,
+                                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 16.sp),
+                                fontWeight = FontWeight.Bold
                             )
-                        )
+                        }
+                        if (glasses != null) {
+                            Text(
+                                text = stringResource(R.string.currency_format).format(glasses.price),
+                                style = TextStyle(
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight(600),
+                                    color = Color(0xFF111928),
+                                    letterSpacing = 0.8.sp,
+                                )
+                            )
+                        }
                     }
 
                     //Text("#${glasses.id}")
@@ -366,24 +394,26 @@ fun ProductDetailScreen(
                 item {
                     var selectedColorIndex by remember { mutableIntStateOf(0) }
                     Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                        if (glasses.colors.isNotEmpty()) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(24.dp)
-                            ) {
-                                glasses.colors.take(4).forEachIndexed { index, colorString ->
-                                    val color =
-                                        Color(android.graphics.Color.parseColor(colorString))
-                                    ColorOptionWithLabel(
-                                        color = color,
-                                        label = colorString,
-                                        isSelected = index == selectedColorIndex,
-                                        onClick = {
-                                            selectedColorIndex = index
-                                        }
-                                    )
+                        if (glasses != null) {
+                            if (glasses.colors.isNotEmpty()) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(24.dp)
+                                ) {
+                                    glasses.colors.take(4).forEachIndexed { index, colorString ->
+                                        val color =
+                                            Color(android.graphics.Color.parseColor(colorString))
+                                        ColorOptionWithLabel(
+                                            color = color,
+                                            label = colorString,
+                                            isSelected = index == selectedColorIndex,
+                                            onClick = {
+                                                selectedColorIndex = index
+                                            }
+                                        )
+                                    }
                                 }
-                            }
 
+                            }
                         }
                     }
                 }
@@ -403,10 +433,18 @@ fun ProductDetailScreen(
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Spacer(Modifier.height(8.dp))
-                            SpecificationRow("Shape", glasses.shape)
-                            SpecificationRow("Size", glasses.size)
-                            SpecificationRow("Weight", "${glasses.weight} gm")
-                            SpecificationRow("Material", glasses.material)
+                            if (glasses != null) {
+                                SpecificationRow("Shape", glasses.shape)
+                            }
+                            if (glasses != null) {
+                                SpecificationRow("Size", glasses.size)
+                            }
+                            if (glasses != null) {
+                                SpecificationRow("Weight", "${glasses.weight} gm")
+                            }
+                            if (glasses != null) {
+                                SpecificationRow("Material", glasses.material)
+                            }
                         }
                     }
                 }
@@ -414,7 +452,17 @@ fun ProductDetailScreen(
                 item {
                     ReviewsSection(
                         viewModel = viewModel,
-                        onSeeAllClick = { onNavigateToReviews(glasses.id) }
+onSeeAllClick = {
+    if (!isConnected(context)) {
+        Toast.makeText(context, "No internet connection", Toast.LENGTH_SHORT).show()
+        return@ReviewsSection
+    }
+
+                            if (glasses != null) {
+                                onNavigateToReviews(glasses.id)
+                            }
+                        }
+
                     )
                 }
 
@@ -452,19 +500,26 @@ fun ProductDetailScreen(
                                     favoriteStatus = favoriteStatus,
                                     pendingFavorites = pendingFavorites,
                                     modifier = Modifier.width(160.dp),
-                                    onClick = {
-                                        activity?.let {
-                                            val intent = Intent(
-                                                it,
-                                                ProductDetailsActivity::class.java
-                                            ).apply {
-                                                putExtra("productId", recommendedProduct.id)
+                                    showFavorite = !recommendedProduct.isPlaceholder,
+onClick = {
+    if (!isConnected(context)) {
+        Toast.makeText(context, "No internet connection", Toast.LENGTH_SHORT).show()
+        return@ProductCard
+    }
+
+                                        if (error == null && !recommendedProduct.isPlaceholder) {
+                                            activity?.let {
+                                                val intent = Intent(it, ProductDetailsActivity::class.java).apply {
+                                                    putExtra("productId", recommendedProduct.id)
+                                                }
+                                                it.startActivity(intent)
                                             }
-                                            it.startActivity(intent)
                                         }
                                     },
-                                    onFavoriteClick = {
-                                        viewModel.toggleRecommendedFavorite(recommendedProduct.id)
+                                            onFavoriteClick = {
+                                        if (error == null && !recommendedProduct.isPlaceholder) {
+                                            viewModel.toggleRecommendedFavorite(recommendedProduct.id)
+                                        }
                                     }
                                 )
                             }
@@ -483,6 +538,148 @@ fun ProductDetailScreen(
         }
     }
 }
+
+@Composable
+fun ProductDetailPlaceholderUI() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Gray100)
+            .padding(16.dp)
+    ) {
+        // Image Placeholder
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(250.dp)
+                .background(Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Title & Price Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(150.dp)
+                    .height(20.dp)
+                    .background(Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+            )
+            Box(
+                modifier = Modifier
+                    .width(80.dp)
+                    .height(20.dp)
+                    .background(Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+            )
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Colors
+        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            repeat(3) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(Color.LightGray.copy(alpha = 0.3f), CircleShape)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Product Specs title
+        Box(
+            modifier = Modifier
+                .width(160.dp)
+                .height(20.dp)
+                .background(Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Specs Card Placeholder
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                repeat(4) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(16.dp)
+                            .padding(vertical = 6.dp)
+                            .background(Color.LightGray.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Reviews placeholder
+        Box(
+            modifier = Modifier
+                .width(120.dp)
+                .height(20.dp)
+                .background(Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        repeat(2) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = Gray200),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(12.dp)
+                            .background(Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp)
+                            .background(Color.LightGray.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(12.dp)
+                            .background(Color.LightGray.copy(alpha = 0.3f), RoundedCornerShape(4.dp))
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+fun isConnected(context: Context): Boolean {
+    val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    val network = connectivityManager.activeNetwork ?: return false
+    val networkCapabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+    return networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+}
+
 @Composable
 fun RecommendedProductItem(
     product: ProductItem,
@@ -634,14 +831,15 @@ fun ReviewsSection(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
-            TextButton(
-                onClick = onSeeAllClick,
-                colors = ButtonDefaults.textButtonColors(contentColor = Blue1)
-            ) {
-                Text("See all", style = MaterialTheme.typography.bodyMedium.copy(
-                    textDecoration = TextDecoration.Underline
-                ))
-            }
+TextButton(
+    onClick = { onSeeAllClick() },
+    enabled = uiState.error == null,
+    colors = ButtonDefaults.textButtonColors(contentColor = Blue1)
+) {
+    Text("See all", style = MaterialTheme.typography.bodyMedium.copy(
+        textDecoration = TextDecoration.Underline
+    ))
+}
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {

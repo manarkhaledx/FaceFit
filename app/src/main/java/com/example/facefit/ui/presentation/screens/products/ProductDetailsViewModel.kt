@@ -74,17 +74,20 @@ class ProductDetailsViewModel @Inject constructor(
                         loadReviews(it.id)
                     }
                 }
+
                 is Resource.Error -> {
                     _uiState.update {
                         it.copy(
-                            error = result.message,
                             isLoading = false,
-                            glasses = result.data
+                            error = "Connection error. Please check your internet and try again."
                         )
                     }
                 }
+
+
                 is Resource.Loading -> Unit
             }
+
         }
     }
 
@@ -95,12 +98,23 @@ class ProductDetailsViewModel @Inject constructor(
                     _recommendations.value = result.data?.map { it.toProductItem() } ?: emptyList()
                 }
                 is Resource.Error -> {
-
+                    // Show placeholder items
+                    _recommendations.value = List(3) {
+                        ProductItem(
+                            id = "",
+                            name = "Couldn't load",
+                            price = "---",
+                            imageUrl = null,
+                            isFavorite = false,
+                            isPlaceholder = true
+                        )
+                    }
                 }
-                is Resource.Loading -> TODO()
+                is Resource.Loading -> Unit
             }
         }
     }
+
 
     private fun loadFavorites() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -111,9 +125,15 @@ class ProductDetailsViewModel @Inject constructor(
                         result.data?.associate { it.id to true } ?: emptyMap()
                     }
                 }
-                is Resource.Error -> TODO()
-                is Resource.Loading -> TODO()
+                is Resource.Error -> {
+                    // Handle error gracefully, e.g. log or ignore
+                    println("Error loading favorites: ${result.message}")
+                }
+                is Resource.Loading -> {
+                    // Optional: show loading state if needed
+                }
             }
+
         }
     }
 
