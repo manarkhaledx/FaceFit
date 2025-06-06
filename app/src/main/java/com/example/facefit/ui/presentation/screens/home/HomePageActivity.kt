@@ -7,24 +7,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -51,12 +39,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -170,7 +163,6 @@ fun EyewearScreen(
                     )
                     Spacer(modifier = Modifier.height(24.dp))
 
-
                     when (val result = bestSellers) {
                         is Resource.Success -> {
                             ProductSection(
@@ -215,10 +207,12 @@ fun EyewearScreen(
                         is Resource.Loading -> {
                             ProductSection(
                                 title = stringResource(R.string.best_seller),
-                                products = (result.data ?: emptyList()).map {
-                                    it.toProductItem().copy(
-                                        name = stringResource(R.string.loading),
-                                        price = stringResource(R.string.price_placeholder),
+                                products = List(3) { index ->
+                                    ProductItem(
+                                        id = "placeholder_$index",
+                                        name = "",
+                                        price = "",
+                                        imageUrl = "",
                                         isPlaceholder = true
                                     )
                                 },
@@ -276,10 +270,12 @@ fun EyewearScreen(
                         is Resource.Loading -> {
                             ProductSection(
                                 title = stringResource(R.string.new_arrivals),
-                                products = (result.data ?: emptyList()).map {
-                                    it.toProductItem().copy(
-                                        name = stringResource(R.string.loading),
-                                        price = stringResource(R.string.price_placeholder),
+                                products = List(3) { index ->
+                                    ProductItem(
+                                        id = "placeholder_$index",
+                                        name = "",
+                                        price = "",
+                                        imageUrl = "",
                                         isPlaceholder = true
                                     )
                                 },
@@ -455,7 +451,6 @@ fun SearchResultsDropdown(
             }
 
             is Resource.Success -> {
-                //val results = searchResults.data ?: emptyList()
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -710,19 +705,106 @@ fun ProductSection(
         Spacer(modifier = Modifier.height(8.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             items(products) { product ->
-                ProductCard(
-                    productItem = product,
-                    favoriteStatus = favoriteStatus,
-                    pendingFavorites = pendingFavorites,
-                    showFavorite = !product.isPlaceholder,
-                    onClick = { if (!product.isPlaceholder) onProductClick(product) },
-                    onFavoriteClick = { if (!product.isPlaceholder) onFavoriteClick(product.id) }
-                )
+                if (product.isPlaceholder) {
+                    ShimmerProductCard()
+                } else {
+                    ProductCard(
+                        productItem = product,
+                        favoriteStatus = favoriteStatus,
+                        pendingFavorites = pendingFavorites,
+                        showFavorite = true,
+                        onClick = { onProductClick(product) },
+                        onFavoriteClick = { onFavoriteClick(product.id) }
+                    )
+                }
             }
         }
     }
 }
 
+@Composable
+fun ShimmerProductCard() {
+    Card(
+        modifier = Modifier
+            .width(160.dp),
+        shape = RoundedCornerShape(8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+
+            Box(
+                modifier = Modifier
+                    .height(120.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(4.dp))
+                    .shimmerEffect()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(16.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .shimmerEffect()
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.4f)
+                    .height(14.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .shimmerEffect()
+            )
+        }
+    }
+}
+
+
+
+@Composable
+fun Modifier.shimmerEffect(): Modifier = composed {
+    val shimmerColors = listOf(
+        Color.LightGray.copy(alpha = 0.6f),
+        Color.LightGray.copy(alpha = 0.2f),
+        Color.LightGray.copy(alpha = 0.6f),
+    )
+
+    val transition = rememberInfiniteTransition()
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 1000,
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
+        )
+    )
+
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset(translateAnim - 500, translateAnim - 500),
+        end = Offset(translateAnim, translateAnim)
+    )
+
+    this.then(
+        Modifier.drawWithContent {
+            drawContent()
+            drawRect(
+                brush = brush,
+     blendMode = androidx.compose.ui.graphics.BlendMode.SrcAtop
+            )
+        }
+    )
+}
 
 fun getCategories() = listOf(
     "Men" to R.drawable.men_glasses,

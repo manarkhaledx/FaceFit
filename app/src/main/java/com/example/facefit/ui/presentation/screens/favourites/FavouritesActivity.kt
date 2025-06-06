@@ -6,41 +6,19 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-//noinspection UsingMaterialAndMaterial3Libraries
-import androidx.compose.material.Button
-import androidx.compose.material.ButtonDefaults
-//noinspection UsingMaterialAndMaterial3Libraries
-import androidx.compose.material.Card
-//noinspection UsingMaterialAndMaterial3Libraries
-import androidx.compose.material.CircularProgressIndicator
-import androidx.compose.material.Colors
-//noinspection UsingMaterialAndMaterial3Libraries
-import androidx.compose.material.Icon
-//noinspection UsingMaterialAndMaterial3Libraries
-import androidx.compose.material.IconButton
-//noinspection UsingMaterialAndMaterial3Libraries
-import androidx.compose.material.Scaffold
-//noinspection UsingMaterialAndMaterial3Libraries
-import androidx.compose.material.Text
+import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,8 +26,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -103,7 +89,6 @@ fun FavouritesScreen(
     viewModel: FavoritesViewModel = hiltViewModel()
 ) {
     val favoritesState by viewModel.favoritesState.collectAsStateWithLifecycle()
-
     val isRefreshing = favoritesState is Resource.Loading
 
     Scaffold(
@@ -116,19 +101,19 @@ fun FavouritesScreen(
         ) {
             when (favoritesState) {
                 is Resource.Loading -> {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator()
+                    // Shimmer loading state
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(5) {
+                            ShimmerFavoritesItem()
+                        }
                     }
                 }
 
                 is Resource.Success -> {
                     val favorites = (favoritesState as Resource.Success<List<Glasses>>).data ?: emptyList()
                     if (favorites.isEmpty()) {
-                        EmptyFavoritesScreen(onExploreClick = {
-
-                        })
-                    }
- else {
+                        EmptyFavoritesScreen(onExploreClick = {})
+                    } else {
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             items(favorites) { glasses ->
                                 FavouriteItem(
@@ -145,7 +130,6 @@ fun FavouritesScreen(
                     val message = (favoritesState as Resource.Error<List<Glasses>>).message ?: "Unknown error"
                     if (message.contains("network", ignoreCase = true) || message.contains("Unable to resolve host", ignoreCase = true)) {
                         NoInternetScreen()
-
                     } else {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -162,6 +146,66 @@ fun FavouritesScreen(
     }
 }
 
+@Composable
+fun ShimmerFavoritesItem() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(8.dp),
+        elevation = 4.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFFAFBFC))
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Image placeholder with shimmer
+            Box(
+                modifier = Modifier
+                    .width(120.dp)
+                    .height(100.dp)
+                    .padding(end = 16.dp)
+                    .shimmerEffect()
+            )
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.Center
+            ) {
+                // Name placeholder
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.7f)
+                        .height(16.dp)
+                        .shimmerEffect()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Price placeholder
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.5f)
+                        .height(14.dp)
+                        .shimmerEffect()
+                )
+            }
+
+            // Favorite icon placeholder
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .shimmerEffect()
+                    .clip(RoundedCornerShape(12.dp))
+            )
+        }
+    }
+}
 
 @Composable
 fun FavouriteItem(
@@ -256,6 +300,7 @@ fun FavouriteItem(
         }
     }
 }
+
 @Composable
 fun EmptyFavoritesScreen(onExploreClick: () -> Unit) {
     Box(
@@ -268,12 +313,12 @@ fun EmptyFavoritesScreen(onExploreClick: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-Image(
-    painter = painterResource(id = R.drawable.favourite_empty),
-    contentDescription = "No favorites illustration",
-    modifier = Modifier.height(180.dp),
-    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Blue1)
-)
+            Image(
+                painter = painterResource(id = R.drawable.favourite_empty),
+                contentDescription = "No favorites illustration",
+                modifier = Modifier.height(180.dp),
+                colorFilter = ColorFilter.tint(Blue1)
+            )
 
             Text(
                 text = "No favourites yet",
@@ -288,10 +333,10 @@ Image(
                 color = Color.Gray,
                 textAlign = TextAlign.Center
             )
-
         }
     }
 }
+
 @Composable
 fun NoInternetScreen() {
     val scrollState = rememberScrollState()
@@ -326,11 +371,48 @@ fun NoInternetScreen() {
     }
 }
 
+@Composable
+fun Modifier.shimmerEffect(): Modifier = composed {
+    val shimmerColors = listOf(
+        Color.LightGray.copy(alpha = 0.6f),
+        Color.LightGray.copy(alpha = 0.2f),
+        Color.LightGray.copy(alpha = 0.6f),
+    )
+
+    val transition = rememberInfiniteTransition()
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 1000,
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
+        )
+    )
+
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset(translateAnim - 500, translateAnim - 500),
+        end = Offset(translateAnim, translateAnim)
+    )
+
+    this.then(
+        Modifier.drawWithContent {
+            drawContent()
+            drawRect(
+                brush = brush,
+                blendMode = BlendMode.SrcAtop
+            )
+        }
+    )
+}
 
 @Preview(showBackground = true)
 @Composable
 fun PreviewFavouritesScreen() {
-//    FaceFitTheme {
-//        FavouritesScreen()
-//    }
+    FaceFitTheme {
+        // FavouritesScreen preview
+    }
 }

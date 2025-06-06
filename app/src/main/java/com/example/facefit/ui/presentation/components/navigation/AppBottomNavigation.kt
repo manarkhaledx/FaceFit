@@ -1,4 +1,3 @@
-// components/navigation/AppBottomNavigation.kt
 
 package com.example.facefit.ui.presentation.components.navigation
 
@@ -27,6 +26,7 @@ import com.example.facefit.R
 import com.example.facefit.ui.presentation.screens.favourites.FavouritesActivity
 import com.example.facefit.ui.presentation.screens.home.HomePageActivity
 import com.example.facefit.ui.presentation.screens.products.AllProductsActivity
+import com.example.facefit.ui.presentation.screens.profile.ProfileActivity
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.Gray600
 import com.example.facefit.ui.theme.LavenderBlue
@@ -38,6 +38,7 @@ fun AppBottomNavigation() {
         HomePageActivity::class.java -> 0
         AllProductsActivity::class.java -> 2
         FavouritesActivity::class.java -> 1
+        ProfileActivity::class.java -> 4
         else -> 0
     }
 
@@ -99,6 +100,7 @@ fun AppBottomNavigation() {
                                 "Home" -> context.startActivity(Intent(context, HomePageActivity::class.java))
                                 "Products" -> context.startActivity(Intent(context, AllProductsActivity::class.java))
                                 "Favourites" -> context.startActivity(Intent(context, FavouritesActivity::class.java))
+                                "Profile" -> context.startActivity(Intent(context, ProfileActivity::class.java))
                             }
                         }
                     },

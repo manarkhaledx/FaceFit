@@ -7,52 +7,32 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -76,9 +56,6 @@ import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 import com.example.facefit.ui.utils.Constants
 import dagger.hilt.android.AndroidEntryPoint
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.ui.layout.ContentScale
-import com.example.facefit.ui.presentation.base.RefreshableViewModel
 
 @AndroidEntryPoint
 class AllProductsActivity : ComponentActivity() {
@@ -163,7 +140,7 @@ fun AllProducts(
     Scaffold(bottomBar = { AppBottomNavigation() }) { paddingValues ->
         PullToRefreshContainer(
             isRefreshing = uiState.isLoading,
-            onRefresh = { (viewModel as? RefreshableViewModel)?.refresh() }
+            onRefresh = { viewModel.refresh() }
         ) {
             Column(
                 modifier = Modifier
@@ -184,110 +161,58 @@ fun AllProducts(
 
                 when {
                     uiState.isLoading -> {
+                        // Show shimmer placeholders
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
                             contentPadding = PaddingValues(16.dp),
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            items(createPlaceholderGlasses(6)) { glasses ->
-                                GlassesItem(
-                                    glasses = glasses,
-                                    favoriteStatus = favoriteStatus,
-                                    pendingFavorites = pendingFavorites,
-                                    onClick = { id -> onClick(id) },
-                                    onFavoriteClick = {
-                                        viewModel.toggleFavorite(glasses.id)
-                                    },
-                                    onTryOnClick = { context ->
-                                        if (glasses.tryOn && glasses.arModels != null) {
-                                            val intent = Intent(
-                                                context,
-                                                AugmentedFacesActivity::class.java
-                                            ).apply {
-                                                putExtra("FRAME_PATH", glasses.arModels.frameObj)
-                                                putExtra("FRAME_MTL_PATH", glasses.arModels.frameMtl)
-                                                putExtra("LENSES_PATH", glasses.arModels.lensesObj)
-                                                putExtra("LENSES_MTL_PATH", glasses.arModels.lensesMtl)
-                                                putExtra("ARMS_PATH", glasses.arModels.armsObj)
-                                                putExtra("ARMS_MTL_PATH", glasses.arModels.armsMtl)
-                                                putExtra(
-                                                    "FRAME_MATERIALS",
-                                                    glasses.arModels.frameMaterials?.toTypedArray()
-                                                )
-                                                putExtra(
-                                                    "ARMS_MATERIALS",
-                                                    glasses.arModels.armsMaterials?.toTypedArray()
-                                                )
-                                            }
-                                            context.startActivity(intent)
-                                        }
-                                    },
-                                    isError = false
-                                )
+                            items(6) {
+                                ShimmerGlassesItem()
                             }
                         }
                     }
 
                     uiState.error != null -> {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
+                        // Error state with placeholders
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            contentPadding = PaddingValues(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            LazyVerticalGrid(
-                                columns = GridCells.Fixed(2),
-                                contentPadding = PaddingValues(16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                items(createPlaceholderGlasses(6)) { glasses ->
-                                    GlassesItem(
-                                        glasses = glasses,
-                                        favoriteStatus = favoriteStatus,
-                                        pendingFavorites = pendingFavorites,
-                                        onClick = { id -> onClick(id) },
-                                        onFavoriteClick = {
-                                            viewModel.toggleFavorite(glasses.id)
-                                        },
-                                        onTryOnClick = { context ->
-                                            if (glasses.tryOn && glasses.arModels != null) {
-                                                val intent = Intent(
-                                                    context,
-                                                    AugmentedFacesActivity::class.java
-                                                ).apply {
-                                                    putExtra("FRAME_PATH", glasses.arModels.frameObj)
-                                                    putExtra(
-                                                        "FRAME_MTL_PATH",
-                                                        glasses.arModels.frameMtl
-                                                    )
-                                                    putExtra("LENSES_PATH", glasses.arModels.lensesObj)
-                                                    putExtra(
-                                                        "LENSES_MTL_PATH",
-                                                        glasses.arModels.lensesMtl
-                                                    )
-                                                    putExtra("ARMS_PATH", glasses.arModels.armsObj)
-                                                    putExtra("ARMS_MTL_PATH", glasses.arModels.armsMtl)
-                                                    putExtra(
-                                                        "FRAME_MATERIALS",
-                                                        glasses.arModels.frameMaterials?.toTypedArray()
-                                                    )
-                                                    putExtra(
-                                                        "ARMS_MATERIALS",
-                                                        glasses.arModels.armsMaterials?.toTypedArray()
-                                                    )
-                                                }
-                                                context.startActivity(intent)
-                                            }
-                                        },
-                                        isError = false
-                                    )
-                                }
+                            items(6) {
+                                GlassesItem(
+                                    glasses = Glasses(
+                                        id = "error_placeholder",
+                                        name = stringResource(R.string.could_not_load),
+                                        price = 0.0,
+                                        images = emptyList(),
+                                        colors = emptyList(),
+                                        isFavorite = false,
+                                        stock = 0,
+                                        shape = "",
+                                        weight = 0.0,
+                                        size = "",
+                                        material = "",
+                                        type = "",
+                                        gender = "",
+                                        createdAt = ""
+                                    ),
+                                    favoriteStatus = favoriteStatus,
+                                    pendingFavorites = pendingFavorites,
+                                    onClick = { },
+                                    onFavoriteClick = {},
+                                    onTryOnClick = {},
+                                    isPlaceholder = true
+                                )
                             }
                         }
                     }
 
                     uiState.products.isEmpty() -> {
+                        // Empty state
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -313,6 +238,7 @@ fun AllProducts(
                     }
 
                     else -> {
+                        // Success state
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
                             contentPadding = PaddingValues(16.dp),
@@ -372,7 +298,7 @@ fun AllProducts(
                                             context.startActivity(intent)
                                         }
                                     },
-                                    isError = false
+                                    isPlaceholder = false
                                 )
                             }
                         }
@@ -485,11 +411,9 @@ fun GlassesItem(
     onClick: (String) -> Unit,
     onFavoriteClick: () -> Unit,
     onTryOnClick: (Context) -> Unit,
-    isError: Boolean = false
+    isPlaceholder: Boolean = false
 ) {
     val context = LocalContext.current
-    val isPlaceholder = glasses.id?.startsWith("placeholder_") ?: false
-
     val isFavorite by remember(glasses.id, favoriteStatus, pendingFavorites) {
         derivedStateOf {
             val baseStatus = favoriteStatus[glasses.id] ?: false
@@ -510,82 +434,118 @@ fun GlassesItem(
             Column(modifier = Modifier
                 .padding(12.dp)
                 .fillMaxWidth()) {
+                // Image section
                 Box(modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)) {
-                    val imageModel = when {
-                        isPlaceholder -> if (isError) R.drawable.placeholder else R.drawable.placeholder
-                        glasses.images.isNotEmpty() -> {
+                    if (isPlaceholder) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .shimmerEffect()
+                        )
+                    } else {
+                        val imageModel = if (glasses.images.isNotEmpty()) {
                             "${Constants.EMULATOR_URL}/${glasses.images.first()}"
+                        } else {
+                            R.drawable.placeholder
                         }
-                        else -> R.drawable.placeholder
+                        Image(
+                            painter = rememberAsyncImagePainter(
+                                model = imageModel,
+                                error = painterResource(R.drawable.placeholder),
+                                placeholder = painterResource(R.drawable.placeholder)
+                            ),
+                            contentDescription = glasses.name,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
                     }
-                    Image(
-                        painter = rememberAsyncImagePainter(
-                            model = imageModel,
-                            error = painterResource(R.drawable.placeholder),
-                            placeholder = painterResource(R.drawable.placeholder)
-                        ),
-                        contentDescription = glasses.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Button(
-                    onClick = {
-                        if (glasses.tryOn && glasses.arModels != null) {
-                            onTryOnClick(context)
-                        }
-                    },
-                    modifier = Modifier
-                        .width(72.dp)
-                        .height(30.dp)
-                        .align(Alignment.CenterHorizontally),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White,
-                        contentColor = Blue1
-                    ),
-                    border = BorderStroke(1.dp, Blue1),
-                    contentPadding = PaddingValues(4.dp),
-                    enabled = !isPlaceholder && glasses.tryOn && glasses.arModels != null
-                ) {
+                // Try on button
+                if (isPlaceholder) {
+                    Box(
+                        modifier = Modifier
+                            .width(72.dp)
+                            .height(30.dp)
+                            .align(Alignment.CenterHorizontally)
+                            .shimmerEffect()
+                    )
+                } else {
+                    Button(
+                        onClick = {
+                            if (glasses.tryOn && glasses.arModels != null) {
+                                onTryOnClick(context)
+                            }
+                        },
+                        modifier = Modifier
+                            .width(72.dp)
+                            .height(30.dp)
+                            .align(Alignment.CenterHorizontally),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = Blue1
+                        ),
+                        border = BorderStroke(1.dp, Blue1),
+                        contentPadding = PaddingValues(4.dp),
+                        enabled = glasses.tryOn && glasses.arModels != null
+                    ) {
+                        Text(
+                            stringResource(R.string.try_on),
+                            fontSize = 12.sp,
+                            color = Blue1,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Product name
+                if (isPlaceholder) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.8f)
+                            .height(16.dp)
+                            .shimmerEffect()
+                    )
+                } else {
                     Text(
-                        stringResource(R.string.try_on),
-                        fontSize = 12.sp,
-                        color = Blue1,
+                        text = glasses.name ?: "",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color.Black,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
 
-                Text(
-                    text = when {
-                        isPlaceholder && isError -> stringResource(R.string.could_not_load)
-                        isPlaceholder -> stringResource(R.string.loading)
-                        else -> glasses.name ?: ""
-                    },
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = if (isPlaceholder) if (isError) Color.Red else Color.Gray else Color.Black,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                Text(
-                    text = if (isPlaceholder) stringResource(R.string.price_placeholder)
-                    else stringResource(R.string.currency_format).format(glasses.price),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (isPlaceholder) Color.Gray else Color.Black
-                )
+                // Price
+                if (isPlaceholder) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.5f)
+                            .height(14.dp)
+                            .shimmerEffect()
+                    )
+                } else {
+                    Text(
+                        text = stringResource(R.string.currency_format).format(glasses.price),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.Black
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // Color options
                 if (!isPlaceholder && glasses.colors.isNotEmpty()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -594,6 +554,20 @@ fun GlassesItem(
                         glasses.colors.take(4).forEach { colorString ->
                             val color = Color(android.graphics.Color.parseColor(colorString))
                             ColorOption(color)
+                        }
+                    }
+                } else if (isPlaceholder) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        repeat(3) {
+                            Box(
+                                modifier = Modifier
+                                    .size(16.dp)
+                                    .shimmerEffect()
+                                    .clip(CircleShape)
+                            )
                         }
                     }
                 }
@@ -623,6 +597,77 @@ fun GlassesItem(
 }
 
 @Composable
+fun ShimmerGlassesItem() {
+    Box(modifier = Modifier) {
+        Card(
+            modifier = Modifier.width(180.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White)
+        ) {
+            Column(modifier = Modifier
+                .padding(12.dp)
+                .fillMaxWidth()) {
+                // Image placeholder
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f)
+                        .shimmerEffect()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Try on button placeholder
+                Box(
+                    modifier = Modifier
+                        .width(72.dp)
+                        .height(30.dp)
+                        .align(Alignment.CenterHorizontally)
+                        .shimmerEffect()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Name placeholder
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.8f)
+                        .height(16.dp)
+                        .shimmerEffect()
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Price placeholder
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.5f)
+                        .height(14.dp)
+                        .shimmerEffect()
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Color options placeholder
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    repeat(3) {
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .shimmerEffect()
+                                .clip(CircleShape)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun ColorOption(color: Color) {
     Box(
         modifier = Modifier
@@ -632,25 +677,42 @@ fun ColorOption(color: Color) {
     )
 }
 
-fun createPlaceholderGlasses(count: Int): List<Glasses> {
-    return List(count) { index ->
-        Glasses(
-            id = "placeholder_$index",
-            name = "Placeholder Glasses $index",
-            price = 0.0,
-            images = emptyList(),
-            colors = emptyList(),
-            isFavorite = false,
-            stock = 0,
-            shape = "",
-            weight = 0.0,
-            size = "",
-            material = "",
-            type = "",
-            gender = "",
-            createdAt = ""
+@Composable
+fun Modifier.shimmerEffect(): Modifier = composed {
+    val shimmerColors = listOf(
+        Color.LightGray.copy(alpha = 0.6f),
+        Color.LightGray.copy(alpha = 0.2f),
+        Color.LightGray.copy(alpha = 0.6f),
+    )
+
+    val transition = rememberInfiniteTransition()
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 1000,
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
         )
-    }
+    )
+
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset(translateAnim - 500, translateAnim - 500),
+        end = Offset(translateAnim, translateAnim)
+    )
+
+    this.then(
+        Modifier.drawWithContent {
+            drawContent()
+            drawRect(
+                brush = brush,
+                blendMode = BlendMode.SrcAtop
+            )
+        }
+    )
 }
 
 @Preview(showBackground = true)
