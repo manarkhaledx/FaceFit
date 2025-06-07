@@ -71,6 +71,14 @@ import com.example.facefit.ui.theme.White
 import com.example.facefit.ui.theme.lightBackground
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.animation.core.*
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.TextField
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.composed
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -91,6 +99,17 @@ class ProfileActivity : ComponentActivity() {
                 val userState by viewModel.userState.collectAsStateWithLifecycle()
                 val isLoggedOut by viewModel.isLoggedOut.collectAsStateWithLifecycle()
 
+                // عرض Toast في حال الخطأ
+                LaunchedEffect(userState) {
+                    if (userState is ProfileState.Error) {
+                        Toast.makeText(
+                            this@ProfileActivity,
+                            (userState as ProfileState.Error).message,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+
                 LaunchedEffect(isLoggedOut) {
                     if (isLoggedOut) {
                         Toast.makeText(this@ProfileActivity, "Logged out successfully", Toast.LENGTH_SHORT).show()
@@ -99,10 +118,11 @@ class ProfileActivity : ComponentActivity() {
                     }
                 }
 
-
                 Box(modifier = Modifier.fillMaxSize()) {
                     when (val state = userState) {
-                        is ProfileState.Loading -> ShimmerProfileScreen()
+                        is ProfileState.Loading, is ProfileState.Error -> {
+                            ShimmerProfileScreen() // نفس شاشة التحميل
+                        }
                         is ProfileState.Success -> {
                             Column(
                                 modifier = Modifier
@@ -115,10 +135,6 @@ class ProfileActivity : ComponentActivity() {
                                 )
                             }
                         }
-                        is ProfileState.Error -> ErrorScreen(
-                            message = state.message,
-                            onRetry = { viewModel.loadUserProfile() }
-                        )
                     }
 
                     Box(modifier = Modifier.align(Alignment.BottomCenter)) {
@@ -127,6 +143,7 @@ class ProfileActivity : ComponentActivity() {
                 }
             }
         }
+
     }
 
     override fun onStart() {
@@ -159,6 +176,9 @@ fun ErrorScreen(message: String, onRetry: () -> Unit) {
 }
 @Composable
 fun ProfileScreen(user: User, onSignOut: () -> Unit) {
+    var isEditing by remember { mutableStateOf(false) }
+    var updatedUser by remember { mutableStateOf(user) }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -166,12 +186,19 @@ fun ProfileScreen(user: User, onSignOut: () -> Unit) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item {
-            ProfileHeader(user = user)
-        }
+        item { ProfileHeader(user = user) }
 
         item {
-            PersonalInformationCard(user = user)
+            PersonalInformationCard(
+                user = user,
+                isEditing = isEditing,
+                updatedUser = updatedUser,
+                onUserChange = { updatedUser = it },
+                onToggleEdit = { isEditing = true },
+                onSaveChanges = {
+                    isEditing = false
+                }
+            )
         }
 
         item {
@@ -282,7 +309,16 @@ fun ProfileHeader(user: User) {
 }
 
 @Composable
-fun PersonalInformationCard(user: User) {
+fun PersonalInformationCard(
+    user: User,
+    isEditing: Boolean,
+    updatedUser: User,
+    onUserChange: (User) -> Unit,
+    onToggleEdit: () -> Unit,
+    onSaveChanges: () -> Unit
+) {
+    var localUpdatedUser by remember { mutableStateOf(updatedUser) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -307,41 +343,209 @@ fun PersonalInformationCard(user: User) {
                     fontWeight = FontWeight.SemiBold,
                     color = Black
                 )
-                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Gray600)
+
+                Row {
+                    if (isEditing) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Save",
+                            tint = Blue1,
+                            modifier = Modifier
+                                .clickable {
+                                    onUserChange(localUpdatedUser)
+                                    onSaveChanges()
+                                }
+                                .padding(end = 12.dp)
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cancel",
+                            tint = Color.Red,
+                            modifier = Modifier.clickable {
+                                // Reset the local copy to the original user data
+                                localUpdatedUser = user
+                                onSaveChanges() // <-- Just ends edit mode (renaming it to onCancelEdit would be clearer)
+                            }
+                        )
+
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Edit",
+                            tint = Gray600,
+                            modifier = Modifier.clickable {
+                                onToggleEdit()
+                            }
+                        )
+                    }
+                }
             }
 
-            PersonalInfoItem(
-                icon = Icons.Default.Person,
-                label = "Full Name",
-                value = "${user.firstName} ${user.lastName}"
-            )
+            Row(
+                verticalAlignment = Alignment.Top,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = null,
+                    tint = Gray600,
+                    modifier = Modifier
+                        .padding(top = if (isEditing) 20.dp else 8.dp)
+                        .size(20.dp)
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = "Full Name", fontSize = 12.sp, color = Gray600)
+
+                    if (isEditing) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedTextField(
+                                value = localUpdatedUser.firstName,
+                                onValueChange = { localUpdatedUser = localUpdatedUser.copy(firstName = it) },
+                                modifier = Modifier.weight(1f),
+                                label = { Text("First Name") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Blue1,
+                                    unfocusedBorderColor = Blue1,
+                                    errorBorderColor = Color.Red,
+                                    focusedLabelColor = Blue1,
+                                    unfocusedLabelColor = Blue1,
+                                    cursorColor = Blue1
+                                )
+                            )
+
+                            OutlinedTextField(
+                                value = localUpdatedUser.lastName,
+                                onValueChange = { localUpdatedUser = localUpdatedUser.copy(lastName = it) },
+                                modifier = Modifier.weight(1f),
+                                label = { Text("Last Name") },
+                                singleLine = true,
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = Blue1,
+                                    unfocusedBorderColor = Blue1,
+                                    errorBorderColor = Color.Red,
+                                    focusedLabelColor = Blue1,
+                                    unfocusedLabelColor = Blue1,
+                                    cursorColor = Blue1
+                                )
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "${localUpdatedUser.firstName} ${localUpdatedUser.lastName}",
+                            fontSize = 14.sp,
+                            color = Black,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+            }
+
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
 
-            PersonalInfoItem(
+            EditableInfoItem(
                 icon = Icons.Default.Email,
                 label = "E-mail",
-                value = user.email
+                value = localUpdatedUser.email,
+                isEditing = isEditing,
+                onValueChange = { localUpdatedUser = localUpdatedUser.copy(email = it) }
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
 
-            PersonalInfoItem(
+            EditableInfoItem(
                 icon = Icons.Default.Phone,
                 label = "Phone Number",
-                value = user.phone
+                value = localUpdatedUser.phone,
+                isEditing = isEditing,
+                onValueChange = { localUpdatedUser = localUpdatedUser.copy(phone = it) }
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
 
-            PersonalInfoItem(
+            EditableInfoItem(
                 icon = Icons.Default.LocationOn,
                 label = "Address",
-                value = user.address ?: "No address provided"
+                value = localUpdatedUser.address ?: "",
+                isEditing = isEditing,
+                onValueChange = { localUpdatedUser = localUpdatedUser.copy(address = it) }
             )
         }
     }
 }
+
+
+@Composable
+fun EditableInfoItem(
+    icon: ImageVector,
+    label: String,
+    value: String,
+    isEditing: Boolean,
+    onValueChange: (String) -> Unit,
+    isError: Boolean = false,
+    supportingText: @Composable (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = Gray600,
+            modifier = Modifier
+                .padding(top = if (isEditing) 20.dp else 8.dp)
+                .size(20.dp)
+        )
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            if (isEditing) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    label = { Text(label) },
+                    modifier = Modifier.fillMaxWidth(),
+                    isError = isError,
+                    supportingText = supportingText,
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Blue1,
+                        unfocusedBorderColor = Blue1,
+                        errorBorderColor = Color.Red,
+                        focusedLabelColor = Blue1,
+                        unfocusedLabelColor = Blue1,
+                        cursorColor = Blue1
+                    )
+                )
+            } else {
+                Text(
+                    text = label,
+                    fontSize = 12.sp,
+                    color = Gray600
+                )
+                Text(
+                    text = value,
+                    fontSize = 14.sp,
+                    color = Black,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+        }
+    }
+}
+
 
 @Composable
 fun PersonalInfoItem(
