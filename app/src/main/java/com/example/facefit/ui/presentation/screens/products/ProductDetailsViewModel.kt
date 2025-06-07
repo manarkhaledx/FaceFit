@@ -3,7 +3,6 @@ package com.example.facefit.ui.presentation.screens.products
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.facefit.data.local.TokenManager
-import com.example.facefit.data.models.User
 import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.models.Review
 import com.example.facefit.domain.usecases.auth.GetUserProfileUseCase
@@ -24,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.facefit.domain.models.User
 
 @HiltViewModel
 class ProductDetailsViewModel @Inject constructor(

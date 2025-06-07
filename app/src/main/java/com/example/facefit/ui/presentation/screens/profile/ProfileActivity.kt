@@ -1,22 +1,50 @@
 package com.example.facefit.ui.presentation.screens.profile
 
+import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,45 +53,105 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.rememberAsyncImagePainter
 import com.example.facefit.R
+import com.example.facefit.domain.models.User
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
-import com.example.facefit.ui.theme.*
+import com.example.facefit.ui.presentation.screens.auth.login.LoginPage
+import com.example.facefit.ui.theme.Black
+import com.example.facefit.ui.theme.Blue1
+import com.example.facefit.ui.theme.FaceFitTheme
+import com.example.facefit.ui.theme.Gray100
+import com.example.facefit.ui.theme.Gray200
+import com.example.facefit.ui.theme.Gray600
+import com.example.facefit.ui.theme.White
+import com.example.facefit.ui.theme.lightBackground
+import dagger.hilt.android.AndroidEntryPoint
 
+
+@AndroidEntryPoint
 class ProfileActivity : ComponentActivity() {
+    private val viewModel: ProfileViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             FaceFitTheme {
-                Box(modifier = Modifier.fillMaxSize()) {
+                val userState by viewModel.userState.collectAsStateWithLifecycle()
+                val isLoggedOut by viewModel.isLoggedOut.collectAsStateWithLifecycle()
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(bottom = 80.dp)
-                    ) {
-                        ProfileScreen()
+                LaunchedEffect(isLoggedOut) {
+                    if (isLoggedOut) {
+                        Toast.makeText(this@ProfileActivity, "Logged out successfully", Toast.LENGTH_SHORT).show()
+                        startActivity(Intent(this@ProfileActivity, LoginPage::class.java))
+                        finish()
+                    }
+                }
+
+
+                Box(modifier = Modifier.fillMaxSize()) {
+                    when (val state = userState) {
+                        is ProfileState.Loading -> LoadingScreen()
+                        is ProfileState.Success -> {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(bottom = 80.dp)
+                            ) {
+                                ProfileScreen(
+                                    user = state.user,
+                                    onSignOut = { viewModel.signOut() }
+                                )
+                            }
+                        }
+                        is ProfileState.Error -> ErrorScreen(
+                            message = state.message,
+                            onRetry = { viewModel.loadUserProfile() }
+                        )
                     }
 
-
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                    ) {
+                    Box(modifier = Modifier.align(Alignment.BottomCenter)) {
                         AppBottomNavigation()
                     }
                 }
             }
         }
+    }
 
+    override fun onStart() {
+        super.onStart()
+        viewModel.loadUserProfile()
     }
 }
-
 @Composable
-fun ProfileScreen() {
+fun LoadingScreen() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
+}
+@Composable
+fun ErrorScreen(message: String, onRetry: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Error: $message", color = Color.Red)
+            Button(onClick = onRetry) {
+                Text("Retry")
+            }
+        }
+    }
+}
+@Composable
+fun ProfileScreen(user: User, onSignOut: () -> Unit) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -72,11 +160,11 @@ fun ProfileScreen() {
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            ProfileHeader()
+            ProfileHeader(user = user)
         }
 
         item {
-            PersonalInformationCard()
+            PersonalInformationCard(user = user)
         }
 
         item {
@@ -114,31 +202,41 @@ fun ProfileScreen() {
                 modifier = Modifier.padding(vertical = 8.dp)
             )
 
-            AccountSettingsCard()
+            AccountSettingsCard(onSignOut = onSignOut)
         }
     }
 }
 
 @Composable
-fun ProfileHeader() {
-
+fun ProfileHeader(user: User) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Profile image with edit button
         Box(modifier = Modifier.size(80.dp)) {
-            Image(
-                painter = painterResource(id = android.R.drawable.ic_menu_camera),
-                contentDescription = "Profile Picture",
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(Gray200),
-                contentScale = ContentScale.Crop
-            )
+            if (user.profilePicture != null) {
+                // Use Coil or Glide for actual image loading
+                Image(
+                    painter = rememberAsyncImagePainter(user.profilePicture),
+                    contentDescription = "Profile Picture",
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_launcher_background),
+                    contentDescription = "Profile Picture",
+                    modifier = Modifier
+                        .size(80.dp)
+                        .clip(CircleShape)
+                        .background(Gray200),
+                    contentScale = ContentScale.Crop
+                )
+            }
 
             // Edit button
             Box(
@@ -161,14 +259,14 @@ fun ProfileHeader() {
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Zain Morad",
+            text = "${user.firstName} ${user.lastName}",
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             color = Black
         )
 
         Text(
-            text = "zainmorad1@example.com",
+            text = user.email,
             fontSize = 14.sp,
             color = Gray600,
             modifier = Modifier.padding(top = 4.dp)
@@ -176,9 +274,8 @@ fun ProfileHeader() {
     }
 }
 
-
 @Composable
-fun PersonalInformationCard() {
+fun PersonalInformationCard(user: User) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -190,7 +287,6 @@ fun PersonalInformationCard() {
                 .fillMaxWidth()
                 .padding(20.dp)
         ) {
-            // Header with title and edit icon
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -204,53 +300,37 @@ fun PersonalInformationCard() {
                     fontWeight = FontWeight.SemiBold,
                     color = Black
                 )
-
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit",
-                    tint = Gray600,
-                    modifier = Modifier.size(20.dp)
-                )
+                Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Gray600)
             }
 
-            // Personal info items
             PersonalInfoItem(
                 icon = Icons.Default.Person,
                 label = "Full Name",
-                value = "Prescription Management"
+                value = "${user.firstName} ${user.lastName}"
             )
 
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 16.dp),
-                color = Gray200
-            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
 
             PersonalInfoItem(
                 icon = Icons.Default.Email,
                 label = "E-mail",
-                value = "zainmorad1@example.com"
+                value = user.email
             )
 
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 16.dp),
-                color = Gray200
-            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
 
             PersonalInfoItem(
                 icon = Icons.Default.Phone,
                 label = "Phone Number",
-                value = "+201234567893"
+                value = user.phone
             )
 
-            HorizontalDivider(
-                modifier = Modifier.padding(vertical = 16.dp),
-                color = Gray200
-            )
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
 
             PersonalInfoItem(
                 icon = Icons.Default.LocationOn,
                 label = "Address",
-                value = "123 Main Street, Apt 33, 6th of October, Giza"
+                value = user.address ?: "No address provided"
             )
         }
     }
@@ -407,7 +487,7 @@ fun SingleOrderCard(order: OrderItem) {
 }
 
 @Composable
-fun AccountSettingsCard() {
+fun AccountSettingsCard(onSignOut: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -428,7 +508,13 @@ fun AccountSettingsCard() {
             )
 
             settingsItems.forEach { item ->
-                SettingsItemRow(item = item)
+                SettingsItemRow(
+                    item = item,
+                    onClick = {
+                        if (item.title == "Sign out") onSignOut()
+                        // Handle other items
+                    }
+                )
                 if (item != settingsItems.last()) {
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 20.dp),
@@ -441,11 +527,11 @@ fun AccountSettingsCard() {
 }
 
 @Composable
-fun SettingsItemRow(item: SettingsItem) {
+fun SettingsItemRow(item: SettingsItem, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { }
+            .clickable(onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -488,10 +574,4 @@ data class SettingsItem(
     val title: String
 )
 
-@Preview(showBackground = true)
-@Composable
-fun ProfileScreenPreview() {
-    FaceFitTheme {
-        ProfileScreen()
-    }
-}
+

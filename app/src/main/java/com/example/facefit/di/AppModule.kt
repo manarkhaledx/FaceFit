@@ -2,6 +2,10 @@ package com.example.facefit.di
 
 import android.content.Context
 import com.example.facefit.data.local.TokenManager
+import com.example.facefit.data.remote.ApiService
+import com.example.facefit.data.repository.UserRepositoryImpl
+import com.example.facefit.domain.repository.UserRepository
+import com.example.facefit.domain.usecases.auth.GetUserProfileUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -17,5 +21,17 @@ object AppModule {
     @Singleton
     fun provideTokenManager(@ApplicationContext context: Context): TokenManager {
         return TokenManager(context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserRepository(apiService: ApiService): UserRepository {
+        return UserRepositoryImpl(apiService)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGetUserProfileUseCase(repository: UserRepository): GetUserProfileUseCase {
+        return GetUserProfileUseCase(repository)
     }
 }

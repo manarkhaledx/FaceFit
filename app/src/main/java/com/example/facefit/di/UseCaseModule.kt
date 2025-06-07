@@ -1,12 +1,14 @@
 package com.example.facefit.di
 
+
 import com.example.facefit.data.remote.ApiService
 import com.example.facefit.data.repository.FavoritesRepositoryImpl
+import com.example.facefit.data.repository.UserRepositoryImpl
 import com.example.facefit.domain.repository.AuthRepository
 import com.example.facefit.domain.repository.FavoritesRepository
 import com.example.facefit.domain.repository.GlassesRepository
 import com.example.facefit.domain.repository.ReviewRepository
-import com.example.facefit.domain.usecases.auth.GetUserProfileUseCase
+import com.example.facefit.domain.repository.UserRepository
 import com.example.facefit.domain.usecases.glasses.GetBestSellersUseCase
 import com.example.facefit.domain.usecases.glasses.GetNewArrivalsUseCase
 import com.example.facefit.domain.usecases.auth.LoginUseCase
@@ -17,6 +19,7 @@ import com.example.facefit.domain.usecases.reviews.GetReviewsUseCase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -74,9 +77,4 @@ object UseCaseModule {
         return GetReviewsUseCase(repository)
     }
 
-    @Provides
-    @Singleton
-    fun provideGetCustomerProfileUseCase(repository: ReviewRepository): GetUserProfileUseCase {
-        return GetUserProfileUseCase(repository)
-    }
 }
