@@ -70,7 +70,14 @@ import com.example.facefit.ui.theme.Gray600
 import com.example.facefit.ui.theme.White
 import com.example.facefit.ui.theme.lightBackground
 import dagger.hilt.android.AndroidEntryPoint
-
+import androidx.compose.animation.core.*
+import androidx.compose.ui.composed
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.Shape
 
 @AndroidEntryPoint
 class ProfileActivity : ComponentActivity() {
@@ -95,7 +102,7 @@ class ProfileActivity : ComponentActivity() {
 
                 Box(modifier = Modifier.fillMaxSize()) {
                     when (val state = userState) {
-                        is ProfileState.Loading -> LoadingScreen()
+                        is ProfileState.Loading -> ShimmerProfileScreen()
                         is ProfileState.Success -> {
                             Column(
                                 modifier = Modifier
@@ -561,7 +568,243 @@ fun SettingsItemRow(item: SettingsItem, onClick: () -> Unit) {
         }
     }
 }
+@Composable
+fun ShimmerProfileScreen() {
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(lightBackground)
+            .padding(bottom = 80.dp),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item { ShimmerProfileHeader() }
+        item { ShimmerPersonalInformationCard() }
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ShimmerText(width = 100.dp, height = 20.dp)
+                ShimmerText(width = 60.dp, height = 16.dp)
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+//            repeat(3) { item { ShimmerOrderCard() } }
+        }
+        item {
+            ShimmerText(width = 150.dp, height = 20.dp, modifier = Modifier.padding(vertical = 8.dp))
+            ShimmerAccountSettingsCard()
+        }
+    }
+}
 
+@Composable
+fun ShimmerProfileHeader() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        ShimmerBox(
+            modifier = Modifier
+                .size(80.dp)
+                .clip(CircleShape)
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        ShimmerText(width = 150.dp, height = 24.dp)
+        Spacer(modifier = Modifier.height(8.dp))
+        ShimmerText(width = 200.dp, height = 16.dp)
+    }
+}
+
+@Composable
+fun ShimmerPersonalInformationCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                ShimmerText(width = 150.dp, height = 24.dp)
+                ShimmerBox(modifier = Modifier.size(24.dp))
+            }
+
+            repeat(4) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp)
+                ) {
+                    ShimmerBox(modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        ShimmerText(width = 80.dp, height = 14.dp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        ShimmerText(width = 180.dp, height = 18.dp)
+                    }
+                }
+                if (it < 3) HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 16.dp),
+                    color = Gray200
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ShimmerOrderCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    ShimmerText(width = 100.dp, height = 16.dp)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    ShimmerText(width = 80.dp, height = 14.dp)
+                }
+                ShimmerBox(
+                    modifier = Modifier
+                        .width(70.dp)
+                        .height(24.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ShimmerBox(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                ShimmerText(width = 60.dp, height = 20.dp)
+                Spacer(modifier = Modifier.width(8.dp))
+                ShimmerBox(modifier = Modifier.size(20.dp))
+            }
+        }
+    }
+}
+
+@Composable
+fun ShimmerAccountSettingsCard() {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(vertical = 8.dp)) {
+            repeat(5) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ShimmerBox(modifier = Modifier.size(24.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
+                    ShimmerText(
+                        modifier = Modifier.weight(1f),
+                        height = 18.dp
+                    )
+                    if (it != 4) ShimmerBox(modifier = Modifier.size(20.dp))
+                }
+                if (it < 4) HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 20.dp),
+                    color = Gray200
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ShimmerBox(
+    modifier: Modifier = Modifier,
+    shape: Shape = RectangleShape
+) {
+    Box(
+        modifier = modifier
+            .shimmerEffect()
+            .clip(shape)
+    )
+}
+
+@Composable
+fun ShimmerText(
+    modifier: Modifier = Modifier,
+    width: Dp? = null,
+    height: Dp = 16.dp
+) {
+    Box(
+        modifier = modifier
+            .height(height)
+            .shimmerEffect()
+            .then(if (width != null) Modifier.width(width) else Modifier)
+    )
+}
+
+// Shimmer effect implementation
+@Composable
+fun Modifier.shimmerEffect(): Modifier = composed {
+    val shimmerColors = listOf(
+        Gray200.copy(alpha = 0.6f),
+        Gray200.copy(alpha = 0.2f),
+        Gray200.copy(alpha = 0.6f),
+    )
+
+    val transition = rememberInfiniteTransition()
+    val anim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 1000,
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
+        )
+    )
+
+    this.background(
+        brush = Brush.linearGradient(
+            colors = shimmerColors,
+            start = Offset(anim - 500, anim - 500),
+            end = Offset(anim, anim),
+            tileMode = TileMode.Clamp
+        )
+    )
+}
 data class OrderItem(
     val orderNumber: String,
     val date: String,
