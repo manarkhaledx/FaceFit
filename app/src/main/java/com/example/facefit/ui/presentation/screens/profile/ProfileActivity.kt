@@ -1,11 +1,15 @@
 package com.example.facefit.ui.presentation.screens.profile
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -82,6 +86,7 @@ import com.example.facefit.R
 import com.example.facefit.domain.models.User
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.domain.utils.validators.ProfileValidator
+import com.example.facefit.ui.Photopicker
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 import com.example.facefit.ui.presentation.screens.auth.login.LoginPage
 import com.example.facefit.ui.theme.Black
@@ -225,10 +230,20 @@ fun ProfileScreen(
     onSignOut: () -> Unit,
     onUpdateProfile: (User) -> Unit,
     validationErrors: Map<String, String>
-)
- {
+) {
     var isEditing by remember { mutableStateOf(false) }
     var tempUser by remember(user) { mutableStateOf(user) }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            uri?.let {
+                selectedImageUri = it
+                tempUser = tempUser.copy(profilePicture = it.toString())
+            }
+        }
+    )
 
     LazyColumn(
         modifier = Modifier
@@ -237,7 +252,14 @@ fun ProfileScreen(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item { ProfileHeader(user = tempUser) }
+        item {
+            ProfileHeader(
+                user = tempUser,
+                onPickPhoto = {
+                    launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                }
+            )
+        }
 
         item {
             PersonalInformationCard(
@@ -245,56 +267,83 @@ fun ProfileScreen(
                 isEditing = isEditing,
                 validationErrors = validationErrors,
                 onToggleEdit = { isEditing = !isEditing },
-                onSaveChanges = { updatedUser ->
-                    onUpdateProfile(updatedUser)
+                onSaveChanges = {
+                    onUpdateProfile(it)
                     isEditing = false
                 },
                 onCancel = {
-                    tempUser = user // Reset to original user
+                    tempUser = user
                     isEditing = false
                 }
             )
         }
 
         item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "My Orders",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Black
-                )
-
-                Text(
-                    text = "View All",
-                    fontSize = 14.sp,
-                    color = Blue1,
-                    modifier = Modifier.clickable { }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            MyOrdersCard()
-        }
-
-        item {
-            Text(
-                text = "Account Settings",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Black,
-                modifier = Modifier.padding(vertical = 8.dp)
-            )
-
             AccountSettingsCard(onSignOut = onSignOut)
         }
     }
 }
+
+
+@Composable
+fun ProfileHeader(
+    user: User,
+    onPickPhoto: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(modifier = Modifier.size(80.dp)) {
+            // Profile Image
+            Image(
+                painter = rememberAsyncImagePainter(user.profilePicture ?: R.drawable.ic_launcher_background),
+                contentDescription = "Profile Picture",
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+
+
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(Blue1)
+                    .align(Alignment.BottomEnd)
+                    .clickable { onPickPhoto() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.camera),
+                    contentDescription = "Edit",
+                    tint = White,
+                    modifier = Modifier.size(12.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "${user.firstName} ${user.lastName}",
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Black
+        )
+
+        Text(
+            text = user.email,
+            fontSize = 14.sp,
+            color = Gray600,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+    }
+}
+
 
 @Composable
 fun ProfileHeader(user: User) {
