@@ -5,11 +5,10 @@ import com.example.facefit.domain.repository.UserRepository
 import com.example.facefit.domain.utils.Resource
 import javax.inject.Inject
 
-class GetUserProfileUseCase @Inject constructor(
-    private val repository: UserRepository
+class UpdateUserProfileUseCase @Inject constructor(
+    private val userRepository: UserRepository
 ) {
-    suspend operator fun invoke(token: String): Resource<User> {
-        return repository.getUserProfile(token)
+    suspend operator fun invoke(user: User): Resource<Unit> {
+        return userRepository.updateUserProfile(user)
     }
-
 }

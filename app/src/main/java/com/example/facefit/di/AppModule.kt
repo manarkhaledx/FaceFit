@@ -25,9 +25,13 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideUserRepository(apiService: ApiService): UserRepository {
-        return UserRepositoryImpl(apiService)
+    fun provideUserRepository(
+        apiService: ApiService,
+        tokenManager: TokenManager
+    ): UserRepository {
+        return UserRepositoryImpl(apiService, tokenManager)
     }
+
 
     @Provides
     @Singleton

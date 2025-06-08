@@ -7,6 +7,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -28,6 +34,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.LocationOn
@@ -40,25 +48,40 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
 import com.example.facefit.R
 import com.example.facefit.domain.models.User
+import com.example.facefit.domain.utils.Resource
+import com.example.facefit.domain.utils.validators.ProfileValidator
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 import com.example.facefit.ui.presentation.screens.auth.login.LoginPage
 import com.example.facefit.ui.theme.Black
@@ -70,22 +93,6 @@ import com.example.facefit.ui.theme.Gray600
 import com.example.facefit.ui.theme.White
 import com.example.facefit.ui.theme.lightBackground
 import dagger.hilt.android.AndroidEntryPoint
-import androidx.compose.animation.core.*
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.TextField
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.composed
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.graphics.Shape
 
 @AndroidEntryPoint
 class ProfileActivity : ComponentActivity() {
@@ -98,31 +105,64 @@ class ProfileActivity : ComponentActivity() {
             FaceFitTheme {
                 val userState by viewModel.userState.collectAsStateWithLifecycle()
                 val isLoggedOut by viewModel.isLoggedOut.collectAsStateWithLifecycle()
+                val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+                val validationErrors by viewModel.validationErrors.collectAsStateWithLifecycle()
 
-                // عرض Toast في حال الخطأ
+                // Handle loading/error states
                 LaunchedEffect(userState) {
-                    if (userState is ProfileState.Error) {
-                        Toast.makeText(
-                            this@ProfileActivity,
-                            (userState as ProfileState.Error).message,
-                            Toast.LENGTH_SHORT
-                        ).show()
+                    when (userState) {
+                        is ProfileState.Error -> {
+                            Toast.makeText(
+                                this@ProfileActivity,
+                                (userState as ProfileState.Error).message,
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                        else -> {}
                     }
                 }
 
+                // Handle update states
+                LaunchedEffect(updateState) {
+                    when (updateState) {
+                        is UpdateState.Success -> {
+                            Toast.makeText(
+                                this@ProfileActivity,
+                                "Profile updated successfully",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            viewModel.clearUpdateState()
+                        }
+                        is UpdateState.Error -> {
+                            Toast.makeText(
+                                this@ProfileActivity,
+                                (updateState as UpdateState.Error).message,
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            viewModel.clearUpdateState()
+                        }is UpdateState.ValidationError -> { /* optional: no toast needed */ }
+                        else -> {}
+                    }
+                }
+
+                // Handle logout
                 LaunchedEffect(isLoggedOut) {
                     if (isLoggedOut) {
-                        Toast.makeText(this@ProfileActivity, "Logged out successfully", Toast.LENGTH_SHORT).show()
-                        startActivity(Intent(this@ProfileActivity, LoginPage::class.java))
+                        val intent = Intent(this@ProfileActivity, LoginPage::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        }
+                        startActivity(intent)
                         finish()
                     }
                 }
 
                 Box(modifier = Modifier.fillMaxSize()) {
                     when (val state = userState) {
-                        is ProfileState.Loading, is ProfileState.Error -> {
-                            ShimmerProfileScreen() // نفس شاشة التحميل
-                        }
+                        is ProfileState.Loading -> ShimmerProfileScreen()
+                        is ProfileState.Error -> ErrorScreen(
+                            message = state.message,
+                            onRetry = { viewModel.loadUserProfile() }
+                        )
                         is ProfileState.Success -> {
                             Column(
                                 modifier = Modifier
@@ -131,8 +171,13 @@ class ProfileActivity : ComponentActivity() {
                             ) {
                                 ProfileScreen(
                                     user = state.user,
-                                    onSignOut = { viewModel.signOut() }
+                                    onSignOut = { viewModel.signOut() },
+                                    onUpdateProfile = { updatedUser ->
+                                        viewModel.updateUserProfile(updatedUser)
+                                    },
+                                    validationErrors = validationErrors // ✅ أضف ده
                                 )
+
                             }
                         }
                     }
@@ -143,7 +188,6 @@ class ProfileActivity : ComponentActivity() {
                 }
             }
         }
-
     }
 
     override fun onStart() {
@@ -174,10 +218,17 @@ fun ErrorScreen(message: String, onRetry: () -> Unit) {
         }
     }
 }
+
 @Composable
-fun ProfileScreen(user: User, onSignOut: () -> Unit) {
+fun ProfileScreen(
+    user: User,
+    onSignOut: () -> Unit,
+    onUpdateProfile: (User) -> Unit,
+    validationErrors: Map<String, String>
+)
+ {
     var isEditing by remember { mutableStateOf(false) }
-    var updatedUser by remember { mutableStateOf(user) }
+    var tempUser by remember(user) { mutableStateOf(user) }
 
     LazyColumn(
         modifier = Modifier
@@ -186,16 +237,20 @@ fun ProfileScreen(user: User, onSignOut: () -> Unit) {
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        item { ProfileHeader(user = user) }
+        item { ProfileHeader(user = tempUser) }
 
         item {
             PersonalInformationCard(
-                user = user,
+                user = tempUser,
                 isEditing = isEditing,
-                updatedUser = updatedUser,
-                onUserChange = { updatedUser = it },
-                onToggleEdit = { isEditing = true },
-                onSaveChanges = {
+                validationErrors = validationErrors,
+                onToggleEdit = { isEditing = !isEditing },
+                onSaveChanges = { updatedUser ->
+                    onUpdateProfile(updatedUser)
+                    isEditing = false
+                },
+                onCancel = {
+                    tempUser = user // Reset to original user
                     isEditing = false
                 }
             )
@@ -312,12 +367,44 @@ fun ProfileHeader(user: User) {
 fun PersonalInformationCard(
     user: User,
     isEditing: Boolean,
-    updatedUser: User,
-    onUserChange: (User) -> Unit,
     onToggleEdit: () -> Unit,
-    onSaveChanges: () -> Unit
+    validationErrors: Map<String, String>,
+    onSaveChanges: (User) -> Unit,
+    onCancel: () -> Unit
 ) {
-    var localUpdatedUser by remember { mutableStateOf(updatedUser) }
+    var localUser by remember { mutableStateOf(user) }
+    var isSavePressed by remember { mutableStateOf(false) }
+    val viewModel: ProfileViewModel = hiltViewModel()
+
+    LaunchedEffect(isSavePressed) {
+        if (isSavePressed) {
+            val errors = ProfileValidator.validateUser(localUser).toMutableMap()
+
+            val currentEmail = viewModel.userState.value.let {
+                (it as? ProfileState.Success)?.user?.email
+            }
+            val isEmailChanged = currentEmail != null && currentEmail != localUser.email
+
+            if (isEmailChanged) {
+                val result = viewModel.checkEmailExistsUseCase(localUser.email)
+                if (result is Resource.Success && result.data == true) {
+                    errors["email"] = "This email is already in use"
+                }
+            }
+
+            if (errors.isNotEmpty()) {
+                viewModel.setValidationErrors(errors)
+            } else {
+                viewModel.updateUserProfile(localUser)
+            }
+
+            isSavePressed = false // reset flag
+        }
+    }
+
+    LaunchedEffect(user) {
+        localUser = user
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -352,28 +439,29 @@ fun PersonalInformationCard(
                             tint = Blue1,
                             modifier = Modifier
                                 .clickable {
-                                    onUserChange(localUpdatedUser)
-                                    onSaveChanges()
+                                    if (!isSavePressed) {
+                                        isSavePressed = true
+                                    }
                                 }
                                 .padding(end = 12.dp)
                         )
+
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Cancel",
                             tint = Color.Red,
                             modifier = Modifier.clickable {
-                                // Reset the local copy to the original user data
-                                localUpdatedUser = user
-                                onSaveChanges() // <-- Just ends edit mode (renaming it to onCancelEdit would be clearer)
+
+                                onCancel()
                             }
                         )
-
                     } else {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Edit",
                             tint = Gray600,
                             modifier = Modifier.clickable {
+
                                 onToggleEdit()
                             }
                         )
@@ -381,6 +469,7 @@ fun PersonalInformationCard(
                 }
             }
 
+            // Full name row
             Row(
                 verticalAlignment = Alignment.Top,
                 modifier = Modifier.fillMaxWidth()
@@ -405,11 +494,17 @@ fun PersonalInformationCard(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             OutlinedTextField(
-                                value = localUpdatedUser.firstName,
-                                onValueChange = { localUpdatedUser = localUpdatedUser.copy(firstName = it) },
+                                value = localUser.firstName,
+                                onValueChange = { localUser = localUser.copy(firstName = it) },
                                 modifier = Modifier.weight(1f),
                                 label = { Text("First Name") },
                                 singleLine = true,
+                                isError = validationErrors.containsKey("firstName"),
+                                supportingText = {
+                                    validationErrors["firstName"]?.let { errorText ->
+                                        Text(text = errorText, color = Color.Red)
+                                    }
+                                },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = Blue1,
@@ -422,11 +517,17 @@ fun PersonalInformationCard(
                             )
 
                             OutlinedTextField(
-                                value = localUpdatedUser.lastName,
-                                onValueChange = { localUpdatedUser = localUpdatedUser.copy(lastName = it) },
+                                value = localUser.lastName,
+                                onValueChange = { localUser = localUser.copy(lastName = it) },
                                 modifier = Modifier.weight(1f),
                                 label = { Text("Last Name") },
                                 singleLine = true,
+                                isError = validationErrors.containsKey("lastName"),
+                                supportingText = {
+                                    validationErrors["lastName"]?.let { errorText ->
+                                        Text(text = errorText, color = Color.Red)
+                                    }
+                                },
                                 shape = RoundedCornerShape(12.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = Blue1,
@@ -440,7 +541,7 @@ fun PersonalInformationCard(
                         }
                     } else {
                         Text(
-                            text = "${localUpdatedUser.firstName} ${localUpdatedUser.lastName}",
+                            text = "${localUser.firstName} ${localUser.lastName}",
                             fontSize = 14.sp,
                             color = Black,
                             modifier = Modifier.padding(top = 2.dp)
@@ -449,15 +550,16 @@ fun PersonalInformationCard(
                 }
             }
 
-
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
 
             EditableInfoItem(
                 icon = Icons.Default.Email,
                 label = "E-mail",
-                value = localUpdatedUser.email,
+                value = localUser.email,
                 isEditing = isEditing,
-                onValueChange = { localUpdatedUser = localUpdatedUser.copy(email = it) }
+                onValueChange = { localUser = localUser.copy(email = it) },
+                isError = validationErrors.containsKey("email"),
+                errorText = validationErrors["email"]
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
@@ -465,9 +567,11 @@ fun PersonalInformationCard(
             EditableInfoItem(
                 icon = Icons.Default.Phone,
                 label = "Phone Number",
-                value = localUpdatedUser.phone,
+                value = localUser.phone,
                 isEditing = isEditing,
-                onValueChange = { localUpdatedUser = localUpdatedUser.copy(phone = it) }
+                onValueChange = { localUser = localUser.copy(phone = it) },
+                isError = validationErrors.containsKey("phone"),
+                errorText = validationErrors["phone"]
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
@@ -475,14 +579,15 @@ fun PersonalInformationCard(
             EditableInfoItem(
                 icon = Icons.Default.LocationOn,
                 label = "Address",
-                value = localUpdatedUser.address ?: "",
+                value = localUser.address ?: "",
                 isEditing = isEditing,
-                onValueChange = { localUpdatedUser = localUpdatedUser.copy(address = it) }
+                onValueChange = { localUser = localUser.copy(address = it) },
+                isError = validationErrors.containsKey("address"),
+                errorText = validationErrors["address"]
             )
         }
     }
 }
-
 
 @Composable
 fun EditableInfoItem(
@@ -492,7 +597,7 @@ fun EditableInfoItem(
     isEditing: Boolean,
     onValueChange: (String) -> Unit,
     isError: Boolean = false,
-    supportingText: @Composable (() -> Unit)? = null
+    errorText: String? = null
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -517,7 +622,11 @@ fun EditableInfoItem(
                     label = { Text(label) },
                     modifier = Modifier.fillMaxWidth(),
                     isError = isError,
-                    supportingText = supportingText,
+                    supportingText = {
+                        if (isError && errorText != null) {
+                            Text(text = errorText, color = Color.Red)
+                        }
+                    },
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -545,7 +654,6 @@ fun EditableInfoItem(
         }
     }
 }
-
 
 @Composable
 fun PersonalInfoItem(

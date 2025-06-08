@@ -3,12 +3,15 @@ package com.example.facefit.data.remote
 import com.example.facefit.data.models.requests.LoginRequest
 import com.example.facefit.data.models.requests.SignUpRequest
 import com.example.facefit.data.models.requests.SubmitReviewRequest
+import com.example.facefit.data.models.requests.UpdateUserRequest
+import com.example.facefit.data.models.responses.CheckEmailResponse
 import com.example.facefit.data.models.responses.FavoritesResponse
 import com.example.facefit.data.models.responses.LoginResponse
 import com.example.facefit.data.models.responses.ReviewsResponse
 import com.example.facefit.data.models.responses.SignUpResponse
 import com.example.facefit.data.models.responses.UserResponse
 import com.example.facefit.domain.models.Glasses
+import com.example.facefit.domain.models.User
 import com.example.facefit.ui.utils.Constants
 import retrofit2.Response
 import retrofit2.http.Body
@@ -16,6 +19,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 import retrofit2.http.QueryMap
@@ -76,6 +80,16 @@ interface ApiService {
     suspend fun submitReview(
         @Header("Authorization") token: String,
         @Body request: SubmitReviewRequest
+    ): Response<Unit>
+
+    @GET("/auth/check-email")
+    suspend fun checkEmailExists(@Query("email") email: String): Response<CheckEmailResponse>
+
+
+    @PUT("facefit/customers/update")
+    suspend fun updateUserProfile(
+        @Header("Authorization") token: String,
+        @Body request: UpdateUserRequest
     ): Response<Unit>
 
 }
