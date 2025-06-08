@@ -22,13 +22,14 @@ class UserRepositoryImpl @Inject constructor(
                 if (userResponse != null && userResponse.status == "success") {
                     Resource.Success(userResponse.data.toDomainUser())
                 } else {
-                    Resource.Error("Unexpected response structure")
+                    Resource.Error("Unexpected response structure or status")
                 }
             } else {
-                Resource.Error("Error: ${response.message()}")
+                // For getProfile, a simple error message is usually sufficient as it's not field-specific
+                Resource.Error(response.message() ?: "Error fetching profile: ${response.code()}")
             }
         } catch (e: Exception) {
-            Resource.Error("Exception: ${e.message}")
+            Resource.Error("Exception fetching profile: ${e.message}")
         }
     }
 
@@ -45,33 +46,11 @@ class UserRepositoryImpl @Inject constructor(
             if (response.isSuccessful) {
                 Resource.Success(Unit)
             } else {
-                Resource.Error("Update failed: ${response.code()}")
+                // IMPORTANT: Return the error body string to be parsed by ViewModel
+                Resource.Error(response.errorBody()?.string() ?: "Update failed with unknown error")
             }
         } catch (e: Exception) {
-            Resource.Error("Exception: ${e.message}")
+            Resource.Error("Exception updating profile: ${e.message}")
         }
     }
-
-
-
-
-
-    override suspend fun checkEmailExists(email: String): Resource<Boolean> {
-        return try {
-            val response = apiService.checkEmailExists(email)
-            if (response.isSuccessful) {
-                // Handle different response structures
-                val body = response.body()
-                when {
-                    body != null -> Resource.Success(body.exists)
-                    else -> Resource.Error("Invalid response format")
-                }
-            } else {
-                Resource.Error("Failed to check email: ${response.code()}")
-            }
-        } catch (e: Exception) {
-            Resource.Error("Network error: ${e.message}")
-        }
-    }
-
 }

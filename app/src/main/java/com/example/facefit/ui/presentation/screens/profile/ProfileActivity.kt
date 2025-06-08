@@ -89,6 +89,7 @@ import com.example.facefit.domain.utils.validators.ProfileValidator
 import com.example.facefit.ui.Photopicker
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 import com.example.facefit.ui.presentation.screens.auth.login.LoginPage
+import com.example.facefit.ui.presentation.screens.auth.signUp.EgyptPhoneNumberField
 import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
@@ -111,9 +112,10 @@ class ProfileActivity : ComponentActivity() {
                 val userState by viewModel.userState.collectAsStateWithLifecycle()
                 val isLoggedOut by viewModel.isLoggedOut.collectAsStateWithLifecycle()
                 val updateState by viewModel.updateState.collectAsStateWithLifecycle()
-                val validationErrors by viewModel.validationErrors.collectAsStateWithLifecycle()
+                val profileEditUiState by viewModel.profileEditUiState.collectAsStateWithLifecycle()
 
-                // Handle loading/error states
+
+                // Handle loading/error states for fetching user profile
                 LaunchedEffect(userState) {
                     when (userState) {
                         is ProfileState.Error -> {
@@ -127,7 +129,7 @@ class ProfileActivity : ComponentActivity() {
                     }
                 }
 
-                // Handle update states
+                // Handle update states for saving user profile
                 LaunchedEffect(updateState) {
                     when (updateState) {
                         is UpdateState.Success -> {
@@ -139,13 +141,22 @@ class ProfileActivity : ComponentActivity() {
                             viewModel.clearUpdateState()
                         }
                         is UpdateState.Error -> {
+                            // This toast is explicitly removed because the message is now handled by profileEditUiState.generalErrorMessage
+                            // Toast.makeText(
+                            //     this@ProfileActivity,
+                            //     (updateState as UpdateState.Error).message,
+                            //     Toast.LENGTH_LONG
+                            // ).show()
+                            viewModel.clearUpdateState() // Still clear the UpdateState, but not the UI errors
+                        }
+                        is UpdateState.ValidationError -> {
                             Toast.makeText(
                                 this@ProfileActivity,
-                                (updateState as UpdateState.Error).message,
+                                "Please correct the errors in the form.",
                                 Toast.LENGTH_SHORT
                             ).show()
-                            viewModel.clearUpdateState()
-                        }is UpdateState.ValidationError -> { /* optional: no toast needed */ }
+                            viewModel.clearUpdateState() // Still clear the UpdateState, but not the UI errors
+                        }
                         else -> {}
                     }
                 }
@@ -176,13 +187,21 @@ class ProfileActivity : ComponentActivity() {
                             ) {
                                 ProfileScreen(
                                     user = state.user,
+                                    profileEditUiState = profileEditUiState,
                                     onSignOut = { viewModel.signOut() },
-                                    onUpdateProfile = { updatedUser ->
-                                        viewModel.updateUserProfile(updatedUser)
+                                    onFirstNameChange = { viewModel.updateFirstName(it) },
+                                    onLastNameChange = { viewModel.updateLastName(it) },
+                                    onEmailChange = { viewModel.updateEmail(it) },
+                                    onPhoneChange = { viewModel.updatePhone(it) },
+                                    onAddressChange = { viewModel.updateAddress(it) },
+                                    onUpdateProfile = {
+                                        viewModel.updateUserProfile()
                                     },
-                                    validationErrors = validationErrors // ✅ أضف ده
+                                    onCancelEdit = {
+                                        viewModel.clearEditStateAndErrors()
+                                        viewModel.loadUserProfile()
+                                    }
                                 )
-
                             }
                         }
                     }
@@ -197,7 +216,6 @@ class ProfileActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        viewModel.loadUserProfile()
     }
 }
 @Composable
@@ -227,12 +245,17 @@ fun ErrorScreen(message: String, onRetry: () -> Unit) {
 @Composable
 fun ProfileScreen(
     user: User,
+    profileEditUiState: ProfileEditUiState,
     onSignOut: () -> Unit,
-    onUpdateProfile: (User) -> Unit,
-    validationErrors: Map<String, String>
+    onFirstNameChange: (String) -> Unit,
+    onLastNameChange: (String) -> Unit,
+    onEmailChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onAddressChange: (String) -> Unit,
+    onUpdateProfile: () -> Unit,
+    onCancelEdit: () -> Unit
 ) {
     var isEditing by remember { mutableStateOf(false) }
-    var tempUser by remember(user) { mutableStateOf(user) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
 
     val launcher = rememberLauncherForActivityResult(
@@ -240,7 +263,6 @@ fun ProfileScreen(
         onResult = { uri ->
             uri?.let {
                 selectedImageUri = it
-                tempUser = tempUser.copy(profilePicture = it.toString())
             }
         }
     )
@@ -254,7 +276,7 @@ fun ProfileScreen(
     ) {
         item {
             ProfileHeader(
-                user = tempUser,
+                user = user,
                 onPickPhoto = {
                     launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }
@@ -263,18 +285,24 @@ fun ProfileScreen(
 
         item {
             PersonalInformationCard(
-                user = tempUser,
+                profileEditUiState = profileEditUiState,
                 isEditing = isEditing,
-                validationErrors = validationErrors,
-                onToggleEdit = { isEditing = !isEditing },
-                onSaveChanges = {
-                    onUpdateProfile(it)
-                    isEditing = false
+                onToggleEdit = {
+                    isEditing = !isEditing
+                    if (!isEditing) {
+                        onCancelEdit()
+                    }
                 },
+                onSaveChanges = { onUpdateProfile() },
                 onCancel = {
-                    tempUser = user
                     isEditing = false
-                }
+                    onCancelEdit()
+                },
+                onFirstNameChange = onFirstNameChange,
+                onLastNameChange = onLastNameChange,
+                onEmailChange = onEmailChange,
+                onPhoneChange = onPhoneChange,
+                onAddressChange = onAddressChange
             )
         }
 
@@ -283,6 +311,8 @@ fun ProfileScreen(
         }
     }
 }
+
+
 
 
 @Composable
@@ -344,117 +374,19 @@ fun ProfileHeader(
     }
 }
 
-
-@Composable
-fun ProfileHeader(user: User) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(modifier = Modifier.size(80.dp)) {
-            if (user.profilePicture != null) {
-                // Use Coil or Glide for actual image loading
-                Image(
-                    painter = rememberAsyncImagePainter(user.profilePicture),
-                    contentDescription = "Profile Picture",
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_launcher_background),
-                    contentDescription = "Profile Picture",
-                    modifier = Modifier
-                        .size(80.dp)
-                        .clip(CircleShape)
-                        .background(Gray200),
-                    contentScale = ContentScale.Crop
-                )
-            }
-
-            // Edit button
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(Blue1)
-                    .align(Alignment.BottomEnd),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.camera),
-                    contentDescription = "Edit",
-                    tint = White,
-                    modifier = Modifier.size(12.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "${user.firstName} ${user.lastName}",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = Black
-        )
-
-        Text(
-            text = user.email,
-            fontSize = 14.sp,
-            color = Gray600,
-            modifier = Modifier.padding(top = 4.dp)
-        )
-    }
-}
-
 @Composable
 fun PersonalInformationCard(
-    user: User,
+    profileEditUiState: ProfileEditUiState, // Takes the combined state
     isEditing: Boolean,
     onToggleEdit: () -> Unit,
-    validationErrors: Map<String, String>,
-    onSaveChanges: (User) -> Unit,
-    onCancel: () -> Unit
+    onSaveChanges: () -> Unit,
+    onCancel: () -> Unit,
+    onFirstNameChange: (String) -> Unit,
+    onLastNameChange: (String) -> Unit,
+    onEmailChange: (String) -> Unit,
+    onPhoneChange: (String) -> Unit,
+    onAddressChange: (String) -> Unit
 ) {
-    var localUser by remember { mutableStateOf(user) }
-    var isSavePressed by remember { mutableStateOf(false) }
-    val viewModel: ProfileViewModel = hiltViewModel()
-
-    LaunchedEffect(isSavePressed) {
-        if (isSavePressed) {
-            val errors = ProfileValidator.validateUser(localUser).toMutableMap()
-
-            val currentEmail = viewModel.userState.value.let {
-                (it as? ProfileState.Success)?.user?.email
-            }
-            val isEmailChanged = currentEmail != null && currentEmail != localUser.email
-
-            if (isEmailChanged) {
-                val result = viewModel.checkEmailExistsUseCase(localUser.email)
-                if (result is Resource.Success && result.data == true) {
-                    errors["email"] = "This email is already in use"
-                }
-            }
-
-            if (errors.isNotEmpty()) {
-                viewModel.setValidationErrors(errors)
-            } else {
-                viewModel.updateUserProfile(localUser)
-            }
-
-            isSavePressed = false // reset flag
-        }
-    }
-
-    LaunchedEffect(user) {
-        localUser = user
-    }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -487,11 +419,7 @@ fun PersonalInformationCard(
                             contentDescription = "Save",
                             tint = Blue1,
                             modifier = Modifier
-                                .clickable {
-                                    if (!isSavePressed) {
-                                        isSavePressed = true
-                                    }
-                                }
+                                .clickable { onSaveChanges() }
                                 .padding(end = 12.dp)
                         )
 
@@ -499,24 +427,19 @@ fun PersonalInformationCard(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Cancel",
                             tint = Color.Red,
-                            modifier = Modifier.clickable {
-
-                                onCancel()
-                            }
+                            modifier = Modifier.clickable { onCancel() }
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Default.Edit,
                             contentDescription = "Edit",
                             tint = Gray600,
-                            modifier = Modifier.clickable {
-
-                                onToggleEdit()
-                            }
+                            modifier = Modifier.clickable { onToggleEdit() }
                         )
                     }
                 }
             }
+
 
             // Full name row
             Row(
@@ -543,14 +466,14 @@ fun PersonalInformationCard(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             OutlinedTextField(
-                                value = localUser.firstName,
-                                onValueChange = { localUser = localUser.copy(firstName = it) },
+                                value = profileEditUiState.firstName,
+                                onValueChange = onFirstNameChange,
                                 modifier = Modifier.weight(1f),
                                 label = { Text("First Name") },
                                 singleLine = true,
-                                isError = validationErrors.containsKey("firstName"),
+                                isError = profileEditUiState.firstNameError != null,
                                 supportingText = {
-                                    validationErrors["firstName"]?.let { errorText ->
+                                    profileEditUiState.firstNameError?.let { errorText ->
                                         Text(text = errorText, color = Color.Red)
                                     }
                                 },
@@ -566,14 +489,14 @@ fun PersonalInformationCard(
                             )
 
                             OutlinedTextField(
-                                value = localUser.lastName,
-                                onValueChange = { localUser = localUser.copy(lastName = it) },
+                                value = profileEditUiState.lastName,
+                                onValueChange = onLastNameChange,
                                 modifier = Modifier.weight(1f),
                                 label = { Text("Last Name") },
                                 singleLine = true,
-                                isError = validationErrors.containsKey("lastName"),
+                                isError = profileEditUiState.lastNameError != null,
                                 supportingText = {
-                                    validationErrors["lastName"]?.let { errorText ->
+                                    profileEditUiState.lastNameError?.let { errorText ->
                                         Text(text = errorText, color = Color.Red)
                                     }
                                 },
@@ -590,7 +513,7 @@ fun PersonalInformationCard(
                         }
                     } else {
                         Text(
-                            text = "${localUser.firstName} ${localUser.lastName}",
+                            text = "${profileEditUiState.firstName} ${profileEditUiState.lastName}",
                             fontSize = 14.sp,
                             color = Black,
                             modifier = Modifier.padding(top = 2.dp)
@@ -604,11 +527,11 @@ fun PersonalInformationCard(
             EditableInfoItem(
                 icon = Icons.Default.Email,
                 label = "E-mail",
-                value = localUser.email,
+                value = profileEditUiState.email,
                 isEditing = isEditing,
-                onValueChange = { localUser = localUser.copy(email = it) },
-                isError = validationErrors.containsKey("email"),
-                errorText = validationErrors["email"]
+                onValueChange = onEmailChange,
+                isError = profileEditUiState.emailError != null,
+                errorText = profileEditUiState.emailError
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
@@ -616,11 +539,11 @@ fun PersonalInformationCard(
             EditableInfoItem(
                 icon = Icons.Default.Phone,
                 label = "Phone Number",
-                value = localUser.phone,
+                value = profileEditUiState.phone,
                 isEditing = isEditing,
-                onValueChange = { localUser = localUser.copy(phone = it) },
-                isError = validationErrors.containsKey("phone"),
-                errorText = validationErrors["phone"]
+                onValueChange = onPhoneChange,
+                isError = profileEditUiState.phoneError != null,
+                errorText = profileEditUiState.phoneError
             )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
@@ -628,11 +551,11 @@ fun PersonalInformationCard(
             EditableInfoItem(
                 icon = Icons.Default.LocationOn,
                 label = "Address",
-                value = localUser.address ?: "",
+                value = profileEditUiState.address,
                 isEditing = isEditing,
-                onValueChange = { localUser = localUser.copy(address = it) },
-                isError = validationErrors.containsKey("address"),
-                errorText = validationErrors["address"]
+                onValueChange = onAddressChange,
+                isError = profileEditUiState.addressError != null,
+                errorText = profileEditUiState.addressError
             )
         }
     }
@@ -665,28 +588,37 @@ fun EditableInfoItem(
 
         Column(modifier = Modifier.weight(1f)) {
             if (isEditing) {
-                OutlinedTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    label = { Text(label) },
-                    modifier = Modifier.fillMaxWidth(),
-                    isError = isError,
-                    supportingText = {
-                        if (isError && errorText != null) {
-                            Text(text = errorText, color = Color.Red)
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Blue1,
-                        unfocusedBorderColor = Blue1,
-                        errorBorderColor = Color.Red,
-                        focusedLabelColor = Blue1,
-                        unfocusedLabelColor = Blue1,
-                        cursorColor = Blue1
+                if (label == "Phone Number") {
+                    EgyptPhoneNumberField(
+                        phoneNumber = value,
+                        onPhoneNumberChange = onValueChange,
+                        isError = isError,
+                        errorMessage = errorText
                     )
-                )
+                } else {
+                    OutlinedTextField(
+                        value = value,
+                        onValueChange = onValueChange,
+                        label = { Text(label) },
+                        modifier = Modifier.fillMaxWidth(),
+                        isError = isError,
+                        supportingText = {
+                            if (isError && errorText != null) {
+                                Text(text = errorText, color = Color.Red)
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Blue1,
+                            unfocusedBorderColor = Blue1,
+                            errorBorderColor = Color.Red,
+                            focusedLabelColor = Blue1,
+                            unfocusedLabelColor = Blue1,
+                            cursorColor = Blue1
+                        )
+                    )
+                }
             } else {
                 Text(
                     text = label,
@@ -1177,5 +1109,3 @@ data class SettingsItem(
     val icon: ImageVector,
     val title: String
 )
-
-

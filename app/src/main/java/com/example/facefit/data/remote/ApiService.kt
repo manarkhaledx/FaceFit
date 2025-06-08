@@ -82,9 +82,6 @@ interface ApiService {
         @Body request: SubmitReviewRequest
     ): Response<Unit>
 
-    @GET("/auth/check-email")
-    suspend fun checkEmailExists(@Query("email") email: String): Response<CheckEmailResponse>
-
 
     @PUT("facefit/customers/update")
     suspend fun updateUserProfile(

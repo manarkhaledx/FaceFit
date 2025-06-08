@@ -14,5 +14,8 @@ data class FieldError(
     @SerializedName("path")
     val field: String? = null
 )
-
+data class GenericBackendError(
+    @SerializedName("error")
+    val error: String?
+)
 
