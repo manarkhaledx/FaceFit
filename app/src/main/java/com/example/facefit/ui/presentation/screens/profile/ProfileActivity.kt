@@ -99,6 +99,8 @@ import com.example.facefit.ui.theme.Gray600
 import com.example.facefit.ui.theme.White
 import com.example.facefit.ui.theme.lightBackground
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.compose.ui.platform.LocalContext
+import com.example.facefit.ui.utils.Constants
 
 @AndroidEntryPoint
 class ProfileActivity : ComponentActivity() {
@@ -108,12 +110,12 @@ class ProfileActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            FaceFitTheme {
+            com.example.facefit.ui.theme.FaceFitTheme { // Ensure you use your custom theme
                 val userState by viewModel.userState.collectAsStateWithLifecycle()
                 val isLoggedOut by viewModel.isLoggedOut.collectAsStateWithLifecycle()
                 val updateState by viewModel.updateState.collectAsStateWithLifecycle()
                 val profileEditUiState by viewModel.profileEditUiState.collectAsStateWithLifecycle()
-
+                val imageUploadState by viewModel.imageUploadState.collectAsStateWithLifecycle() // Observe image upload state
 
                 // Handle loading/error states for fetching user profile
                 LaunchedEffect(userState) {
@@ -141,13 +143,7 @@ class ProfileActivity : ComponentActivity() {
                             viewModel.clearUpdateState()
                         }
                         is UpdateState.Error -> {
-                            // This toast is explicitly removed because the message is now handled by profileEditUiState.generalErrorMessage
-                            // Toast.makeText(
-                            //     this@ProfileActivity,
-                            //     (updateState as UpdateState.Error).message,
-                            //     Toast.LENGTH_LONG
-                            // ).show()
-                            viewModel.clearUpdateState() // Still clear the UpdateState, but not the UI errors
+                            viewModel.clearUpdateState()
                         }
                         is UpdateState.ValidationError -> {
                             Toast.makeText(
@@ -155,7 +151,30 @@ class ProfileActivity : ComponentActivity() {
                                 "Please correct the errors in the form.",
                                 Toast.LENGTH_SHORT
                             ).show()
-                            viewModel.clearUpdateState() // Still clear the UpdateState, but not the UI errors
+                            viewModel.clearUpdateState()
+                        }
+                        else -> {}
+                    }
+                }
+
+                // Handle image upload state
+                LaunchedEffect(imageUploadState) {
+                    when (imageUploadState) {
+                        is ImageUploadState.Success -> {
+                            Toast.makeText(
+                                this@ProfileActivity,
+                                (imageUploadState as ImageUploadState.Success).message,
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            viewModel.clearImageUploadState()
+                        }
+                        is ImageUploadState.Error -> {
+                            Toast.makeText(
+                                this@ProfileActivity,
+                                (imageUploadState as ImageUploadState.Error).message,
+                                Toast.LENGTH_LONG
+                            ).show()
+                            viewModel.clearImageUploadState()
                         }
                         else -> {}
                     }
@@ -200,7 +219,11 @@ class ProfileActivity : ComponentActivity() {
                                     onCancelEdit = {
                                         viewModel.clearEditStateAndErrors()
                                         viewModel.loadUserProfile()
-                                    }
+                                    },
+                                    onImageSelected = { uri -> // Pass URI to ViewModel
+                                        viewModel.uploadProfileImage(uri, applicationContext)
+                                    },
+                                    isImageUploading = imageUploadState is ImageUploadState.Loading // Pass image upload loading state
                                 )
                             }
                         }
@@ -216,15 +239,7 @@ class ProfileActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-    }
-}
-@Composable
-fun LoadingScreen() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator()
+        viewModel.loadUserProfile() // Reload user profile when activity starts
     }
 }
 @Composable
@@ -241,7 +256,15 @@ fun ErrorScreen(message: String, onRetry: () -> Unit) {
         }
     }
 }
-
+@Composable
+fun LoadingScreen() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        CircularProgressIndicator()
+    }
+}
 @Composable
 fun ProfileScreen(
     user: User,
@@ -253,16 +276,18 @@ fun ProfileScreen(
     onPhoneChange: (String) -> Unit,
     onAddressChange: (String) -> Unit,
     onUpdateProfile: () -> Unit,
-    onCancelEdit: () -> Unit
+    onCancelEdit: () -> Unit,
+    onImageSelected: (Uri) -> Unit,
+    isImageUploading: Boolean
 ) {
     var isEditing by remember { mutableStateOf(false) }
-    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    val context = LocalContext.current
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri ->
             uri?.let {
-                selectedImageUri = it
+                onImageSelected(it) // Call the new callback
             }
         }
     )
@@ -279,7 +304,8 @@ fun ProfileScreen(
                 user = user,
                 onPickPhoto = {
                     launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                }
+                },
+                isImageUploading = isImageUploading // Pass the loading state
             )
         }
 
@@ -312,13 +338,11 @@ fun ProfileScreen(
     }
 }
 
-
-
-
 @Composable
 fun ProfileHeader(
     user: User,
-    onPickPhoto: () -> Unit
+    onPickPhoto: () -> Unit,
+    isImageUploading: Boolean // New parameter
 ) {
     Column(
         modifier = Modifier
@@ -327,9 +351,17 @@ fun ProfileHeader(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(modifier = Modifier.size(80.dp)) {
-            // Profile Image
+            val baseUrl = Constants.GET_IMAGE_ENDPOINT
+            val imageUrl = user.profilePicture?.let {
+                if (it.startsWith("http")) it else "$baseUrl$it"
+            }
+
             Image(
-                painter = rememberAsyncImagePainter(user.profilePicture ?: R.drawable.ic_launcher_background),
+                painter = rememberAsyncImagePainter(
+                    model = imageUrl,
+                    placeholder = painterResource(id = R.drawable.ic_launcher_background),
+                    error = painterResource(id = R.drawable.ic_launcher_background)
+                ),
                 contentDescription = "Profile Picture",
                 modifier = Modifier
                     .size(80.dp)
@@ -338,21 +370,30 @@ fun ProfileHeader(
             )
 
 
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(Blue1)
-                    .align(Alignment.BottomEnd)
-                    .clickable { onPickPhoto() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.camera),
-                    contentDescription = "Edit",
-                    tint = White,
-                    modifier = Modifier.size(12.dp)
+
+            if (isImageUploading) { // Show loading indicator when uploading
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center).size(80.dp),
+                    color = Blue1,
+                    strokeWidth = 4.dp
                 )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(Blue1)
+                        .align(Alignment.BottomEnd)
+                        .clickable { onPickPhoto() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.camera),
+                        contentDescription = "Edit",
+                        tint = White,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
             }
         }
 
@@ -373,7 +414,6 @@ fun ProfileHeader(
         )
     }
 }
-
 @Composable
 fun PersonalInformationCard(
     profileEditUiState: ProfileEditUiState, // Takes the combined state

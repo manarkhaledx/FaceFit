@@ -33,9 +33,4 @@ object AppModule {
     }
 
 
-    @Provides
-    @Singleton
-    fun provideGetUserProfileUseCase(repository: UserRepository): GetUserProfileUseCase {
-        return GetUserProfileUseCase(repository)
-    }
 }

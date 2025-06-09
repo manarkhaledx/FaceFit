@@ -1,18 +1,20 @@
 package com.example.facefit.di
 
-
 import com.example.facefit.data.remote.ApiService
 import com.example.facefit.data.repository.FavoritesRepositoryImpl
-import com.example.facefit.data.repository.UserRepositoryImpl
+import com.example.facefit.data.repository.UserRepositoryImpl // Ensure UserRepositoryImpl is imported
 import com.example.facefit.domain.repository.AuthRepository
 import com.example.facefit.domain.repository.FavoritesRepository
 import com.example.facefit.domain.repository.GlassesRepository
 import com.example.facefit.domain.repository.ReviewRepository
-import com.example.facefit.domain.repository.UserRepository
+import com.example.facefit.domain.repository.UserRepository // Ensure UserRepository is imported
 import com.example.facefit.domain.usecases.glasses.GetBestSellersUseCase
 import com.example.facefit.domain.usecases.glasses.GetNewArrivalsUseCase
 import com.example.facefit.domain.usecases.auth.LoginUseCase
 import com.example.facefit.domain.usecases.auth.SignUpUseCase
+import com.example.facefit.domain.usecases.auth.UpdateUserProfileUseCase
+import com.example.facefit.domain.usecases.auth.GetUserProfileUseCase
+import com.example.facefit.domain.usecases.auth.UploadProfilePictureUseCase // Make sure this import is present!
 import com.example.facefit.domain.usecases.favorites.GetFavoritesUseCase
 import com.example.facefit.domain.usecases.favorites.ToggleFavoriteUseCase
 import com.example.facefit.domain.usecases.reviews.GetReviewsUseCase
@@ -77,4 +79,23 @@ object UseCaseModule {
         return GetReviewsUseCase(repository)
     }
 
+    // Ensure these UserProfile UseCases are provided
+    @Provides
+    @Singleton
+    fun provideGetUserProfileUseCase(userRepository: UserRepository): GetUserProfileUseCase {
+        return GetUserProfileUseCase(userRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUpdateUserProfileUseCase(userRepository: UserRepository): UpdateUserProfileUseCase {
+        return UpdateUserProfileUseCase(userRepository)
+    }
+
+    // Ensure this new UseCase is provided
+    @Provides
+    @Singleton
+    fun provideUploadProfilePictureUseCase(userRepository: UserRepository): UploadProfilePictureUseCase {
+        return UploadProfilePictureUseCase(userRepository)
+    }
 }
