@@ -1,5 +1,6 @@
 package com.example.facefit.ui.presentation.screens.profile
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -101,6 +102,11 @@ import com.example.facefit.ui.theme.lightBackground
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.compose.ui.platform.LocalContext
 import com.example.facefit.ui.utils.Constants
+import androidx.core.content.ContextCompat // Required for ContextCompat
+import android.content.pm.PackageManager // Required for PackageManager
+import androidx.core.content.FileProvider // Required for FileProvider
+import java.io.File // Required for File
+import java.io.FileOutputStream // For URI to File conversion
 
 @AndroidEntryPoint
 class ProfileActivity : ComponentActivity() {
@@ -110,12 +116,12 @@ class ProfileActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            com.example.facefit.ui.theme.FaceFitTheme { // Ensure you use your custom theme
+            com.example.facefit.ui.theme.FaceFitTheme {
                 val userState by viewModel.userState.collectAsStateWithLifecycle()
                 val isLoggedOut by viewModel.isLoggedOut.collectAsStateWithLifecycle()
                 val updateState by viewModel.updateState.collectAsStateWithLifecycle()
                 val profileEditUiState by viewModel.profileEditUiState.collectAsStateWithLifecycle()
-                val imageUploadState by viewModel.imageUploadState.collectAsStateWithLifecycle() // Observe image upload state
+                val imageUploadState by viewModel.imageUploadState.collectAsStateWithLifecycle()
 
                 // Handle loading/error states for fetching user profile
                 LaunchedEffect(userState) {
@@ -143,6 +149,11 @@ class ProfileActivity : ComponentActivity() {
                             viewModel.clearUpdateState()
                         }
                         is UpdateState.Error -> {
+                            Toast.makeText(
+                                this@ProfileActivity,
+                                (updateState as UpdateState.Error).message, // Display the actual error message
+                                Toast.LENGTH_SHORT
+                            ).show()
                             viewModel.clearUpdateState()
                         }
                         is UpdateState.ValidationError -> {
@@ -239,7 +250,7 @@ class ProfileActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        viewModel.loadUserProfile() // Reload user profile when activity starts
+        viewModel.loadUserProfile()
     }
 }
 @Composable
@@ -277,20 +288,81 @@ fun ProfileScreen(
     onAddressChange: (String) -> Unit,
     onUpdateProfile: () -> Unit,
     onCancelEdit: () -> Unit,
-    onImageSelected: (Uri) -> Unit,
+    onImageSelected: (Uri) -> Unit, // This is for both gallery and camera
     isImageUploading: Boolean
 ) {
     var isEditing by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    var showImageSourceDialog by remember { mutableStateOf(false) } // State for showing dialog
+    var tempCameraUri by remember { mutableStateOf<Uri?>(null) } // Temporary URI for camera output
 
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
+    // Gallery launcher
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
         onResult = { uri ->
             uri?.let {
-                onImageSelected(it) // Call the new callback
+                onImageSelected(it) // handle selected JPEG
             }
         }
     )
+
+
+    // Camera permission launcher
+    val cameraPermissionGranted = remember {
+        ContextCompat.checkSelfPermission(
+            context,
+            android.Manifest.permission.CAMERA
+        ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture(),
+        onResult = { success ->
+            if (success) {
+                tempCameraUri?.let { uri ->
+                    onImageSelected(uri)
+                }
+            } else {
+                Toast.makeText(context, "Image capture cancelled or failed", Toast.LENGTH_SHORT).show()
+            }
+            tempCameraUri = null
+        }
+    )
+
+    val requestPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            launchCamera(context) { uri ->
+                tempCameraUri = uri
+                cameraLauncher.launch(uri)
+            }
+        } else {
+            Toast.makeText(context, "Camera permission required", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    if (showImageSourceDialog) {
+        ImageSourceDialog(
+            onDismiss = { showImageSourceDialog = false },
+            onCameraSelected = {
+                showImageSourceDialog = false // Dismiss dialog before requesting permission/launching camera
+                if (cameraPermissionGranted) {
+                    launchCamera(context) { uri ->
+                        tempCameraUri = uri
+                        cameraLauncher.launch(uri)
+                    }
+                } else {
+                    requestPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                }
+            },
+            onGallerySelected = {
+                showImageSourceDialog = false
+                galleryLauncher.launch("image/jpeg")
+            }
+
+        )
+    }
 
     LazyColumn(
         modifier = Modifier
@@ -302,10 +374,8 @@ fun ProfileScreen(
         item {
             ProfileHeader(
                 user = user,
-                onPickPhoto = {
-                    launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                },
-                isImageUploading = isImageUploading // Pass the loading state
+                onPickPhoto = { showImageSourceDialog = true }, // Show dialog on click
+                isImageUploading = isImageUploading
             )
         }
 
@@ -331,12 +401,46 @@ fun ProfileScreen(
                 onAddressChange = onAddressChange
             )
         }
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "My Orders",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Black
+                )
+
+                Text(
+                    text = "View All",
+                    fontSize = 14.sp,
+                    color = Blue1,
+                    modifier = Modifier.clickable { }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            MyOrdersCard()
+        }
 
         item {
+            Text(
+                text = "Account Settings",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Black,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+
             AccountSettingsCard(onSignOut = onSignOut)
         }
     }
 }
+
 
 @Composable
 fun ProfileHeader(
@@ -369,11 +473,11 @@ fun ProfileHeader(
                 contentScale = ContentScale.Crop
             )
 
-
-
             if (isImageUploading) { // Show loading indicator when uploading
                 CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center).size(80.dp),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(80.dp),
                     color = Blue1,
                     strokeWidth = 4.dp
                 )
@@ -839,32 +943,15 @@ fun AccountSettingsCard(onSignOut: () -> Unit) {
                 .fillMaxWidth()
                 .padding(vertical = 8.dp)
         ) {
-            val settingsItems = listOf(
-                SettingsItem(Icons.Default.Star, "Payment Methods"),
-                SettingsItem(Icons.Default.Star, "Prescription Management"),
-                SettingsItem(Icons.Default.Star, "Reviews"),
-                SettingsItem(Icons.Default.Star, "Help & Support"),
-                SettingsItem(Icons.AutoMirrored.Filled.ExitToApp, "Sign out")
+            val signOutItem = SettingsItem(Icons.AutoMirrored.Filled.ExitToApp, "Sign out")
+            SettingsItemRow(
+                item = signOutItem,
+                onClick = { onSignOut() }
             )
-
-            settingsItems.forEach { item ->
-                SettingsItemRow(
-                    item = item,
-                    onClick = {
-                        if (item.title == "Sign out") onSignOut()
-                        // Handle other items
-                    }
-                )
-                if (item != settingsItems.last()) {
-                    HorizontalDivider(
-                        modifier = Modifier.padding(horizontal = 20.dp),
-                        color = Gray200
-                    )
-                }
-            }
         }
     }
-}
+    }
+
 
 @Composable
 fun SettingsItemRow(item: SettingsItem, onClick: () -> Unit) {
@@ -1149,3 +1236,55 @@ data class SettingsItem(
     val icon: ImageVector,
     val title: String
 )
+
+private fun launchCamera(context: Context, onUriCreated: (Uri) -> Unit) {
+    val imageFile = File.createTempFile(
+        "profile_photo_${System.currentTimeMillis()}",
+        ".jpg",
+        context.cacheDir
+    )
+    val uri = FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.provider",
+        imageFile
+    )
+    onUriCreated(uri)
+}
+
+@Composable
+fun ImageSourceDialog(
+    onDismiss: () -> Unit,
+    onCameraSelected: () -> Unit,
+    onGallerySelected: () -> Unit
+) {
+    androidx.compose.material.AlertDialog( // Using material.AlertDialog
+        onDismissRequest = onDismiss,
+        title = { Text("Select Image From") },
+        text = {
+            Column {
+                Text(
+                    "Camera",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onCameraSelected()
+                            onDismiss() // Dismiss immediately after selection
+                        }
+                        .padding(16.dp) // Adjusted padding for better touch target
+                )
+                Text(
+                    "Gallery",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onGallerySelected()
+                            onDismiss() // Dismiss immediately after selection
+                        }
+                        .padding(16.dp) // Adjusted padding for better touch target
+                )
+            }
+        },
+        confirmButton = {}, // No confirm button needed
+        dismissButton = {} // No dismiss button needed, handled by onDismissRequest or item clicks
+    )
+}
