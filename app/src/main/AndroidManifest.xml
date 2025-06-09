@@ -56,7 +56,7 @@
         <activity android:name=".ui.presentation.screens.prescription.PrescriptionLensActivity" />
         <activity android:name=".ui.presentation.screens.reviews.WriteReviewActivity" />
         <activity android:name=".ui.presentation.screens.reviews.CustomersReviewsActivity" android:exported="true" />
-
+        <activity android:name=".ui.presentation.screens.cart.CheckoutActivity" android:exported="false" />
         <!-- Auth -->
         <activity android:name=".ui.presentation.screens.auth.login.LoginPage" android:exported="true" />
         <activity android:name=".ui.presentation.screens.auth.signUp.SignUpPage" android:exported="true" />

@@ -1,5 +1,6 @@
 package com.example.facefit.ui.presentation.screens.cart
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -52,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -94,7 +96,7 @@ fun ShoppingCartScreen(
     var isDeleteMode by remember { mutableStateOf(false) }
     var selectedItems by remember { mutableStateOf(setOf<String>()) }
     var cartItems by remember { mutableStateOf(sampleCartItems.toMutableList()) }
-
+    val context = LocalContext.current // Get the current context
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -207,8 +209,14 @@ Checkbox(
                             Text("Delete", color = Color.Red)
                         }
                     } else {
+                        // Inside ShoppingCartScreen
                         Button(
-                            onClick = { /* Checkout logic */ },
+                            onClick = {
+
+                                // Start CheckoutActivity
+                                val intent = Intent(context, CheckoutActivity::class.java)
+                                context.startActivity(intent)
+                            },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Blue1
                             ),

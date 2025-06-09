@@ -49,6 +49,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -774,6 +775,7 @@ fun PrescriptionTypeScreen(onNext: () -> Unit) {
             .background(Gray100),
         verticalArrangement = Arrangement.Top
     ) {
+        val context = LocalContext.current
         Text(
             text = "Prescription Type",
             style = TextStyle(
@@ -793,7 +795,12 @@ fun PrescriptionTypeScreen(onNext: () -> Unit) {
         OptionItem(
             title = "Non-Prescription",
             description = "Lens without any prescription",
-            onClick = { onNext() }
+            onClick = {
+
+                val intent = Intent(context, ShoppingCartActivity::class.java)
+                context.startActivity(intent)
+
+            }
         )
     }
 }
@@ -805,7 +812,7 @@ fun OptionItem(title: String, price: String? = null, description: String? = null
             .fillMaxWidth()
             .clickable { onClick() }
             .padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White) // Set the background color to white
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
             modifier = Modifier

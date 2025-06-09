@@ -23,3 +23,4 @@ val Gray100= Color(0xFFF2F2F2)
 val Gray300= Color(0xFFD4D8DF)
 //#8485FF
 val Blue2= Color(0xFF8485FF)
+

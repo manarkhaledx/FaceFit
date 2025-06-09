@@ -1,7 +1,7 @@
 package com.example.facefit.ui.presentation.screens.profile
 
+import android.content.Context
 import android.net.Uri
-import android.content.Context // Import Context for uploadProfileImage
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,7 +11,7 @@ import com.example.facefit.data.models.responses.GenericBackendError
 import com.example.facefit.domain.models.User
 import com.example.facefit.domain.usecases.auth.GetUserProfileUseCase
 import com.example.facefit.domain.usecases.auth.UpdateUserProfileUseCase
-import com.example.facefit.domain.usecases.auth.UploadProfilePictureUseCase // Make sure this import is present!
+import com.example.facefit.domain.usecases.auth.UploadProfilePictureUseCase
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.domain.utils.validators.ProfileValidator
 import com.google.gson.Gson
@@ -32,7 +32,7 @@ class ProfileViewModel @Inject constructor(
     private val tokenManager: TokenManager,
     private val getUserProfile: GetUserProfileUseCase,
     private val updateUserProfileUseCase: UpdateUserProfileUseCase,
-    private val uploadProfilePictureUseCase: UploadProfilePictureUseCase, // Make sure this is injected!
+    private val uploadProfilePictureUseCase: UploadProfilePictureUseCase,
     private val gson: Gson
 ) : ViewModel() {
 
@@ -114,16 +114,6 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun updateEmail(email: String) {
-        val trimmed = email.trim()
-        _profileEditUiState.update { currentState ->
-            currentState.copy(
-                email = trimmed,
-                emailError = ProfileValidator.validateEmail(trimmed)
-            )
-        }
-    }
-
     fun updatePhone(phone: String) {
         _profileEditUiState.update { currentState ->
             currentState.copy(
@@ -148,23 +138,19 @@ class ProfileViewModel @Inject constructor(
 
         if (currentUser == null) {
             _updateState.value = UpdateState.Error("User profile not loaded.")
-            _profileEditUiState.update { it.copy(emailError = "User profile not loaded. Please try again.") }
             return
         }
 
         val errors = mutableMapOf<String, String>()
         ProfileValidator.validateFirstName(currentState.firstName)?.let { errors["firstName"] = it }
         ProfileValidator.validateLastName(currentState.lastName)?.let { errors["lastName"] = it }
-        if (currentState.email != currentUser.email) {
-            ProfileValidator.validateEmail(currentState.email)?.let { errors["email"] = it }
-        }
         ProfileValidator.validatePhone(currentState.phone)?.let { errors["phone"] = it }
 
         _profileEditUiState.update {
             it.copy(
                 firstNameError = errors["firstName"],
                 lastNameError = errors["lastName"],
-                emailError = errors["email"],
+                emailError = null,
                 phoneError = errors["phone"],
                 addressError = errors["address"]
             )
@@ -183,7 +169,7 @@ class ProfileViewModel @Inject constructor(
                     id = currentUser.id,
                     firstName = currentState.firstName,
                     lastName = currentState.lastName,
-                    email = currentState.email,
+                    email = currentUser.email,
                     phone = currentState.phone,
                     address = currentState.address.takeIf { it.isNotBlank() },
                     profilePicture = currentUser.profilePicture
@@ -200,18 +186,16 @@ class ProfileViewModel @Inject constructor(
                     else -> {}
                 }
             } catch (e: Exception) {
-                _profileEditUiState.update { it.copy(emailError = "An unexpected error occurred: ${e.message}") }
                 _updateState.value = UpdateState.Error("An unexpected error occurred: ${e.message}")
             }
         }
     }
 
-    fun uploadProfileImage(uri: Uri, context: Context) { // Changed android.content.Context to Context
+    fun uploadProfileImage(uri: Uri, context: Context) {
         _imageUploadState.value = ImageUploadState.Loading
         viewModelScope.launch {
             try {
                 val contentResolver = context.contentResolver
-                // Safely open the input stream and read bytes
                 val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
                 Log.d("UploadDebug", "Image bytes size = ${bytes?.size}")
 
@@ -226,8 +210,8 @@ class ProfileViewModel @Inject constructor(
                 Log.d("UploadDebug", "Bytes size: ${bytes?.size}")
                 Log.d("UploadDebug", "MimeType: $mimeType")
                 val multipartBodyPart = MultipartBody.Part.createFormData(
-                    "profilePicture", // This "name" must match the @Part name in your ApiService
-                    "profile_picture.jpg", // Filename to send to the server
+                    "profilePicture",
+                    "profile_picture.jpg",
                     requestBody
                 )
 
@@ -243,7 +227,7 @@ class ProfileViewModel @Inject constructor(
                     is Resource.Error -> {
                         _imageUploadState.value = ImageUploadState.Error(result.message ?: "Failed to upload image.")
                     }
-                    else -> {} // Should not happen with sealed interface Resource
+                    else -> {}
                 }
             } catch (e: Exception) {
                 _imageUploadState.value = ImageUploadState.Error("Error uploading image: ${e.message}")
@@ -256,7 +240,6 @@ class ProfileViewModel @Inject constructor(
         clearEditStateAndErrors()
 
         if (errorMessage.isNullOrEmpty()) {
-            _profileEditUiState.update { it.copy(emailError = "An unknown error occurred.") }
             _updateState.value = UpdateState.Error("An unknown error occurred.")
             return
         }
@@ -274,7 +257,6 @@ class ProfileViewModel @Inject constructor(
                         when (field) {
                             "firstName" -> current.copy(firstNameError = message)
                             "lastName" -> current.copy(lastNameError = message)
-                            "email" -> current.copy(emailError = message)
                             "phoneNumber" -> current.copy(phoneError = message)
                             "address" -> current.copy(addressError = message)
                             else -> current
@@ -289,7 +271,6 @@ class ProfileViewModel @Inject constructor(
                         mapOfNotNull(
                             "firstName" to it.firstNameError,
                             "lastName" to it.lastNameError,
-                            "email" to it.emailError,
                             "phone" to it.phoneError,
                             "address" to it.addressError
                         )
@@ -297,9 +278,8 @@ class ProfileViewModel @Inject constructor(
                 )
             } else {
                 val generalMessage = structuredErrorResponse?.errors?.firstOrNull()?.message
-                    ?: "The email already exists."
-                _profileEditUiState.update { it.copy(emailError = generalMessage) }
-                _updateState.value = UpdateState.ValidationError(mapOf("email" to generalMessage))
+                    ?: "An unknown validation error occurred."
+                _updateState.value = UpdateState.ValidationError(mapOf("general" to generalMessage))
             }
 
         } catch (e: JsonSyntaxException) {
@@ -309,35 +289,29 @@ class ProfileViewModel @Inject constructor(
 
                 if (generalErrorMessage != null) {
                     if (generalErrorMessage.contains("E11000 duplicate key error") && generalErrorMessage.contains("email")) {
-                        _profileEditUiState.update { it.copy(emailError = "The email already exists.") }
-                        _updateState.value = UpdateState.ValidationError(mapOf("email" to "The email already exists."))
+                        _updateState.value = UpdateState.Error("Cannot update profile due to an existing email conflict.")
                     } else {
                         val messageToDisplay = if (generalErrorMessage == "Update failed.") {
-                            "The email already exists."
+                            "Profile update failed due to an unknown reason."
                         } else {
                             generalErrorMessage
                         }
-                        _profileEditUiState.update { it.copy(emailError = messageToDisplay) }
-                        _updateState.value = UpdateState.ValidationError(mapOf("email" to messageToDisplay))
+                        _updateState.value = UpdateState.Error(messageToDisplay)
                     }
                 } else {
                     val fallbackMessage = "An unknown error occurred: Response format unexpected (no 'error' field)."
-                    _profileEditUiState.update { it.copy(emailError = fallbackMessage) }
-                    _updateState.value = UpdateState.ValidationError(mapOf("email" to fallbackMessage))
+                    _updateState.value = UpdateState.Error(fallbackMessage)
                 }
             } catch (e2: JsonSyntaxException) {
                 val fallbackMessage = "An unhandled error occurred: ${errorMessage}"
-                _profileEditUiState.update { it.copy(emailError = fallbackMessage) }
-                _updateState.value = UpdateState.ValidationError(mapOf("email" to fallbackMessage))
+                _updateState.value = UpdateState.Error(fallbackMessage)
             } catch (e2: Exception) {
                 val fallbackMessage = "An unexpected error occurred during generic error parsing: ${e2.message}"
-                _profileEditUiState.update { it.copy(emailError = fallbackMessage) }
-                _updateState.value = UpdateState.ValidationError(mapOf("email" to fallbackMessage))
+                _updateState.value = UpdateState.Error(fallbackMessage)
             }
         } catch (e: Exception) {
             val fallbackMessage = "An unexpected error occurred during structured error parsing: ${e.message}"
-            _profileEditUiState.update { it.copy(emailError = fallbackMessage) }
-            _updateState.value = UpdateState.ValidationError(mapOf("email" to fallbackMessage))
+            _updateState.value = UpdateState.Error(fallbackMessage)
         }
     }
 

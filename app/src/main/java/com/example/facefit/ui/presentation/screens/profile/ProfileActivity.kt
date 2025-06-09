@@ -2,6 +2,7 @@ package com.example.facefit.ui.presentation.screens.profile
 
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
@@ -9,7 +10,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.core.LinearEasing
@@ -46,7 +46,6 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -75,38 +74,31 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
 import com.example.facefit.R
 import com.example.facefit.domain.models.User
-import com.example.facefit.domain.utils.Resource
-import com.example.facefit.domain.utils.validators.ProfileValidator
-import com.example.facefit.ui.Photopicker
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 import com.example.facefit.ui.presentation.screens.auth.login.LoginPage
 import com.example.facefit.ui.presentation.screens.auth.signUp.EgyptPhoneNumberField
 import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
-import com.example.facefit.ui.theme.FaceFitTheme
 import com.example.facefit.ui.theme.Gray100
 import com.example.facefit.ui.theme.Gray200
 import com.example.facefit.ui.theme.Gray600
 import com.example.facefit.ui.theme.White
 import com.example.facefit.ui.theme.lightBackground
-import dagger.hilt.android.AndroidEntryPoint
-import androidx.compose.ui.platform.LocalContext
 import com.example.facefit.ui.utils.Constants
-import androidx.core.content.ContextCompat // Required for ContextCompat
-import android.content.pm.PackageManager // Required for PackageManager
-import androidx.core.content.FileProvider // Required for FileProvider
-import java.io.File // Required for File
-import java.io.FileOutputStream // For URI to File conversion
+import dagger.hilt.android.AndroidEntryPoint
+import java.io.File
 
 @AndroidEntryPoint
 class ProfileActivity : ComponentActivity() {
@@ -123,7 +115,6 @@ class ProfileActivity : ComponentActivity() {
                 val profileEditUiState by viewModel.profileEditUiState.collectAsStateWithLifecycle()
                 val imageUploadState by viewModel.imageUploadState.collectAsStateWithLifecycle()
 
-                // Handle loading/error states for fetching user profile
                 LaunchedEffect(userState) {
                     when (userState) {
                         is ProfileState.Error -> {
@@ -137,7 +128,6 @@ class ProfileActivity : ComponentActivity() {
                     }
                 }
 
-                // Handle update states for saving user profile
                 LaunchedEffect(updateState) {
                     when (updateState) {
                         is UpdateState.Success -> {
@@ -151,7 +141,7 @@ class ProfileActivity : ComponentActivity() {
                         is UpdateState.Error -> {
                             Toast.makeText(
                                 this@ProfileActivity,
-                                (updateState as UpdateState.Error).message, // Display the actual error message
+                                (updateState as UpdateState.Error).message,
                                 Toast.LENGTH_SHORT
                             ).show()
                             viewModel.clearUpdateState()
@@ -168,7 +158,6 @@ class ProfileActivity : ComponentActivity() {
                     }
                 }
 
-                // Handle image upload state
                 LaunchedEffect(imageUploadState) {
                     when (imageUploadState) {
                         is ImageUploadState.Success -> {
@@ -191,7 +180,6 @@ class ProfileActivity : ComponentActivity() {
                     }
                 }
 
-                // Handle logout
                 LaunchedEffect(isLoggedOut) {
                     if (isLoggedOut) {
                         val intent = Intent(this@ProfileActivity, LoginPage::class.java).apply {
@@ -221,7 +209,6 @@ class ProfileActivity : ComponentActivity() {
                                     onSignOut = { viewModel.signOut() },
                                     onFirstNameChange = { viewModel.updateFirstName(it) },
                                     onLastNameChange = { viewModel.updateLastName(it) },
-                                    onEmailChange = { viewModel.updateEmail(it) },
                                     onPhoneChange = { viewModel.updatePhone(it) },
                                     onAddressChange = { viewModel.updateAddress(it) },
                                     onUpdateProfile = {
@@ -229,12 +216,11 @@ class ProfileActivity : ComponentActivity() {
                                     },
                                     onCancelEdit = {
                                         viewModel.clearEditStateAndErrors()
-                                        viewModel.loadUserProfile()
                                     },
-                                    onImageSelected = { uri -> // Pass URI to ViewModel
+                                    onImageSelected = { uri ->
                                         viewModel.uploadProfileImage(uri, applicationContext)
                                     },
-                                    isImageUploading = imageUploadState is ImageUploadState.Loading // Pass image upload loading state
+                                    isImageUploading = imageUploadState is ImageUploadState.Loading
                                 )
                             }
                         }
@@ -253,6 +239,7 @@ class ProfileActivity : ComponentActivity() {
         viewModel.loadUserProfile()
     }
 }
+
 @Composable
 fun ErrorScreen(message: String, onRetry: () -> Unit) {
     Box(
@@ -267,6 +254,7 @@ fun ErrorScreen(message: String, onRetry: () -> Unit) {
         }
     }
 }
+
 @Composable
 fun LoadingScreen() {
     Box(
@@ -276,6 +264,7 @@ fun LoadingScreen() {
         CircularProgressIndicator()
     }
 }
+
 @Composable
 fun ProfileScreen(
     user: User,
@@ -283,31 +272,27 @@ fun ProfileScreen(
     onSignOut: () -> Unit,
     onFirstNameChange: (String) -> Unit,
     onLastNameChange: (String) -> Unit,
-    onEmailChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
     onAddressChange: (String) -> Unit,
     onUpdateProfile: () -> Unit,
     onCancelEdit: () -> Unit,
-    onImageSelected: (Uri) -> Unit, // This is for both gallery and camera
+    onImageSelected: (Uri) -> Unit,
     isImageUploading: Boolean
 ) {
     var isEditing by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    var showImageSourceDialog by remember { mutableStateOf(false) } // State for showing dialog
-    var tempCameraUri by remember { mutableStateOf<Uri?>(null) } // Temporary URI for camera output
+    var showImageSourceDialog by remember { mutableStateOf(false) }
+    var tempCameraUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Gallery launcher
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent(),
         onResult = { uri ->
             uri?.let {
-                onImageSelected(it) // handle selected JPEG
+                onImageSelected(it)
             }
         }
     )
 
-
-    // Camera permission launcher
     val cameraPermissionGranted = remember {
         ContextCompat.checkSelfPermission(
             context,
@@ -346,7 +331,7 @@ fun ProfileScreen(
         ImageSourceDialog(
             onDismiss = { showImageSourceDialog = false },
             onCameraSelected = {
-                showImageSourceDialog = false // Dismiss dialog before requesting permission/launching camera
+                showImageSourceDialog = false
                 if (cameraPermissionGranted) {
                     launchCamera(context) { uri ->
                         tempCameraUri = uri
@@ -374,7 +359,7 @@ fun ProfileScreen(
         item {
             ProfileHeader(
                 user = user,
-                onPickPhoto = { showImageSourceDialog = true }, // Show dialog on click
+                onPickPhoto = { showImageSourceDialog = true },
                 isImageUploading = isImageUploading
             )
         }
@@ -396,7 +381,6 @@ fun ProfileScreen(
                 },
                 onFirstNameChange = onFirstNameChange,
                 onLastNameChange = onLastNameChange,
-                onEmailChange = onEmailChange,
                 onPhoneChange = onPhoneChange,
                 onAddressChange = onAddressChange
             )
@@ -446,7 +430,7 @@ fun ProfileScreen(
 fun ProfileHeader(
     user: User,
     onPickPhoto: () -> Unit,
-    isImageUploading: Boolean // New parameter
+    isImageUploading: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -463,8 +447,8 @@ fun ProfileHeader(
             Image(
                 painter = rememberAsyncImagePainter(
                     model = imageUrl,
-placeholder = null,
-error = null
+                    placeholder = null,
+                    error = null
                 ),
                 contentDescription = "Profile Picture",
                 modifier = Modifier
@@ -473,7 +457,7 @@ error = null
                 contentScale = ContentScale.Crop
             )
 
-            if (isImageUploading) { // Show loading indicator when uploading
+            if (isImageUploading) {
                 CircularProgressIndicator(
                     modifier = Modifier
                         .align(Alignment.Center)
@@ -518,16 +502,16 @@ error = null
         )
     }
 }
+
 @Composable
 fun PersonalInformationCard(
-    profileEditUiState: ProfileEditUiState, // Takes the combined state
+    profileEditUiState: ProfileEditUiState,
     isEditing: Boolean,
     onToggleEdit: () -> Unit,
     onSaveChanges: () -> Unit,
     onCancel: () -> Unit,
     onFirstNameChange: (String) -> Unit,
     onLastNameChange: (String) -> Unit,
-    onEmailChange: (String) -> Unit,
     onPhoneChange: (String) -> Unit,
     onAddressChange: (String) -> Unit
 ) {
@@ -666,17 +650,19 @@ fun PersonalInformationCard(
                 }
             }
 
-            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
+            if (!isEditing) {
+                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
+                EditableInfoItem(
+                    icon = Icons.Default.Email,
+                    label = "E-mail",
+                    value = profileEditUiState.email,
+                    isEditing = false,
+                    onValueChange = { },
+                    isError = profileEditUiState.emailError != null,
+                    errorText = profileEditUiState.emailError
+                )
+            }
 
-            EditableInfoItem(
-                icon = Icons.Default.Email,
-                label = "E-mail",
-                value = profileEditUiState.email,
-                isEditing = isEditing,
-                onValueChange = onEmailChange,
-                isError = profileEditUiState.emailError != null,
-                errorText = profileEditUiState.emailError
-            )
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
 
@@ -850,7 +836,6 @@ fun SingleOrderCard(order: OrderItem) {
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            // Top row with order info and status
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -872,7 +857,6 @@ fun SingleOrderCard(order: OrderItem) {
                     )
                 }
 
-                // Status badge
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = if (order.status == "Delivered")
@@ -892,7 +876,6 @@ fun SingleOrderCard(order: OrderItem) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Bottom row with glasses image, price and arrow
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -950,7 +933,7 @@ fun AccountSettingsCard(onSignOut: () -> Unit) {
             )
         }
     }
-    }
+}
 
 
 @Composable
@@ -988,6 +971,7 @@ fun SettingsItemRow(item: SettingsItem, onClick: () -> Unit) {
         }
     }
 }
+
 @Composable
 fun ShimmerProfileScreen() {
     LazyColumn(
@@ -1010,7 +994,6 @@ fun ShimmerProfileScreen() {
                 ShimmerText(width = 60.dp, height = 16.dp)
             }
             Spacer(modifier = Modifier.height(8.dp))
-//            repeat(3) { item { ShimmerOrderCard() } }
         }
         item {
             ShimmerText(width = 150.dp, height = 20.dp, modifier = Modifier.padding(vertical = 8.dp))
@@ -1194,7 +1177,6 @@ fun ShimmerText(
     )
 }
 
-// Shimmer effect implementation
 @Composable
 fun Modifier.shimmerEffect(): Modifier = composed {
     val shimmerColors = listOf(
@@ -1225,6 +1207,7 @@ fun Modifier.shimmerEffect(): Modifier = composed {
         )
     )
 }
+
 data class OrderItem(
     val orderNumber: String,
     val date: String,
@@ -1257,7 +1240,7 @@ fun ImageSourceDialog(
     onCameraSelected: () -> Unit,
     onGallerySelected: () -> Unit
 ) {
-    androidx.compose.material.AlertDialog( // Using material.AlertDialog
+    androidx.compose.material.AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Select Image From") },
         text = {
@@ -1268,9 +1251,9 @@ fun ImageSourceDialog(
                         .fillMaxWidth()
                         .clickable {
                             onCameraSelected()
-                            onDismiss() // Dismiss immediately after selection
+                            onDismiss()
                         }
-                        .padding(16.dp) // Adjusted padding for better touch target
+                        .padding(16.dp)
                 )
                 Text(
                     "Gallery",
@@ -1278,13 +1261,13 @@ fun ImageSourceDialog(
                         .fillMaxWidth()
                         .clickable {
                             onGallerySelected()
-                            onDismiss() // Dismiss immediately after selection
+                            onDismiss()
                         }
-                        .padding(16.dp) // Adjusted padding for better touch target
+                        .padding(16.dp)
                 )
             }
         },
-        confirmButton = {}, // No confirm button needed
-        dismissButton = {} // No dismiss button needed, handled by onDismissRequest or item clicks
+        confirmButton = {},
+        dismissButton = {}
     )
 }

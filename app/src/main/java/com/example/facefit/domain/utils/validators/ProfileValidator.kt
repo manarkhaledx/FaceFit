@@ -21,16 +21,6 @@ object ProfileValidator {
         }
     }
 
-    fun validateEmail(email: String): String? {
-        val trimmed = email.trim()
-        return when {
-            trimmed.isBlank() -> "Email is required"
-            " " in trimmed -> "Email cannot contain spaces"
-            !android.util.Patterns.EMAIL_ADDRESS.matcher(trimmed).matches() -> "Invalid email format"
-            else -> null
-        }
-    }
-
     fun validatePhone(phone: String): String? {
         var number = phone.removePrefix("+20").replace(" ", "")
         if (number.startsWith("0")) {
@@ -39,11 +29,9 @@ object ProfileValidator {
         return when {
             number.isBlank() -> "Phone number is required"
             number.length != 10 -> "Phone number must be 10 digits"
-            // Assuming this regex is correct for your specific phone number format
             !number.matches(Regex("^1[0125][0-9]{8}$")) ->
                 "Phone number must start with 010, 011, 012, or 015"
             else -> null
         }
     }
-    // No specific validation for address beyond nullability/blankness needed here
 }
