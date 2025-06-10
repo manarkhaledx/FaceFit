@@ -1,4 +1,3 @@
-// components/navigation/AppBottomNavigation.kt
 
 package com.example.facefit.ui.presentation.components.navigation
 
@@ -24,9 +23,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.facefit.R
+import com.example.facefit.ui.presentation.screens.cart.ShoppingCartActivity
 import com.example.facefit.ui.presentation.screens.favourites.FavouritesActivity
 import com.example.facefit.ui.presentation.screens.home.HomePageActivity
 import com.example.facefit.ui.presentation.screens.products.AllProductsActivity
+import com.example.facefit.ui.presentation.screens.profile.ProfileActivity
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.Gray600
 import com.example.facefit.ui.theme.LavenderBlue
@@ -38,6 +39,8 @@ fun AppBottomNavigation() {
         HomePageActivity::class.java -> 0
         AllProductsActivity::class.java -> 2
         FavouritesActivity::class.java -> 1
+        ShoppingCartActivity::class.java-> 3
+        ProfileActivity::class.java -> 4
         else -> 0
     }
 
@@ -93,11 +96,15 @@ fun AppBottomNavigation() {
                     },
                     selected = selectedItem == index,
                     onClick = {
-                        selectedItem = index
-                        when (item.title) {
-                            "Home" -> context.startActivity(Intent(context, HomePageActivity::class.java))
-                            "Products" -> context.startActivity(Intent(context, AllProductsActivity::class.java))
-                            "Favourites" -> context.startActivity(Intent(context, FavouritesActivity::class.java))
+                        if (selectedItem != index) {
+                            selectedItem = index
+                            when (item.title) {
+                                "Home" -> context.startActivity(Intent(context, HomePageActivity::class.java))
+                                "Products" -> context.startActivity(Intent(context, AllProductsActivity::class.java))
+                                "Favourites" -> context.startActivity(Intent(context, FavouritesActivity::class.java))
+                                "Cart" -> context.startActivity(Intent(context, ShoppingCartActivity::class.java))
+                                "Profile" -> context.startActivity(Intent(context, ProfileActivity::class.java))
+                            }
                         }
                     },
                     modifier = Modifier.weight(1f)

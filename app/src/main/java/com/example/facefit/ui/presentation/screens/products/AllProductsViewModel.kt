@@ -12,6 +12,7 @@ import com.example.facefit.domain.usecases.glasses.GetAllGlassesUseCase
 import com.example.facefit.domain.usecases.glasses.GetBestSellersUseCase
 import com.example.facefit.domain.usecases.glasses.GetNewArrivalsUseCase
 import com.example.facefit.domain.utils.Resource
+import com.example.facefit.ui.presentation.base.RefreshableViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,13 +31,13 @@ class AllProductsViewModel @Inject constructor(
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val getFavoritesUseCase: GetFavoritesUseCase,
     private val authManager: TokenManager
-) : ViewModel() {
+) : ViewModel(), RefreshableViewModel {
 
     companion object {
         const val SORT_DEFAULT = "Default"
         const val SORT_BEST_SELLERS = "Best Sellers"
         const val SORT_NEW_ARRIVALS = "New Arrivals"
-        
+
         const val EYEGLASSES = "eyeglasses"
         const val SUNGLASSES = "sunglasses"
     }
@@ -50,22 +51,25 @@ class AllProductsViewModel @Inject constructor(
     private val _pendingFavorites = MutableStateFlow<Set<String>>(emptySet())
     val pendingFavorites: StateFlow<Set<String>> = _pendingFavorites.asStateFlow()
 
+    private val _toastTrigger = MutableStateFlow(0)
+    val toastTrigger: StateFlow<Int> = _toastTrigger.asStateFlow()
+
     init {
         loadAllProducts()
         loadFavorites()
     }
 
-
     fun loadAllProducts() {
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update { 
+            _uiState.update {
                 it.copy(
                     isLoading = true,
                     selectedTab = 0,
-                    selectedSort = SORT_DEFAULT
+                    selectedSort = SORT_DEFAULT,
+                    activeFilters = emptyMap()
                 )
             }
-            
+
             when (val result = getAllGlassesUseCase()) {
                 is Resource.Success -> {
                     _uiState.update {
@@ -77,17 +81,20 @@ class AllProductsViewModel @Inject constructor(
                     }
                 }
                 is Resource.Error -> {
+                    val friendlyMessage = if (result.message?.contains("Unable to resolve host") == true) {
+                        "Please check your internet connection."
+                    } else {
+                        "Failed to load products. Please try again."
+                    }
                     _uiState.update {
                         it.copy(
-                            error = result.message,
+                            error = friendlyMessage,
                             isLoading = false,
                             products = result.data ?: emptyList()
                         )
                     }
                 }
-                is Resource.Loading -> {
-                    _uiState.update { it.copy(isLoading = true) }
-                }
+                is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
             }
         }
     }
@@ -112,20 +119,20 @@ class AllProductsViewModel @Inject constructor(
 
     fun sortProducts(sortOption: String) {
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update { 
+            _uiState.update {
                 it.copy(
-                    isLoading = true, 
+                    isLoading = true,
                     selectedSort = sortOption,
                     selectedTab = 0
                 )
             }
-            
+
             val result = when (sortOption) {
                 SORT_BEST_SELLERS -> getBestSellersUseCase()
                 SORT_NEW_ARRIVALS -> getNewArrivalsUseCase()
                 else -> getAllGlassesUseCase()
             }
-            
+
             _uiState.update {
                 when (result) {
                     is Resource.Success -> it.copy(
@@ -133,40 +140,49 @@ class AllProductsViewModel @Inject constructor(
                         isLoading = false,
                         error = null
                     )
-                    is Resource.Error -> it.copy(
-                        error = result.message,
-                        isLoading = false,
-                        products = result.data ?: emptyList()
-                    )
+
+                    is Resource.Error -> {
+                        val friendlyMessage = if (result.message?.contains("Unable to resolve host") == true) {
+                            "Please check your internet connection."
+                        } else {
+                            "Failed to sort products. Please try again."
+                        }
+                        it.copy(
+                            error = friendlyMessage,
+                            isLoading = false,
+                            products = result.data ?: emptyList()
+                        )
+                    }
+
                     is Resource.Loading -> it.copy(isLoading = true)
                 }
             }
         }
     }
-    
+
     fun filterByType(tabIndex: Int) {
         viewModelScope.launch(Dispatchers.IO) {
-            _uiState.update { 
+            _uiState.update {
                 it.copy(
                     isLoading = true,
                     selectedTab = tabIndex,
                     selectedSort = SORT_DEFAULT
                 )
             }
-            
+
             val type = when (tabIndex) {
                 1 -> EYEGLASSES
                 2 -> SUNGLASSES
                 else -> null
             }
-            
+
             filterProducts(type = type)
         }
     }
 
     fun filterProducts(
-        type: String? = null,
         gender: String? = null,
+        type: String? = null,
         minPrice: Double? = null,
         maxPrice: Double? = null,
         shape: String? = null,
@@ -174,11 +190,28 @@ class AllProductsViewModel @Inject constructor(
         sort: String? = null
     ) {
         viewModelScope.launch(Dispatchers.IO) {
+            val tabIndex = when (type) {
+                SUNGLASSES -> 2
+                EYEGLASSES -> 1
+                else -> 0
+            }
+
             _uiState.update {
                 it.copy(
                     isLoading = true,
                     priceRangeMin = minPrice,
                     priceRangeMax = maxPrice,
+                    selectedType = type,
+                    selectedGender = gender,
+                    selectedTab = tabIndex,
+                    activeFilters = mapOf(
+                        "gender" to gender,
+                        "type" to type,
+                        "minPrice" to minPrice,
+                        "maxPrice" to maxPrice,
+                        "shape" to shape,
+                        "material" to material
+                    )
                 )
             }
 
@@ -196,27 +229,56 @@ class AllProductsViewModel @Inject constructor(
                         it.copy(
                             products = result.data ?: emptyList(),
                             isLoading = false,
-                            error = null,
-                            selectedType = type,
-                            selectedGender = gender,
-                            priceRangeMin = minPrice,
-                            priceRangeMax = maxPrice,
+                            error = null
                         )
                     }
                 }
                 is Resource.Error -> {
+                    val friendlyMessage = if (result.message?.contains("Unable to resolve host") == true) {
+                        "Please check your internet connection."
+                    } else {
+                        result.message ?: "Failed to filter products. Please try again."
+                    }
+
                     _uiState.update {
                         it.copy(
-                            error = result.message,
+                            error = friendlyMessage,
                             isLoading = false,
                             products = result.data ?: emptyList()
                         )
                     }
+                    _toastTrigger.update { it + 1 }
                 }
-                is Resource.Loading -> {
-                    _uiState.update { it.copy(isLoading = true) }
-                }
+                is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
             }
+        }
+    }
+
+    fun clearFilters() {
+        _uiState.update {
+            it.copy(
+                selectedType = null,
+                selectedGender = null,
+                priceRangeMin = null,
+                priceRangeMax = null,
+                selectedTab = 0,
+                isLoading = true,
+                activeFilters = emptyMap()
+            )
+        }
+        loadAllProducts()
+    }
+
+    override fun refresh() {
+        viewModelScope.launch {
+            filterProducts(
+                type = _uiState.value.selectedType,
+                gender = _uiState.value.selectedGender,
+                minPrice = _uiState.value.priceRangeMin,
+                maxPrice = _uiState.value.priceRangeMax,
+            )
+            loadFavorites()
+            _toastTrigger.update { it + 1 }
         }
     }
 
@@ -228,12 +290,12 @@ class AllProductsViewModel @Inject constructor(
                     val newStatus = result.data?.associate { it.id to true } ?: emptyMap()
                     _favoriteStatus.update { newStatus }
                 }
+
                 is Resource.Error -> {
                     Log.e("AllProductsVM", "Error loading favorites: ${result.message}")
                 }
-                is Resource.Loading -> {
-                    // Handle loading state
-                }
+
+                is Resource.Loading -> {  }
             }
         }
     }
@@ -254,9 +316,7 @@ class AllProductsViewModel @Inject constructor(
                     _favoriteStatus.update { it + (productId to currentStatus) }
                     Log.e("ViewModel", "Failed to toggle favorite: ${result.message}")
                 }
-                is Resource.Loading -> {
-
-                }
+                is Resource.Loading -> {}
             }
 
             _pendingFavorites.update { it - productId }
@@ -273,5 +333,6 @@ data class AllProductsUiState(
     val selectedSort: String = AllProductsViewModel.SORT_DEFAULT,
     val selectedTab: Int = 0,
     val priceRangeMin: Double? = null,
-    val priceRangeMax: Double? = null
+    val priceRangeMax: Double? = null,
+    val activeFilters: Map<String, Any?> = emptyMap()
 )

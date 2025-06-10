@@ -10,8 +10,10 @@ import com.example.facefit.domain.usecases.favorites.ToggleFavoriteUseCase
 import com.example.facefit.domain.usecases.glasses.GetBestSellersUseCase
 import com.example.facefit.domain.usecases.glasses.GetNewArrivalsUseCase
 import com.example.facefit.domain.utils.Resource
+import com.example.facefit.ui.presentation.base.RefreshableViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,7 +28,9 @@ class HomeViewModel @Inject constructor(
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val getFavoritesUseCase: GetFavoritesUseCase,
     private val authManager: TokenManager
-) : ViewModel() {
+) : ViewModel(), RefreshableViewModel {
+    private val _toastTrigger = MutableStateFlow(0)
+    val toastTrigger: StateFlow<Int> = _toastTrigger.asStateFlow()
     private val _bestSellers = MutableStateFlow<Resource<List<Glasses>>>(Resource.Loading())
     val bestSellers: StateFlow<Resource<List<Glasses>>> = _bestSellers
 
@@ -63,15 +67,24 @@ class HomeViewModel @Inject constructor(
         loadFavorites()
     }
 
+
     private fun getBestSellers() {
         viewModelScope.launch {
-            _bestSellers.value = getBestSellersUseCase()
+            val result = getBestSellersUseCase()
+            _bestSellers.value = result
+            if (result is Resource.Error) {
+                _toastTrigger.update { it + 1 }
+            }
         }
     }
 
     private fun getNewArrivals() {
         viewModelScope.launch {
-            _newArrivals.value = getNewArrivalsUseCase()
+            val result = getNewArrivalsUseCase()
+            _newArrivals.value = result
+            if (result is Resource.Error) {
+                _toastTrigger.update { it + 1 }
+            }
         }
     }
 
@@ -200,9 +213,17 @@ class HomeViewModel @Inject constructor(
         _searchResults.value = Resource.Success(emptyList())
     }
 
-    fun refresh() {
-        getBestSellers()
-        getNewArrivals()
-        _selectedCategory.value?.let { getProductsByCategory(it) }
+     override fun refresh() {
+        viewModelScope.launch {
+            _bestSellers.value = Resource.Loading()
+            _newArrivals.value = Resource.Loading()
+
+            delay(800)
+
+            getBestSellers()
+            getNewArrivals()
+            _selectedCategory.value?.let { getProductsByCategory(it) }
+        }
     }
+
 }

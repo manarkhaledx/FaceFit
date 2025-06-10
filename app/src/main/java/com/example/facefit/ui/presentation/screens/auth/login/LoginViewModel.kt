@@ -23,8 +23,8 @@ class LoginViewModel @Inject constructor(
     private val tokenManager: TokenManager
 ) : ViewModel() {
 
-    private val _loginState = MutableStateFlow<Resource<LoginResponse>?>(null)
-    val loginState: StateFlow<Resource<LoginResponse>?> = _loginState
+    private val _loginState = MutableStateFlow<Resource<Unit>?>(null)
+    val loginState: StateFlow<Resource<Unit>?> = _loginState
 
     private val _fieldErrors = MutableStateFlow<Map<String, String>>(emptyMap())
     val fieldErrors: StateFlow<Map<String, String>> = _fieldErrors
@@ -33,14 +33,23 @@ class LoginViewModel @Inject constructor(
     val errorMessage: StateFlow<String?> = _errorMessage
 
     fun login(email: String, password: String) {
-        if (email.isEmpty() || password.isEmpty()) {
-            _loginState.value = Resource.Error("Please fill all fields")
+        _loginState.value = null
+
+        _errorMessage.value = null
+        val emailError = validateEmail(email)
+        val passwordError = validatePassword(password)
+
+        _fieldErrors.value = buildMap {
+            emailError?.let { put("email", it) }
+            passwordError?.let { put("password", it) }
+        }
+
+        if (emailError != null || passwordError != null) {
+            _loginState.value = Resource.Error("Please fix the form errors")
             return
         }
 
         _loginState.value = Resource.Loading()
-        _fieldErrors.value = emptyMap()
-        _errorMessage.value = null
 
         viewModelScope.launch {
             try {
@@ -50,35 +59,55 @@ class LoginViewModel @Inject constructor(
                 )
 
                 val response = loginUseCase(request)
-
-                if (response.isSuccessful) {
-                    response.body()?.let { loginResponse ->
-                        tokenManager.saveToken(loginResponse.data.token)
-                        _loginState.value = Resource.Success(loginResponse)
-                    } ?: run {
-                        _loginState.value = Resource.Error("Invalid response from server")
-                    }
-                } else {
-                    handleErrorResponse(response)
-                }
+                handleLoginResponse(response)
             } catch (e: Exception) {
                 handleGenericError(e)
             }
         }
     }
 
+    private fun validateEmail(email: String): String? {
+        return when {
+            email.isBlank() -> "Email is required"
+            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> "Please enter a valid email"
+            else -> null
+        }
+    }
+
+    private fun validatePassword(password: String): String? {
+        return when {
+            password.isBlank() -> "Password is required"
+            password.length < 6 -> "Password must be at least 6 characters"
+            else -> null
+        }
+    }
+
+    private suspend fun handleLoginResponse(response: Response<LoginResponse>) {
+        if (response.isSuccessful) {
+            response.body()?.let { loginResponse ->
+                tokenManager.saveToken(loginResponse.data.token)
+                _loginState.value = Resource.Success(Unit)
+            } ?: run {
+                _loginState.value = Resource.Error("Invalid response from server")
+            }
+        } else {
+            handleErrorResponse(response)
+        }
+    }
+
     private suspend fun handleErrorResponse(response: Response<LoginResponse>) {
         try {
             val errorBody = response.errorBody()?.string()
-
             val errorResponse = gson.fromJson(errorBody, ErrorResponse::class.java)
 
-            if (!errorResponse?.errors.isNullOrEmpty()) {
-                val errorsMap = errorResponse?.errors?.associate { it.field to it.message } ?: emptyMap()
-                _fieldErrors.value = errorsMap
-                _loginState.value = Resource.Error("Please fix the form errors")
-                return
-            }
+if (!errorResponse?.errors.isNullOrEmpty()) {
+    val errorsMap = errorResponse?.errors
+        ?.mapNotNull { it.field?.let { field -> it.message?.let { msg -> field to msg } } }
+        ?.toMap() ?: emptyMap()
+    _fieldErrors.value = errorsMap
+    _loginState.value = Resource.Error("Please fix the form errors")
+    return
+}
 
             val errorMessage = when {
                 errorBody?.contains("Customer not found") == true -> "Email not registered"
@@ -95,10 +124,15 @@ class LoginViewModel @Inject constructor(
     }
 
     private fun handleGenericError(e: Exception) {
-        val message = e.message ?: "An unexpected error occurred"
+        val message = if (e.message?.contains("Unable to resolve host", ignoreCase = true) == true) {
+            "Please check your internet connection."
+        } else {
+            e.message ?: "An unexpected error occurred"
+        }
         _errorMessage.value = message
         _loginState.value = Resource.Error(message)
     }
+
 
     fun clearFieldError(field: String) {
         _fieldErrors.value -= field

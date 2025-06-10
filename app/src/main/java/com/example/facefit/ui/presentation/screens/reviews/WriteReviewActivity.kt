@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.facefit.R
+import com.example.facefit.domain.utils.validators.ReviewValidator
 import com.example.facefit.ui.presentation.components.buttons.LongButton
 import com.example.facefit.ui.theme.FaceFitTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -89,10 +90,12 @@ fun ReviewScreen(
     isSubmitting: Boolean = false,
     error: String? = null
 ) {
+
     var rating by remember { mutableStateOf(0) }
     var comment by remember { mutableStateOf("") }
     var showValidationError by remember { mutableStateOf(false) }
-
+    val isRatingError = showValidationError && rating == 0
+    val isCommentError = showValidationError && comment.isBlank()
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -111,16 +114,12 @@ fun ReviewScreen(
                     .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                LongButton(
-                    text = if (isSubmitting) "Submitting..." else "Submit",
-                    onClick = {
-                        if (rating == 0 || comment.isBlank()) {
-                            showValidationError = true
-                        } else {
-                            showValidationError = false
-                            onSubmit(rating, comment)
-                        }
-                    }
+               ReviewSubmitButton(
+                    rating = rating,
+                    comment = comment,
+                    isSubmitting = isSubmitting,
+                    onSubmit = onSubmit,
+                    setShowValidationError = { showValidationError = it }
                 )
             }
         }
@@ -143,22 +142,91 @@ fun ReviewScreen(
                 )
             }
 
-            // Show validation error
-            if (showValidationError) {
-                Text(
-                    text = "Please select a rating and write a comment",
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-            }
 
             ReviewSection(
                 rating = rating,
                 onRatingChange = { rating = it },
                 comment = comment,
-                onCommentChange = { comment = it }
+                onCommentChange = { comment = it },
+                isRatingError = isRatingError,
+                isCommentError = isCommentError
             )
+
+
         }
+    }
+}
+@Composable
+fun ReviewSubmitButton(
+    rating: Int,
+    comment: String,
+    isSubmitting: Boolean,
+    onSubmit: (Int, String) -> Unit,
+    setShowValidationError: (Boolean) -> Unit
+) {
+    LongButton(
+        text = if (isSubmitting) "Submitting..." else "Submit",
+        onClick = {
+            val errors = ReviewValidator.validateReview("temp", rating, comment)
+            setShowValidationError(errors.isNotEmpty())
+            if (errors.isEmpty()) {
+                onSubmit(rating, comment)
+            }
+        }
+    )
+}
+@Composable
+fun FormattedRatingText(averageRating: Double) {
+    val averageFormatted = String.format("%.1f", averageRating)
+    Text(
+        text = "$averageFormatted",
+        fontSize = 40.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(end = 8.dp)
+    )
+}
+
+@Composable
+fun ReviewTextField(
+    comment: String,
+    onCommentChange: (String) -> Unit
+) {
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        OutlinedTextField(
+            value = comment,
+            onValueChange = {
+                onCommentChange(it)
+                errorMessage = ReviewValidator.validateComment(it)
+            },
+            placeholder = {
+                Text(
+                    "Describe your overall product experience to let others know it",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(120.dp),
+            shape = RoundedCornerShape(8.dp),
+            isError = errorMessage != null,
+            supportingText = {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (errorMessage != null) {
+                        Text(errorMessage ?: "", color = MaterialTheme.colorScheme.error)
+                    }
+                    Text(
+                        "${comment.length} / 500",
+                        modifier = Modifier.align(Alignment.End),
+                        fontSize = 12.sp,
+                        color = if (comment.length > 500) MaterialTheme.colorScheme.error else Color.Gray
+                    )
+                }
+            },
+            maxLines = 6
+        )
     }
 }
 
@@ -167,7 +235,9 @@ fun ReviewSection(
     rating: Int,
     onRatingChange: (Int) -> Unit,
     comment: String,
-    onCommentChange: (String) -> Unit
+    onCommentChange: (String) -> Unit,
+    isRatingError: Boolean = false,
+    isCommentError: Boolean = false
 ) {
     Column(
         modifier = Modifier
@@ -176,28 +246,46 @@ fun ReviewSection(
             .border(1.dp, Color.LightGray, shape = RoundedCornerShape(12.dp))
             .padding(16.dp)
     ) {
-        Text("What's your fair rate for your glasses?*", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+
+        Text(
+            text = "What's your fair rate for your glasses?*",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (isRatingError) MaterialTheme.colorScheme.error else Color.Black
+        )
+
         Spacer(modifier = Modifier.height(4.dp))
+
         StarRating(
             rating = rating,
             onRatingSelected = onRatingChange
         )
+
         Spacer(modifier = Modifier.height(4.dp))
-        Text("Click to rate the product", fontSize = 14.sp, color = Color.Gray)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("Let us know your overall product experience*", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(8.dp))
-        OutlinedTextField(
-            value = comment,
-            onValueChange = onCommentChange,
-            placeholder = { Text("Describe your overall product experience to let others know it", fontSize = 14.sp, color = Color.Gray) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(120.dp),
-            shape = RoundedCornerShape(8.dp)
+
+        Text(
+            text = "Click to rate the product",
+            fontSize = 14.sp,
+            color = Color.Gray
         )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Text(
+            text = "Let us know your overall product experience*",
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+      ReviewTextField(
+                comment = comment,
+                onCommentChange = onCommentChange
+            )
     }
 }
+
 
 @Composable
 fun StarRating(

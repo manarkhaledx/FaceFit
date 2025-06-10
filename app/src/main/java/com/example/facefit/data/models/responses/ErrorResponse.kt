@@ -9,7 +9,13 @@ data class ErrorResponse(
 
 data class FieldError(
     @SerializedName("msg")
-    val message: String,
+    val message: String? = null,
+
     @SerializedName("path")
-    val field: String
+    val field: String? = null
 )
+data class GenericBackendError(
+    @SerializedName("error")
+    val error: String?
+)
+

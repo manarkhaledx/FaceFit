@@ -64,7 +64,8 @@ class FilterActivity : ComponentActivity() {
             FaceFitTheme {
                 FilterScreenOverlay(
                     onDismiss = { finish() },
-                    onApply = { gender, type, minPrice, maxPrice, shape, material -> }
+                    onApply = { gender, type, minPrice, maxPrice, shape, material -> },
+                    currentFilters = intent.getSerializableExtra("CURRENT_FILTERS") as? Map<String, Any?>
                 )
             }
         }
@@ -81,7 +82,8 @@ fun FilterScreenOverlay(
         maxPrice: Double?,
         shape: String?,
         material: String?
-    ) -> Unit
+    ) -> Unit,
+    currentFilters: Map<String, Any?>? = null
 ) {
     var showFilter by remember { mutableStateOf(false) }
 
@@ -113,7 +115,8 @@ fun FilterScreenOverlay(
                         onApply(gender, type, minPrice, maxPrice, shape, material)
                         showFilter = false
                         onDismiss()
-                    }
+                    },
+                    currentFilters = currentFilters
                 )
             }
         }
@@ -130,16 +133,31 @@ fun FilterScreen(
         maxPrice: Double?,
         shape: String?,
         material: String?
-    ) -> Unit = { _, _, _, _, _, _ -> }
+    ) -> Unit = { _, _, _, _, _, _ -> },
+    currentFilters: Map<String, Any?>? = null
 ) {
     val backgroundColor = Color(0xFFF5F5F5)
     val scrollState = rememberScrollState()
 
-    var selectedGender by remember { mutableStateOf<String?>(null) }
-    var selectedType by remember { mutableStateOf<String?>(null) }
-    var selectedPriceRange by remember { mutableStateOf<Pair<Double?, Double?>?>(null) }
-    var selectedShape by remember { mutableStateOf<String?>(null) }
-    var selectedMaterial by remember { mutableStateOf<String?>(null) }
+    // Initialize state with current filters
+    var selectedGender by remember {
+        mutableStateOf<String?>(currentFilters?.get("gender") as? String)
+    }
+    var selectedType by remember {
+        mutableStateOf<String?>(currentFilters?.get("type") as? String)
+    }
+    var selectedPriceRange by remember {
+        mutableStateOf<Pair<Double?, Double?>?>(
+            (currentFilters?.get("minPrice") as? Double) to
+                    (currentFilters?.get("maxPrice") as? Double)
+        )
+    }
+    var selectedShape by remember {
+        mutableStateOf<String?>(currentFilters?.get("shape") as? String)
+    }
+    var selectedMaterial by remember {
+        mutableStateOf<String?>(currentFilters?.get("material") as? String)
+    }
 
     Column(
         modifier = Modifier
@@ -287,6 +305,26 @@ fun FilterScreen(
         ) {
             Text(stringResource(R.string.apply_filters))
         }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+Button(
+    onClick = {
+        selectedGender = null
+        selectedType = null
+        selectedPriceRange = null
+        selectedShape = null
+        selectedMaterial = null
+        onApply(null, null, null, null, null, null)
+    },
+    modifier = Modifier
+        .fillMaxWidth()
+        .height(48.dp),
+    colors = ButtonDefaults.buttonColors(containerColor = Color.LightGray),
+    shape = RoundedCornerShape(24.dp)
+) {
+    Text(stringResource(R.string.clear_filters))
+}
     }
 }
 

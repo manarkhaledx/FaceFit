@@ -7,24 +7,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -51,12 +39,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -70,12 +63,16 @@ import coil.compose.AsyncImage
 import com.example.facefit.R
 import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.utils.Resource
+import com.example.facefit.ui.presentation.base.RefreshableViewModel
+import com.example.facefit.ui.presentation.components.GlobalErrorToast
 import com.example.facefit.ui.presentation.components.ProductItem
+import com.example.facefit.ui.presentation.components.PullToRefreshContainer
 import com.example.facefit.ui.presentation.components.cards.ProductCard
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 import com.example.facefit.ui.presentation.components.toProductItem
 import com.example.facefit.ui.presentation.screens.products.AllProductsActivity
 import com.example.facefit.ui.presentation.screens.products.ProductDetailsActivity
+import com.example.facefit.ui.presentation.screens.splash.ShrinkOverlay
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 import com.example.facefit.ui.utils.Constants
@@ -106,173 +103,193 @@ fun EyewearScreen(
     viewModel: HomeViewModel = hiltViewModel(),
     activity: ComponentActivity? = null
 ) {
+
     val bestSellers by viewModel.bestSellers.collectAsStateWithLifecycle()
     val newArrivals by viewModel.newArrivals.collectAsStateWithLifecycle()
     val favoriteStatus by viewModel.favoriteStatus.collectAsStateWithLifecycle()
     val pendingFavorites by viewModel.pendingFavorites.collectAsStateWithLifecycle()
     val categories = getCategories()
+    val isRefreshing = bestSellers is Resource.Loading || newArrivals is Resource.Loading
+    val toastTrigger by viewModel.toastTrigger.collectAsStateWithLifecycle()
+    val errorMessage = listOf(bestSellers, newArrivals)
+        .firstOrNull { it is Resource.Error }
+        ?.let { (it as Resource.Error).message }
 
-    Scaffold(
-        bottomBar = { AppBottomNavigation() }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(paddingValues)
-                .padding(16.dp)
-        ) {
-            Spacer(modifier = Modifier.height(24.dp))
-            SearchBar(
-                viewModel = viewModel,
-                onProductClick = { product ->
-                    activity?.let {
-                        val intent = Intent(it, ProductDetailsActivity::class.java).apply {
-                            putExtra("productId", product.id)
-                        }
-                        it.startActivity(intent)
-                    }
-                }
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-
-            FeaturedImagesSection()
-            Spacer(modifier = Modifier.height(24.dp))
-            CategorySection(
-                title = stringResource(R.string.categories),
-                categories = categories,
-                onCategoryClick = { category ->
-                    activity?.let {
-                        val intent = Intent(it, AllProductsActivity::class.java).apply {
-                            putExtra("CATEGORY_FILTER", category)
-                        }
-                        it.startActivity(intent)
-                    }
-                }
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-
-
-            when (val result = bestSellers) {
-                is Resource.Success -> {
-                    ProductSection(
-                        title = stringResource(R.string.best_seller),
-                        products = result.data?.map { it.toProductItem() } ?: emptyList(),
-                        favoriteStatus = favoriteStatus,
-                        pendingFavorites = pendingFavorites,
+    GlobalErrorToast(errorMessage = errorMessage, trigger = toastTrigger)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            bottomBar = { AppBottomNavigation() }
+        ) { paddingValues ->
+            PullToRefreshContainer(
+                isRefreshing = isRefreshing,
+                onRefresh = { viewModel.refresh() },
+                modifier = Modifier
+                    .padding(paddingValues)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(paddingValues)
+                        .padding(16.dp)
+                ) {
+                    Spacer(modifier = Modifier.height(24.dp))
+                    SearchBar(
+                        viewModel = viewModel,
                         onProductClick = { product ->
                             activity?.let {
-                                val intent =
-                                    Intent(it, ProductDetailsActivity::class.java).apply {
-                                        putExtra(
-                                            "productId",
-                                            product.id
-                                        )
-                                    }
+                                val intent = Intent(it, ProductDetailsActivity::class.java).apply {
+                                    putExtra("productId", product.id)
+                                }
                                 it.startActivity(intent)
                             }
-                        },
-                        onFavoriteClick = { productId ->
-                            viewModel.toggleFavorite(productId)
                         }
                     )
-                }
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                is Resource.Error -> {
-                    ProductSection(
-                        title = stringResource(R.string.best_seller),
-                        products = (result.data ?: emptyList()).map {
-                            it.toProductItem().copy(
-                                name = stringResource(R.string.could_not_load),
-                                isPlaceholder = true
-                            )
-                        },
-                        favoriteStatus = favoriteStatus,
-                        pendingFavorites = pendingFavorites,
-                        onProductClick = {},
-                        onFavoriteClick = {}
-                    )
-                }
-
-                is Resource.Loading -> {
-                    ProductSection(
-                        title = stringResource(R.string.best_seller),
-                        products = (result.data ?: emptyList()).map {
-                            it.toProductItem().copy(
-                                name = stringResource(R.string.loading),
-                                price = stringResource(R.string.price_placeholder),
-                                isPlaceholder = true
-                            )
-                        },
-                        favoriteStatus = favoriteStatus,
-                        pendingFavorites = pendingFavorites,
-                        onProductClick = {},
-                        onFavoriteClick = {}
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            when (val result = newArrivals) {
-                is Resource.Success -> {
-                    ProductSection(
-                        title = stringResource(R.string.new_arrivals),
-                        products = result.data?.map { it.toProductItem() } ?: emptyList(),
-                        favoriteStatus = favoriteStatus,
-                        pendingFavorites = pendingFavorites,
-                        onProductClick = { product ->
+                    FeaturedImagesSection()
+                    Spacer(modifier = Modifier.height(24.dp))
+                    CategorySection(
+                        title = stringResource(R.string.categories),
+                        categories = categories,
+                        onCategoryClick = { category ->
                             activity?.let {
-                                val intent =
-                                    Intent(it, ProductDetailsActivity::class.java).apply {
-                                        putExtra(
-                                            "productId",
-                                            product.id
-                                        )
-                                    }
+                                val intent = Intent(it, AllProductsActivity::class.java).apply {
+                                    putExtra("CATEGORY_FILTER", category)
+                                }
                                 it.startActivity(intent)
                             }
-                        },
-                        onFavoriteClick = { productId ->
-                            viewModel.toggleFavorite(productId)
                         }
                     )
-                }
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                is Resource.Error -> {
-                    ProductSection(
-                        title = stringResource(R.string.new_arrivals),
-                        products = (result.data ?: emptyList()).map {
-                            it.toProductItem().copy(
-                                name = stringResource(R.string.could_not_load),
-                                isPlaceholder = true
+                    when (val result = bestSellers) {
+                        is Resource.Success -> {
+                            ProductSection(
+                                title = stringResource(R.string.best_seller),
+                                products = result.data?.map { it.toProductItem() } ?: emptyList(),
+                                favoriteStatus = favoriteStatus,
+                                pendingFavorites = pendingFavorites,
+                                onProductClick = { product ->
+                                    activity?.let {
+                                        val intent =
+                                            Intent(it, ProductDetailsActivity::class.java).apply {
+                                                putExtra(
+                                                    "productId",
+                                                    product.id
+                                                )
+                                            }
+                                        it.startActivity(intent)
+                                    }
+                                },
+                                onFavoriteClick = { productId ->
+                                    viewModel.toggleFavorite(productId)
+                                }
                             )
-                        },
-                        favoriteStatus = favoriteStatus,
-                        pendingFavorites = pendingFavorites,
-                        onProductClick = {},
-                        onFavoriteClick = {}
-                    )
-                }
+                        }
 
-                is Resource.Loading -> {
-                    ProductSection(
-                        title = stringResource(R.string.new_arrivals),
-                        products = (result.data ?: emptyList()).map {
-                            it.toProductItem().copy(
-                                name = stringResource(R.string.loading),
-                                price = stringResource(R.string.price_placeholder),
-                                isPlaceholder = true
+                        is Resource.Error -> {
+                            ProductSection(
+                                title = stringResource(R.string.best_seller),
+                                products = (result.data ?: emptyList()).map {
+                                    it.toProductItem().copy(
+                                        name = stringResource(R.string.could_not_load),
+                                        isPlaceholder = true
+                                    )
+                                },
+                                favoriteStatus = favoriteStatus,
+                                pendingFavorites = pendingFavorites,
+                                onProductClick = {},
+                                onFavoriteClick = {}
                             )
-                        },
-                        favoriteStatus = favoriteStatus,
-                        pendingFavorites = pendingFavorites,
-                        onProductClick = {},
-                        onFavoriteClick = {}
-                    )
+                        }
+
+                        is Resource.Loading -> {
+                            ProductSection(
+                                title = stringResource(R.string.best_seller),
+                                products = List(3) { index ->
+                                    ProductItem(
+                                        id = "placeholder_$index",
+                                        name = "",
+                                        price = "",
+                                        imageUrl = "",
+                                        isPlaceholder = true
+                                    )
+                                },
+                                favoriteStatus = favoriteStatus,
+                                pendingFavorites = pendingFavorites,
+                                onProductClick = {},
+                                onFavoriteClick = {}
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    when (val result = newArrivals) {
+                        is Resource.Success -> {
+                            ProductSection(
+                                title = stringResource(R.string.new_arrivals),
+                                products = result.data?.map { it.toProductItem() } ?: emptyList(),
+                                favoriteStatus = favoriteStatus,
+                                pendingFavorites = pendingFavorites,
+                                onProductClick = { product ->
+                                    activity?.let {
+                                        val intent =
+                                            Intent(it, ProductDetailsActivity::class.java).apply {
+                                                putExtra(
+                                                    "productId",
+                                                    product.id
+                                                )
+                                            }
+                                        it.startActivity(intent)
+                                    }
+                                },
+                                onFavoriteClick = { productId ->
+                                    viewModel.toggleFavorite(productId)
+                                }
+                            )
+                        }
+
+                        is Resource.Error -> {
+                            ProductSection(
+                                title = stringResource(R.string.new_arrivals),
+                                products = (result.data ?: emptyList()).map {
+                                    it.toProductItem().copy(
+                                        name = stringResource(R.string.could_not_load),
+                                        isPlaceholder = true
+                                    )
+                                },
+                                favoriteStatus = favoriteStatus,
+                                pendingFavorites = pendingFavorites,
+                                onProductClick = {},
+                                onFavoriteClick = {}
+                            )
+                        }
+
+                        is Resource.Loading -> {
+                            ProductSection(
+                                title = stringResource(R.string.new_arrivals),
+                                products = List(3) { index ->
+                                    ProductItem(
+                                        id = "placeholder_$index",
+                                        name = "",
+                                        price = "",
+                                        imageUrl = "",
+                                        isPlaceholder = true
+                                    )
+                                },
+                                favoriteStatus = favoriteStatus,
+                                pendingFavorites = pendingFavorites,
+                                onProductClick = {},
+                                onFavoriteClick = {}
+                            )
+                        }
+                    }
                 }
             }
         }
+        ShrinkOverlay()
     }
 }
 
@@ -434,7 +451,6 @@ fun SearchResultsDropdown(
             }
 
             is Resource.Success -> {
-                //val results = searchResults.data ?: emptyList()
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -689,19 +705,106 @@ fun ProductSection(
         Spacer(modifier = Modifier.height(8.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             items(products) { product ->
-                ProductCard(
-                    productItem = product,
-                    favoriteStatus = favoriteStatus,
-                    pendingFavorites = pendingFavorites,
-                    showFavorite = !product.isPlaceholder,
-                    onClick = { if (!product.isPlaceholder) onProductClick(product) },
-                    onFavoriteClick = { if (!product.isPlaceholder) onFavoriteClick(product.id) }
-                )
+                if (product.isPlaceholder) {
+                    ShimmerProductCard()
+                } else {
+                    ProductCard(
+                        productItem = product,
+                        favoriteStatus = favoriteStatus,
+                        pendingFavorites = pendingFavorites,
+                        showFavorite = true,
+                        onClick = { onProductClick(product) },
+                        onFavoriteClick = { onFavoriteClick(product.id) }
+                    )
+                }
             }
         }
     }
 }
 
+@Composable
+fun ShimmerProductCard() {
+    Card(
+        modifier = Modifier
+            .width(160.dp),
+        shape = RoundedCornerShape(8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column(modifier = Modifier.padding(8.dp)) {
+
+            Box(
+                modifier = Modifier
+                    .height(120.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(4.dp))
+                    .shimmerEffect()
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(16.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .shimmerEffect()
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.4f)
+                    .height(14.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .shimmerEffect()
+            )
+        }
+    }
+}
+
+
+
+@Composable
+fun Modifier.shimmerEffect(): Modifier = composed {
+    val shimmerColors = listOf(
+        Color.LightGray.copy(alpha = 0.6f),
+        Color.LightGray.copy(alpha = 0.2f),
+        Color.LightGray.copy(alpha = 0.6f),
+    )
+
+    val transition = rememberInfiniteTransition()
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 1000,
+                easing = LinearEasing
+            ),
+            repeatMode = RepeatMode.Restart
+        )
+    )
+
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset(translateAnim - 500, translateAnim - 500),
+        end = Offset(translateAnim, translateAnim)
+    )
+
+    this.then(
+        Modifier.drawWithContent {
+            drawContent()
+            drawRect(
+                brush = brush,
+     blendMode = androidx.compose.ui.graphics.BlendMode.SrcAtop
+            )
+        }
+    )
+}
 
 fun getCategories() = listOf(
     "Men" to R.drawable.men_glasses,

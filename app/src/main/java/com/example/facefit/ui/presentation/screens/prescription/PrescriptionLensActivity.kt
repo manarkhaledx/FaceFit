@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -48,11 +49,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.facefit.R
@@ -63,42 +64,33 @@ import com.example.facefit.ui.theme.FaceFitTheme
 import com.example.facefit.ui.theme.Gray100
 import com.example.facefit.ui.theme.Gray200
 import com.example.facefit.ui.theme.LavenderBlue
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class PrescriptionLensActivity : ComponentActivity() {
+    private val viewModel: PrescriptionLensViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             FaceFitTheme {
                 LensPrescriptionFlow(
+                    viewModel = viewModel,
                     onNavigateToCart = {
                         val intent = Intent(this, ShoppingCartActivity::class.java)
                         startActivity(intent)
                     },
-                    onClose = { finish() } // Close the activity and go back to ProductDetailsActivity
-                    // Same as close if on first step
+                    onClose = { finish() }
                 )
             }
         }
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
-@Composable
-fun LensPrescriptionFlowPreview() {
-    FaceFitTheme {
-        LensPrescriptionFlow(
-            onNavigateToCart = {
-
-            },
-            onClose = {  } // Close the activity and go back to ProductDetailsActivity
-            // Same as close if on first step
-        )
-    }
-}
-
 @Composable
 fun LensPrescriptionFlow(
+    viewModel: PrescriptionLensViewModel,
     onNavigateToCart: () -> Unit,
     onClose: () -> Unit
 ) {
@@ -123,7 +115,7 @@ fun LensPrescriptionFlow(
             ) {
                 // Back Button
                 Icon(
-                    painter = painterResource(id = R.drawable.arrow_left), // Replace with your back icon
+                    painter = painterResource(id = R.drawable.arrow_left),
                     contentDescription = "Back",
                     modifier = Modifier
                         .size(24.dp)
@@ -140,14 +132,14 @@ fun LensPrescriptionFlow(
                 Box(
                     modifier = Modifier
                         .weight(1f) // Ensures it takes proportional space
-                        .wrapContentWidth(Alignment.CenterHorizontally) // Centers content within the available space
+                        .wrapContentWidth(Alignment.CenterHorizontally)
                 ) {
                     StepIndicator(currentStep = currentStep, totalSteps = 4)
                 }
 
                 // Close Button
                 Icon(
-                    painter = painterResource(id = R.drawable.close), // Replace with your close icon
+                    painter = painterResource(id = R.drawable.close),
                     contentDescription = "Close",
                     modifier = Modifier
                         .size(24.dp)
@@ -160,7 +152,7 @@ fun LensPrescriptionFlow(
 
             when (currentStep) {
                 1 -> PrescriptionTypeScreen(onNext = { currentStep++ })
-                2 -> EnterPrescriptionScreen()
+                2 -> EnterPrescriptionScreen(viewModel = viewModel)
                 3 -> LensTypeScreen(onNext = { currentStep++ })
                 4 -> LensMaterialScreen(onComplete = onNavigateToCart)
             }
@@ -169,7 +161,14 @@ fun LensPrescriptionFlow(
         if (currentStep > 1) {
             BottomNavigationBar(
                 onNext = {
-                    if (currentStep < 4) currentStep++
+                    if (currentStep == 2) {
+                        val isValid = viewModel.validate()
+                        if (isValid) currentStep++
+                    } else if (currentStep < 4) {
+                        currentStep++
+                    } else {
+                        onNavigateToCart()
+                    }
                 },
                 onNavigateToCart = onNavigateToCart,
                 currentStep = currentStep,
@@ -232,18 +231,11 @@ fun StepIndicator(currentStep: Int, totalSteps: Int) {
 
 
 @Composable
-fun EnterPrescriptionScreen() {
-    var odSph by remember { mutableStateOf("") }
-    var odCyl by remember { mutableStateOf("") }
-    var odAxis by remember { mutableStateOf("") }
-    var osSph by remember { mutableStateOf("") }
-    var osCyl by remember { mutableStateOf("") }
-    var osAxis by remember { mutableStateOf("") }
-    var pdValue by remember { mutableStateOf("") }
-    var isSinglePD by remember { mutableStateOf(true) }
-    var leftPD by remember { mutableStateOf("") }
-    var rightPD by remember { mutableStateOf("") }
+fun EnterPrescriptionScreen(viewModel: PrescriptionLensViewModel) {
+    val state = viewModel.prescriptionState
+    val errors = viewModel.fieldErrors
     var isSavePrescriptionChecked by remember { mutableStateOf(false) }
+    val isSinglePD by viewModel.isSinglePD
 
     Column(
         modifier = Modifier
@@ -310,23 +302,29 @@ fun EnterPrescriptionScreen() {
         // Prescription Fields
         SectionTitle("OD (Right Eye)")
         PrescriptionField(
-            sphValue = odSph,
-            onSphChange = { odSph = it },
-            cylValue = odCyl,
-            onCylChange = { odCyl = it },
-            axisValue = odAxis,
-            onAxisChange = { odAxis = it }
+            sphValue = state.odSph,
+            onSphChange = { viewModel.updateField(PrescriptionField.OD_SPH, it) },
+            cylValue = state.odCyl,
+            onCylChange = { viewModel.updateField(PrescriptionField.OD_CYL, it) },
+            axisValue = state.odAxis,
+            onAxisChange = { viewModel.updateField(PrescriptionField.OD_AXIS, it) },
+            errorSph = errors[PrescriptionField.OD_SPH],
+            errorCyl = errors[PrescriptionField.OD_CYL],
+            errorAxis = errors[PrescriptionField.OD_AXIS]
         )
         Spacer(modifier = Modifier.height(16.dp))
 
         SectionTitle("OS (Left Eye)")
         PrescriptionField(
-            sphValue = osSph,
-            onSphChange = { osSph = it },
-            cylValue = osCyl,
-            onCylChange = { osCyl = it },
-            axisValue = osAxis,
-            onAxisChange = { osAxis = it }
+            sphValue = state.osSph,
+            onSphChange = { viewModel.updateField(PrescriptionField.OS_SPH, it) },
+            cylValue = state.osCyl,
+            onCylChange = { viewModel.updateField(PrescriptionField.OS_CYL, it) },
+            axisValue = state.osAxis,
+            onAxisChange = { viewModel.updateField(PrescriptionField.OS_AXIS, it) },
+            errorSph = errors[PrescriptionField.OS_SPH],
+            errorCyl = errors[PrescriptionField.OS_CYL],
+            errorAxis = errors[PrescriptionField.OS_AXIS]
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -345,7 +343,7 @@ fun EnterPrescriptionScreen() {
         Row(verticalAlignment = Alignment.CenterVertically) {
             RadioButton(
                 selected = isSinglePD,
-                onClick = { isSinglePD = true },
+                onClick = { viewModel.setSinglePD(true) },
                 colors = RadioButtonDefaults.colors(selectedColor = Blue1)
             )
             Text(
@@ -361,7 +359,7 @@ fun EnterPrescriptionScreen() {
             Spacer(modifier = Modifier.width(16.dp))
             RadioButton(
                 selected = !isSinglePD,
-                onClick = { isSinglePD = false },
+                onClick = { viewModel.setSinglePD(false) },
                 colors = RadioButtonDefaults.colors(selectedColor = Blue1)
             )
             Text(
@@ -378,65 +376,89 @@ fun EnterPrescriptionScreen() {
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        if (isSinglePD) {
-            OutlinedTextField(
-                value = pdValue,
-                onValueChange = { newValue ->
-                    if (newValue.isEmpty() || newValue.toFloatOrNull() != null) {
-                        pdValue = newValue
-                    }
-                },
-                label = { Text("PD", color = Blue1) },
-                modifier = Modifier.fillMaxWidth(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Blue1,
-                    unfocusedBorderColor = Blue1,
-                    focusedContainerColor = Color.Transparent,
-                    unfocusedContainerColor = Color.Transparent,
-                    cursorColor = Blue1
-                )
-            )
-        } else {
+ if (isSinglePD) {
+     OutlinedTextField(
+         value = state.singlePD,
+         onValueChange = { newValue ->
+             if (newValue.isEmpty() || newValue.matches(Regex("^\\d{0,2}(\\.\\d{0,2})?$"))) {
+                 viewModel.updateField(PrescriptionField.SINGLE_PD, newValue)
+             }
+         },
+         isError = errors[PrescriptionField.SINGLE_PD] != null,
+         supportingText = {
+             errors[PrescriptionField.SINGLE_PD]?.let {
+                 Text(text = it, color = Color.Red)
+             }
+         },
+         label = {
+             Text(
+                 text = "PD",
+                 color = if (errors[PrescriptionField.SINGLE_PD] != null) Color.Red else Blue1
+             )
+         }
+         ,
+         modifier = Modifier.fillMaxWidth(),
+         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+         colors = OutlinedTextFieldDefaults.colors(
+             focusedBorderColor = if (errors[PrescriptionField.SINGLE_PD] != null) Color.Red else Blue1,
+             unfocusedBorderColor = if (errors[PrescriptionField.SINGLE_PD] != null) Color.Red else Blue1,
+             cursorColor = Blue1
+         )
+     )
+ } else {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedTextField(
-                    value = leftPD,
+                    value = state.leftPD,
                     onValueChange = { newValue ->
-                        if (newValue.isEmpty() || newValue.toFloatOrNull() != null) {
-                            leftPD = newValue
+                        if (newValue.isEmpty() || newValue.matches(Regex("^\\d{0,2}(\\.\\d{0,2})?$"))) {
+                            viewModel.updateField(PrescriptionField.LEFT_PD, newValue)
+                        }
+
+
+                    },
+                    isError = errors[PrescriptionField.LEFT_PD] != null,
+                    supportingText = {
+                        errors[PrescriptionField.LEFT_PD]?.let {
+                            Text(text = it, color = Color.Red)
                         }
                     },
-                    label = { Text("Left PD", color = Blue1) },
+                    label = { Text("Left PD",   color = if (errors[PrescriptionField.LEFT_PD] != null) Color.Red else Blue1 )},
                     modifier = Modifier.weight(1f),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Blue1,
-                        unfocusedBorderColor = Blue1,
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
+                        focusedBorderColor = if (errors[PrescriptionField.LEFT_PD] != null) Color.Red else Blue1,
+                        unfocusedBorderColor = if (errors[PrescriptionField.LEFT_PD] != null) Color.Red else Blue1,
                         cursorColor = Blue1
                     )
+
                 )
                 OutlinedTextField(
-                    value = rightPD,
+                    value = state.rightPD,
                     onValueChange = { newValue ->
-                        if (newValue.isEmpty() || newValue.toFloatOrNull() != null) {
-                            rightPD = newValue
+                        if (newValue.isEmpty() || newValue.matches(Regex("^\\d{0,2}(\\.\\d{0,2})?$"))) {
+                            viewModel.updateField(PrescriptionField.RIGHT_PD, newValue)
+                        }
+
+
+                    },
+                    isError = errors[PrescriptionField.RIGHT_PD] != null,
+                    supportingText = {
+                        errors[PrescriptionField.RIGHT_PD]?.let {
+                            Text(text = it, color = Color.Red)
                         }
                     },
-                    label = { Text("Right PD", color = Blue1) },
+                    label = { Text("Right PD",   color = if (errors[PrescriptionField.RIGHT_PD] != null) Color.Red else Blue1) },
                     modifier = Modifier.weight(1f),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Blue1,
-                        unfocusedBorderColor = Blue1,
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
+                        focusedBorderColor = if (errors[PrescriptionField.RIGHT_PD] != null) Color.Red else Blue1,
+                        unfocusedBorderColor = if (errors[PrescriptionField.RIGHT_PD] != null) Color.Red else Blue1,
                         cursorColor = Blue1
                     )
+
                 )
             }
         }
@@ -539,25 +561,7 @@ fun SectionTitle(title: String) {
     }
 }
 
-fun String.isValidSph(): Boolean {
-    val value = this.toFloatOrNull() ?: return false
-    return value in -20.0f..20.0f && this.matches(Regex("^-?\\d+(\\.\\d{1,2})?$"))
-}
 
-fun String.isValidCyl(): Boolean {
-    val value = this.toFloatOrNull() ?: return false
-    return value in -6.0f..6.0f && this.matches(Regex("^-?\\d+(\\.\\d{1,2})?$"))
-}
-
-fun String.isValidAxis(): Boolean {
-    val value = this.toIntOrNull() ?: return false
-    return value in 1..180 && this.matches(Regex("^\\d{1,3}$"))
-}
-
-fun String.isValidPD(): Boolean {
-    val value = this.toFloatOrNull() ?: return false
-    return value in 20.0f..80.0f && this.matches(Regex("^\\d{2}(\\.\\d{1,2})?$"))
-}
 
 @Composable
 fun PrescriptionField(
@@ -566,7 +570,10 @@ fun PrescriptionField(
     cylValue: String,
     onCylChange: (String) -> Unit,
     axisValue: String,
-    onAxisChange: (String) -> Unit
+    onAxisChange: (String) -> Unit,
+    errorSph: String? = null,
+    errorCyl: String? = null,
+    errorAxis: String? = null
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -574,8 +581,14 @@ fun PrescriptionField(
     ) {
         OutlinedTextField(
             value = sphValue,
-            onValueChange = { if (it.isValidSph() || it.isEmpty()) onSphChange(it) },
-            label = { Text("SPH") },
+            onValueChange = { newValue ->
+                if (newValue.matches(Regex("^-?\\d{0,2}(\\.\\d{0,2})?$"))) {
+                    onSphChange(newValue)
+                }
+            },
+                    label = { Text("SPH") },
+            isError = errorSph != null,
+            supportingText = { if (errorSph != null) Text(errorSph, color = Color.Red) },
             modifier = Modifier.weight(1f),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             colors = OutlinedTextFieldDefaults.colors(
@@ -585,8 +598,15 @@ fun PrescriptionField(
         )
         OutlinedTextField(
             value = cylValue,
-            onValueChange = { if (it.isValidCyl() || it.isEmpty()) onCylChange(it) },
+            onValueChange = { newValue ->
+                if (newValue.matches(Regex("^-?\\d{0,2}(\\.\\d{0,2})?$"))) {
+                    onCylChange(newValue)
+                }
+            }
+            ,
             label = { Text("CYL") },
+            isError = errorCyl != null,
+            supportingText = { if (errorCyl != null) Text(errorCyl, color = Color.Red) },
             modifier = Modifier.weight(1f),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             colors = OutlinedTextFieldDefaults.colors(
@@ -596,8 +616,15 @@ fun PrescriptionField(
         )
         OutlinedTextField(
             value = axisValue,
-            onValueChange = { if (it.isValidAxis() || it.isEmpty()) onAxisChange(it) },
-            label = { Text("Axis") },
+            onValueChange = { newValue ->
+                if (newValue.matches(Regex("^\\d{0,3}$"))) {
+                    onAxisChange(newValue)
+                }
+            }
+            ,
+            label = { Text("AXIS") },
+            isError = errorAxis != null,
+            supportingText = { if (errorAxis != null) Text(errorAxis, color = Color.Red) },
             modifier = Modifier.weight(1f),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             colors = OutlinedTextFieldDefaults.colors(
@@ -607,6 +634,7 @@ fun PrescriptionField(
         )
     }
 }
+
 
 @Composable
 fun BottomNavigationBar(
@@ -747,6 +775,7 @@ fun PrescriptionTypeScreen(onNext: () -> Unit) {
             .background(Gray100),
         verticalArrangement = Arrangement.Top
     ) {
+        val context = LocalContext.current
         Text(
             text = "Prescription Type",
             style = TextStyle(
@@ -766,7 +795,12 @@ fun PrescriptionTypeScreen(onNext: () -> Unit) {
         OptionItem(
             title = "Non-Prescription",
             description = "Lens without any prescription",
-            onClick = { onNext() }
+            onClick = {
+
+                val intent = Intent(context, ShoppingCartActivity::class.java)
+                context.startActivity(intent)
+
+            }
         )
     }
 }
@@ -778,7 +812,7 @@ fun OptionItem(title: String, price: String? = null, description: String? = null
             .fillMaxWidth()
             .clickable { onClick() }
             .padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White) // Set the background color to white
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
             modifier = Modifier

@@ -3,7 +3,6 @@ package com.example.facefit.ui.presentation.screens.products
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.facefit.data.local.TokenManager
-import com.example.facefit.data.models.User
 import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.models.Review
 import com.example.facefit.domain.usecases.auth.GetUserProfileUseCase
@@ -13,6 +12,7 @@ import com.example.facefit.domain.usecases.glasses.GetGlassesByIdUseCase
 import com.example.facefit.domain.usecases.glasses.GetRecommendedGlassesUseCase
 import com.example.facefit.domain.usecases.reviews.GetReviewsUseCase
 import com.example.facefit.domain.utils.Resource
+import com.example.facefit.ui.presentation.base.RefreshableViewModel
 import com.example.facefit.ui.presentation.components.ProductItem
 import com.example.facefit.ui.presentation.components.toProductItem
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.example.facefit.domain.models.User
 
 @HiltViewModel
 class ProductDetailsViewModel @Inject constructor(
@@ -33,7 +34,7 @@ class ProductDetailsViewModel @Inject constructor(
     private val getFavoritesUseCase: GetFavoritesUseCase,
     private val getReviewsUseCase: GetReviewsUseCase,
     private val getUserProfileUseCase: GetUserProfileUseCase
-) : ViewModel() {
+) : ViewModel(), RefreshableViewModel {
 
     private val _uiState = MutableStateFlow(ProductDetailsUiState())
     val uiState: StateFlow<ProductDetailsUiState> = _uiState.asStateFlow()
@@ -73,17 +74,20 @@ class ProductDetailsViewModel @Inject constructor(
                         loadReviews(it.id)
                     }
                 }
+
                 is Resource.Error -> {
                     _uiState.update {
                         it.copy(
-                            error = result.message,
                             isLoading = false,
-                            glasses = result.data
+                            error = "Connection error. Please check your internet and try again."
                         )
                     }
                 }
+
+
                 is Resource.Loading -> Unit
             }
+
         }
     }
 
@@ -94,12 +98,23 @@ class ProductDetailsViewModel @Inject constructor(
                     _recommendations.value = result.data?.map { it.toProductItem() } ?: emptyList()
                 }
                 is Resource.Error -> {
-
+                    // Show placeholder items
+                    _recommendations.value = List(3) {
+                        ProductItem(
+                            id = "",
+                            name = "Couldn't load",
+                            price = "---",
+                            imageUrl = null,
+                            isFavorite = false,
+                            isPlaceholder = true
+                        )
+                    }
                 }
-                is Resource.Loading -> TODO()
+                is Resource.Loading -> Unit
             }
         }
     }
+
 
     private fun loadFavorites() {
         viewModelScope.launch(Dispatchers.IO) {
@@ -110,9 +125,15 @@ class ProductDetailsViewModel @Inject constructor(
                         result.data?.associate { it.id to true } ?: emptyMap()
                     }
                 }
-                is Resource.Error -> TODO()
-                is Resource.Loading -> TODO()
+                is Resource.Error -> {
+                    // Handle error gracefully, e.g. log or ignore
+                    println("Error loading favorites: ${result.message}")
+                }
+                is Resource.Loading -> {
+                    // Optional: show loading state if needed
+                }
             }
+
         }
     }
 
@@ -198,7 +219,10 @@ class ProductDetailsViewModel @Inject constructor(
     fun retryLoadingReviews(glassesId: String) {
         loadReviews(glassesId)
     }
-
+    override fun refresh() {
+        val productId = uiState.value.glasses?.id ?: return
+        loadProductDetails(productId)
+    }
 }
 
 data class ProductDetailsUiState(

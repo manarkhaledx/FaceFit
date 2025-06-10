@@ -15,4 +15,5 @@ object Constants {
     const val GET_CUSTOMER_PROFILE_ENDPOINT = "facefit/customers/profile"
     const val SUBMIT_REVIEW_ENDPOINT = "/facefit/reviews/add"
     const val EMULATOR_URL = "https://facefit.onrender.com"
+    const val GET_IMAGE_ENDPOINT = "https://facefit.onrender.com/uploads/usersPictures/"
 }

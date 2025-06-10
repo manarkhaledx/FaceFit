@@ -11,6 +11,6 @@ data class User(
     val phone: String,
     val email: String,
     val password: String,
+    val address: String? = null,
     val profilePicture: String? = null,
-    val favorites: List<String> = emptyList()
 )
