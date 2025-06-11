@@ -583,14 +583,15 @@ fun GlassesItem(
                     .align(Alignment.TopEnd)
                     .padding(4.dp)
             ) {
-                Icon(
-                    painter = painterResource(
-                        if (isFavorite) R.drawable.heart_filled else R.drawable.heart
-                    ),
-                    contentDescription = if (isFavorite)
-                        stringResource(R.string.desc_unmark_favorite) else
-                        stringResource(R.string.desc_mark_favorite)
-                )
+Icon(
+    painter = painterResource(
+        if (isFavorite) R.drawable.heart_filled else R.drawable.heart
+    ),
+    contentDescription = if (isFavorite)
+        stringResource(R.string.desc_unmark_favorite) else
+        stringResource(R.string.desc_mark_favorite),
+    tint = Blue1
+)
             }
         }
     }

@@ -139,13 +139,13 @@ fun ProductCard(
                 modifier = Modifier.align(Alignment.TopEnd),
                 enabled = !pendingFavorites.contains(productItem.id)
             ) {
-                Icon(
-                    painter = painterResource(
-                        if (isFavorite) R.drawable.heart_filled else R.drawable.heart
-                    ),
-                    contentDescription = if (isFavorite)  "Unmark Favorite"
-                    else  "Mark Favorite"
-                )
+Icon(
+    painter = painterResource(
+        if (isFavorite) R.drawable.heart_filled else R.drawable.heart
+    ),
+    contentDescription = if (isFavorite) "Unmark Favorite" else "Mark Favorite",
+    tint = if (isFavorite) Blue1 else Color.Unspecified
+)
             }
         }
     }

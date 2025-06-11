@@ -1,24 +1,43 @@
 package com.example.facefit.ui.presentation.screens.home
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+//noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.TabRowDefaults.Divider
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -46,10 +65,8 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,7 +80,6 @@ import coil.compose.AsyncImage
 import com.example.facefit.R
 import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.utils.Resource
-import com.example.facefit.ui.presentation.base.RefreshableViewModel
 import com.example.facefit.ui.presentation.components.GlobalErrorToast
 import com.example.facefit.ui.presentation.components.ProductItem
 import com.example.facefit.ui.presentation.components.PullToRefreshContainer
@@ -80,29 +96,37 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class HomePageActivity : ComponentActivity() {
-    private val viewModel: HomeViewModel by viewModels()
+    // Use this single ViewModel instance for the Activity lifecycle
+    private val homeViewModel: HomeViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             FaceFitTheme {
-                val viewModel: HomeViewModel = hiltViewModel()
-                EyewearScreen(viewModel, this)
+                // Pass the Activity-scoped ViewModel instance to your Composable
+                EyewearScreen(homeViewModel, this)
             }
         }
     }
 
     override fun onResume() {
         super.onResume()
-        viewModel.loadFavorites()
+        // Ensure all necessary data loading methods are called here
+        homeViewModel.loadFavorites() // Keep loading favorites
+        homeViewModel.refresh() // Trigger initial load/refresh of bestSellers and newArrivals
     }
 }
 
 @Composable
 fun EyewearScreen(
-    viewModel: HomeViewModel = hiltViewModel(),
+    viewModel: HomeViewModel = hiltViewModel(), // Default to hiltViewModel() for previews/direct calls
     activity: ComponentActivity? = null
 ) {
+    // ... (rest of EyewearScreen remains the same)
+    // The rest of the EyewearScreen function doesn't need changes as it already uses 'viewModel'
+    // that is now consistently passed from the Activity.
+    // The isRefreshing state logic is correct as it is.
 
     val bestSellers by viewModel.bestSellers.collectAsStateWithLifecycle()
     val newArrivals by viewModel.newArrivals.collectAsStateWithLifecycle()
@@ -130,10 +154,8 @@ fun EyewearScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .padding(paddingValues)
-                        .padding(16.dp)
+                        .padding(horizontal = 16.dp)
                 ) {
-                    Spacer(modifier = Modifier.height(24.dp))
                     SearchBar(
                         viewModel = viewModel,
                         onProductClick = { product ->
@@ -147,11 +169,12 @@ fun EyewearScreen(
                     )
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    FeaturedImagesSection()
+                    FeaturedImagesSection(isRefreshing = isRefreshing)
                     Spacer(modifier = Modifier.height(24.dp))
                     CategorySection(
                         title = stringResource(R.string.categories),
                         categories = categories,
+                        isRefreshing = isRefreshing, // Pass isRefreshing to CategorySection
                         onCategoryClick = { category ->
                             activity?.let {
                                 val intent = Intent(it, AllProductsActivity::class.java).apply {
@@ -408,6 +431,7 @@ fun SearchBar(
     }
 }
 
+@SuppressLint("UseOfNonLambdaOffsetOverload")
 @Composable
 fun SearchResultsDropdown(
     searchResults: Resource<List<Glasses>>,
@@ -631,7 +655,7 @@ fun CameraButton() {
 }
 
 @Composable
-fun FeaturedImagesSection() {
+fun FeaturedImagesSection(isRefreshing: Boolean) {
     val images = listOf(R.drawable.img7, R.drawable.img7)
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(images) { image ->
@@ -642,12 +666,22 @@ fun FeaturedImagesSection() {
                 shape = RoundedCornerShape(8.dp),
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
-                Image(
-                    painter = painterResource(id = image),
-                    contentDescription = stringResource(R.string.featured_image),
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.FillWidth
-                )
+                if (isRefreshing) {
+                    // Show shimmer effect when loading
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .shimmerEffect()
+                    )
+                } else {
+                    // Show actual image when loaded
+                    Image(
+                        painter = painterResource(id = image),
+                        contentDescription = stringResource(R.string.featured_image),
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.FillWidth
+                    )
+                }
             }
         }
     }
@@ -657,6 +691,7 @@ fun FeaturedImagesSection() {
 fun CategorySection(
     title: String,
     categories: List<Pair<String, Int>>,
+    isRefreshing: Boolean,
     onCategoryClick: (String) -> Unit = {}
 ) {
     Column {
@@ -664,27 +699,52 @@ fun CategorySection(
         Spacer(modifier = Modifier.height(8.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             items(categories) { (category, imageResId) ->
-                Column(
-                    modifier = Modifier
-                        .width(100.dp)
-                        .clickable { onCategoryClick(category) },
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Image(
-                        painter = painterResource(id = imageResId),
-                        contentDescription = stringResource(R.string.category_image),
+                if (isRefreshing) {
+                    // Shimmer for category items
+                    Column(
                         modifier = Modifier
-                            .size(70.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop
-                    )
-                    Text(
-                        text = category,
-                        style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
+                            .width(100.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(70.dp)
+                                .clip(CircleShape)
+                                .shimmerEffect() // Apply shimmer to the circle
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(60.dp) // Smaller width for text shimmer
+                                .height(16.dp)
+                                .clip(RoundedCornerShape(4.dp))
+                                .shimmerEffect() // Apply shimmer to the text area
+                        )
+                    }
+                } else {
+                    // Actual category items
+                    Column(
+                        modifier = Modifier
+                            .width(100.dp)
+                            .clickable { onCategoryClick(category) },
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Image(
+                            painter = painterResource(id = imageResId),
+                            contentDescription = stringResource(R.string.category_image),
+                            modifier = Modifier
+                                .size(70.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                        Text(
+                            text = category,
+                            style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
                 }
             }
         }
@@ -800,7 +860,7 @@ fun Modifier.shimmerEffect(): Modifier = composed {
             drawContent()
             drawRect(
                 brush = brush,
-     blendMode = androidx.compose.ui.graphics.BlendMode.SrcAtop
+                blendMode = androidx.compose.ui.graphics.BlendMode.SrcAtop
             )
         }
     )
