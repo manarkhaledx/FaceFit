@@ -1,7 +1,5 @@
 package com.example.facefit.data.models.requests
 
-import com.google.gson.annotations.SerializedName
-
 data class AddToCartRequest(
     val glassesId: String,
     val quantity: Int = 1,
@@ -10,6 +8,5 @@ data class AddToCartRequest(
     val lenseType: String,
     val lensSpecification: String? = null,
     val lensPrice: Double? = null,
-    @SerializedName("prescription")
     val prescriptionId: String? = null
 )
