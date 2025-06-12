@@ -51,7 +51,7 @@
         <activity android:name=".ui.presentation.screens.favourites.FavouritesActivity" />
         <activity android:name=".ui.presentation.screens.products.AllProductsActivity" android:exported="true" />
         <activity android:name=".ui.presentation.screens.products.ProductDetailsActivity" android:exported="true" />
-        <activity android:name=".ui.presentation.screens.cart.ShoppingCartActivity" />
+        <activity android:name=".ui.presentation.screens.cart.ShoppingCartActivity" android:exported="true" />
         <activity android:name=".ui.presentation.screens.filter.FilterActivity" android:exported="true" />
         <activity android:name=".ui.presentation.screens.prescription.PrescriptionLensActivity" />
         <activity android:name=".ui.presentation.screens.reviews.WriteReviewActivity" />
