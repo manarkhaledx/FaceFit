@@ -16,4 +16,12 @@ object Constants {
     const val SUBMIT_REVIEW_ENDPOINT = "/facefit/reviews/add"
     const val EMULATOR_URL = "https://facefit.onrender.com"
     const val GET_IMAGE_ENDPOINT = "https://facefit.onrender.com/uploads/usersPictures/"
+    const val UPDATE_USER_PROFILE_ENDPOINT = "facefit/customers/update"
+    const val UPLOAD_PROFILE_PICTURE_ENDPOINT = "facefit/customers/profile-picture"
+    const val CREATE_PRESCRIPTION_ENDPOINT = "facefit/prescriptions"
+    const val ADD_TO_CART_ENDPOINT = "facefit/cart/add"
+    const val GET_CART_ENDPOINT = "facefit/cart"
+    const val UPDATE_CART_ITEM_ENDPOINT = "facefit/cart/edit/{cartItemId}"
+    const val REMOVE_CART_ITEM_ENDPOINT = "facefit/cart/delete/{cartItemId}"
+    const val CLEAR_CART_ENDPOINT = "facefit/cart/clear"
 }

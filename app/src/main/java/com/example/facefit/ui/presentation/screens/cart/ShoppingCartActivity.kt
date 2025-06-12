@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -27,12 +28,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,8 +47,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -53,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -60,20 +68,33 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.example.facefit.R
+import com.example.facefit.domain.models.CartData
+import com.example.facefit.domain.models.CartItem
+import com.example.facefit.domain.models.CartItemWithGlasses
+import com.example.facefit.domain.models.Glasses
+import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
+import com.example.facefit.ui.utils.Constants
+import dagger.hilt.android.AndroidEntryPoint
+import kotlin.math.max
 
+@AndroidEntryPoint
 class ShoppingCartActivity : ComponentActivity() {
+    private val cartViewModel: CartViewModel by viewModels()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        cartViewModel.loadCart()
         setContent {
             FaceFitTheme {
                 ShoppingCartScreen(
+                    viewModel = cartViewModel,
                     onBackClick = { finish() }
                 )
-
             }
         }
     }
@@ -91,12 +112,17 @@ fun ShoppingCartScreenPreview() {
 @Composable
 fun ShoppingCartScreen(
     modifier: Modifier = Modifier,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    viewModel: CartViewModel = hiltViewModel()
 ) {
+    val cartItems by viewModel.cartItems.collectAsState()
+    val cartState by viewModel.cartState.collectAsState()
+    val itemCount by viewModel.itemCount.collectAsState()
+    val totalAmount by viewModel.totalAmount.collectAsState()
     var isDeleteMode by remember { mutableStateOf(false) }
-    var selectedItems by remember { mutableStateOf(setOf<String>()) }
-    var cartItems by remember { mutableStateOf(sampleCartItems.toMutableList()) }
-    val context = LocalContext.current // Get the current context
+    var showDeleteAllConfirmation by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -123,24 +149,69 @@ fun ShoppingCartScreen(
             contentPadding = PaddingValues(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(cartItems) { item ->
-                CartItem(
-                    item = item,
-                    isDeleteMode = isDeleteMode,
-                    isSelected = selectedItems.contains(item.id),
-                    onSelectedChange = { selected ->
-                        selectedItems = if (selected) {
-                            selectedItems + item.id
-                        } else {
-                            selectedItems - item.id
+            when (cartState) {
+                is Resource.Loading -> {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
                         }
-                    },
-                    onQuantityChange = { cartItem, newQuantity ->
-                        cartItems = cartItems.map {
-                            if (it.id == cartItem.id) it.copy(quantity = newQuantity.coerceAtLeast(1)) else it
-                        }.toMutableList()
                     }
-                )
+                }
+
+                is Resource.Error -> {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = (cartState as Resource.Error).message ?: "Error loading cart",
+                                color = Color.Red
+                            )
+                        }
+                    }
+                }
+
+                is Resource.Success<*> -> {
+                    val items = (cartState as Resource.Success<List<CartItem>>).data ?: emptyList()
+                    items(cartItems) { cartItem ->
+                        val imageModel = if (cartItem.glasses.images.isNotEmpty()) {
+                            "${Constants.EMULATOR_URL}/${cartItem.glasses.images.first()}"
+                        } else {
+                            R.drawable.placeholder
+                        }
+                        val totalPrice = String.format("%.2f", (cartItem.glasses.price + cartItem.lensPrice) * cartItem.quantity).toDouble()
+
+                        CartItem(
+                            item = CartItemUI(
+                                id = cartItem.id,
+                                name = cartItem.glasses.name,
+                                color = cartItem.color,
+                                visionType = cartItem.lensSpecification,
+                                price = totalPrice,
+                                quantity = cartItem.quantity,
+                                imageModel = imageModel
+                            ),
+                            isDeleteMode = isDeleteMode,
+                            onQuantityChange = { itemId, newQuantity ->
+                                viewModel.updateCartItem(
+                                    itemId = itemId,
+                                    quantity = newQuantity
+                                )
+                            },
+                            onDeleteItem = { itemId ->
+                                viewModel.removeCartItem(itemId)
+                            }
+                        )
+                    }
+                }
             }
         }
 
@@ -158,68 +229,58 @@ fun ShoppingCartScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-Checkbox(
-    checked = selectedItems.isNotEmpty(),
-    onCheckedChange = { checked ->
-        selectedItems = if (checked) {
-            cartItems.map { it.id }.toSet()
-        } else {
-            emptySet()
-        }
-    },
-    colors = CheckboxDefaults.colors(checkedColor = Blue1)
-)
-                    Text("All", fontSize = 16.sp)
-                    Spacer(Modifier.width(8.dp))
-                    if (!isDeleteMode) {
-                        Text(
-                            "EGP ${selectedItems.size * 150}",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-
-
+                if (!isDeleteMode) {
+                    Text(
+                        "EGP ${String.format("%.2f", totalAmount)}",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
-                Row(verticalAlignment = Alignment.CenterVertically) { // Added this Row for better alignment
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     if (isDeleteMode) {
                         OutlinedButton(
-                            onClick = { /* Add to favourites logic */ },
-                            border = ButtonDefaults.outlinedButtonBorder.copy(
-                                brush = SolidColor(Color(0xFF0000FF))
-                            ),
-                            shape = RoundedCornerShape(24.dp),
-                            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
-                        ) {
-                            Text(
-                                "Add to Favourites",
-                                color = Color(0xFF0000FF)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp)) // Add space between buttons
-                        OutlinedButton(
-                            onClick = { /* Delete logic */ },
+                            onClick = { showDeleteAllConfirmation = true },
                             border = ButtonDefaults.outlinedButtonBorder.copy(
                                 brush = SolidColor(Color.Red)
                             ),
                             shape = RoundedCornerShape(24.dp),
                             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
                         ) {
-                            Text("Delete", color = Color.Red)
+                            Text("Delete All", color = Color.Red)
+                        }
+                        if (showDeleteAllConfirmation) {
+                            AlertDialog(
+                                onDismissRequest = { showDeleteAllConfirmation = false },
+                                title = { Text("Delete All Items") },
+                                text = { Text("Are you sure you want to remove all items from your cart?") },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = {
+                                            viewModel.clearCart()
+                                            isDeleteMode = false
+                                            showDeleteAllConfirmation = false
+                                        }
+                                    ) {
+                                        Text("Delete", color = Color.Red)
+                                    }
+                                },
+                                dismissButton = {
+                                    TextButton(
+                                        onClick = { showDeleteAllConfirmation = false }
+                                    ) {
+                                        Text("Cancel")
+                                    }
+                                }
+                            )
                         }
                     } else {
-                        // Inside ShoppingCartScreen
                         Button(
                             onClick = {
-
-                                // Start CheckoutActivity
                                 val intent = Intent(context, CheckoutActivity::class.java)
                                 context.startActivity(intent)
                             },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Blue1
-                            ),
+                            colors = ButtonDefaults.buttonColors(containerColor = Blue1),
                             shape = RoundedCornerShape(24.dp),
                             contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
                         ) {
@@ -229,21 +290,16 @@ Checkbox(
                 }
             }
         }
-
     }
 }
 
 @Composable
 fun CartItem(
-    item: CartItem,
+    item: CartItemUI,
     isDeleteMode: Boolean,
-    isSelected: Boolean,
-    onSelectedChange: (Boolean) -> Unit,
-    onQuantityChange: (CartItem, Int) -> Unit
+    onQuantityChange: (String, Int) -> Unit,
+    onDeleteItem: (String) -> Unit
 ) {
-    var showColorDropdown by remember { mutableStateOf(false) }
-    var showVisionDropdown by remember { mutableStateOf(false) }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -261,20 +317,33 @@ fun CartItem(
                 .padding(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-Checkbox(
-    checked = isSelected,
-    onCheckedChange = { onSelectedChange(it) },
-    colors = CheckboxDefaults.colors(checkedColor = Blue1),
-    modifier = Modifier.padding(end = 8.dp)
-)
-
-            Image(
-                painter = painterResource(id = item.imageRes),
-                contentDescription = null,
+            Box(
                 modifier = Modifier
                     .size(100.dp)
-                    .padding(end = 12.dp)
-            )
+                    .padding(end = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                when (val model = item.imageModel) {
+                    is String -> {
+                        AsyncImage(
+                            model = model,
+                            contentDescription = item.name,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
+                            error = painterResource(R.drawable.placeholder),
+                            placeholder = painterResource(R.drawable.placeholder)
+                        )
+                    }
+                    is Int -> {
+                        Image(
+                            painter = painterResource(id = model),
+                            contentDescription = item.name,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                }
+            }
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -284,101 +353,62 @@ Checkbox(
                     text = item.name,
                     style = TextStyle(
                         fontSize = 16.sp,
-
                         fontWeight = FontWeight(500),
                         color = Color(0xFF151616),
                         letterSpacing = 0.8.sp,
                     )
                 )
-//spacer
-                 Spacer(modifier = Modifier.height(4.dp))
-                Box {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .width(110.dp)
-                            .height(IntrinsicSize.Min)
-                            .background(color = Color(0xFFEDEFF7), shape = RoundedCornerShape(size = 4.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                            .clickable { showColorDropdown = true } // Trigger dropdown
-                    ) {
-                        Text(
-                            "Color: ${item.color}",
-                            style = TextStyle(
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Normal,
-                                color = Color(0xFF4D5159),
-                                letterSpacing = 0.6.sp,
-                            ),
-                            modifier = Modifier.padding(end = 4.dp)
-                        )
-                        Icon(
-                            Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = Color.Gray,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
 
-                    DropdownMenu(
-                        expanded = showColorDropdown,
-                        onDismissRequest = { showColorDropdown = false }
-                    ) {
-                        listOf("Black", "Brown", "Blue").forEach { color ->
-                            DropdownMenuItem(
-                                text = { Text(color) },
-                                onClick = {
-                                    // Handle color selection here (e.g., update item color)
-                                    showColorDropdown = false
-                                }
-                            )
-                        }
-                    }
-                }
                 Spacer(modifier = Modifier.height(4.dp))
-                Box {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .width(110.dp)
-                            .height(IntrinsicSize.Min)
-                            .background(color = Color(0xFFEDEFF7), shape = RoundedCornerShape(size = 4.dp))
-                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                            .clickable { showVisionDropdown = true } // Trigger dropdown
-                    ) {
-                        Text(
-                            item.visionType,
-                            style = TextStyle(
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Normal,
-                                color = Color(0xFF4D5159),
-                                letterSpacing = 0.6.sp
-                            ),
-                            modifier = Modifier.padding(end = 4.dp)
-                        )
-                        Icon(
-                            Icons.Default.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = Color.Gray,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
 
-                    DropdownMenu(
-                        expanded = showVisionDropdown,
-                        onDismissRequest = { showVisionDropdown = false }
-                    ) {
-                        listOf("Single Vision", "Progressive", "Bifocal").forEach { type ->
-                            DropdownMenuItem(
-                                text = { Text(type) },
-                                onClick = {
-                                    // Handle vision type selection here (e.g., update item vision type)
-                                    showVisionDropdown = false
-                                }
-                            )
-                        }
-                    }
+                // Color display (without dropdown)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .width(110.dp)
+                        .height(IntrinsicSize.Min)
+                        .background(
+                            color = Color(0xFFEDEFF7),
+                            shape = RoundedCornerShape(size = 4.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        "Color: ${item.color}",
+                        style = TextStyle(
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF4D5159),
+                            letterSpacing = 0.6.sp,
+                        )
+                    )
                 }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Vision type display (without dropdown)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .width(130.dp)
+                        .height(IntrinsicSize.Min)
+                        .background(
+                            color = Color(0xFFEDEFF7),
+                            shape = RoundedCornerShape(size = 4.dp)
+                        )
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        item.visionType,
+                        style = TextStyle(
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = Color(0xFF4D5159),
+                            letterSpacing = 0.6.sp
+                        )
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "EGP ${item.price}",
@@ -390,10 +420,12 @@ Checkbox(
                     )
                 )
             }
+
             if (isDeleteMode) {
-                IconButton(onClick = { /* Handle delete */ }) {
+                IconButton(onClick = { onDeleteItem(item.id) }) {
                     Icon(
-                        painter = painterResource(id = R.drawable.trash), tint = Color.Unspecified,
+                        painter = painterResource(id = R.drawable.trash),
+                        tint = Color.Unspecified,
                         contentDescription = "Delete",
                         modifier = Modifier
                             .width(24.dp)
@@ -402,7 +434,7 @@ Checkbox(
                                 color = Color(0x1AD20000),
                                 shape = RoundedCornerShape(size = 8.dp)
                             )
-                            .padding(start = 4.dp, top = 4.dp, end = 4.dp, bottom = 4.dp)
+                            .padding(4.dp)
                     )
                 }
             } else {
@@ -419,7 +451,10 @@ Checkbox(
                     Text(
                         text = "−",
                         modifier = Modifier
-                            .clickable { onQuantityChange(item, item.quantity - 1) }
+                            .clickable {
+                                val newQuantity = max(1, item.quantity - 1) // Ensure quantity doesn't go below 1
+                                onQuantityChange(item.id, newQuantity)
+                            }
                             .padding(horizontal = 4.dp),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium
@@ -434,7 +469,9 @@ Checkbox(
                     Text(
                         text = "+",
                         modifier = Modifier
-                            .clickable { onQuantityChange(item, item.quantity + 1) }
+                            .clickable {
+                                onQuantityChange(item.id, item.quantity + 1)
+                            }
                             .padding(horizontal = 4.dp),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium
@@ -445,33 +482,12 @@ Checkbox(
     }
 }
 
-
-data class CartItem(
+data class CartItemUI(
     val id: String,
-    val name: String,
-    val color: String,
-    val visionType: String,
-    val price: Int,
+    val name: String = "Unknown Glasses",
+    val color: String = "Unknown Color",
+    val visionType: String = "Unknown Type",
+    val price: Double,
     val quantity: Int,
-    val imageRes: Int
+    val imageModel: Any?
 )
-
-// Sample data
-val sampleCartItems = listOf(
-    CartItem("1", "Browline glasses", "Black", "Single Vision", 150, 1, R.drawable.eye_glasses),
-    CartItem("2", "Browline glasses", "Black", "Single Vision", 150, 1, R.drawable.eye_glasses),
-    CartItem("3", "Browline glasses", "Black", "Single Vision", 150, 1, R.drawable.eye_glasses)
-)
-
-
-
-
-
-
-
-
-
-
-
-
-
