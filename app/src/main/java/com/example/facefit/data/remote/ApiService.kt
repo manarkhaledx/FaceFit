@@ -1,12 +1,17 @@
 package com.example.facefit.data.remote
 
+import com.example.facefit.data.models.requests.AddToCartRequest
+import com.example.facefit.data.models.requests.CreatePrescriptionRequest
 import com.example.facefit.data.models.requests.LoginRequest
 import com.example.facefit.data.models.requests.SignUpRequest
 import com.example.facefit.data.models.requests.SubmitReviewRequest
+import com.example.facefit.data.models.requests.UpdateCartItemRequest
 import com.example.facefit.data.models.requests.UpdateUserRequest
+import com.example.facefit.data.models.responses.CartResponse
 import com.example.facefit.data.models.responses.CheckEmailResponse
 import com.example.facefit.data.models.responses.FavoritesResponse
 import com.example.facefit.data.models.responses.LoginResponse
+import com.example.facefit.data.models.responses.PrescriptionResponse
 import com.example.facefit.data.models.responses.ReviewsResponse
 import com.example.facefit.data.models.responses.SignUpResponse
 import com.example.facefit.data.models.responses.UserResponse
@@ -90,16 +95,51 @@ interface ApiService {
     ): Response<Unit>
 
 
-    @PUT("facefit/customers/update")
+    @PUT(Constants.UPDATE_USER_PROFILE_ENDPOINT)
     suspend fun updateUserProfile(
         @Header("Authorization") token: String,
         @Body request: UpdateUserRequest
     ): Response<Unit>
 
     @Multipart
-    @POST("facefit/customers/profile-picture")
+    @POST(Constants.UPLOAD_PROFILE_PICTURE_ENDPOINT)
     suspend fun uploadProfilePicture(
         @Header("Authorization") token: String,
         @Part image: MultipartBody.Part
     ): Response<UserResponse>
+
+    @POST(Constants.CREATE_PRESCRIPTION_ENDPOINT)
+    suspend fun createPrescription(
+        @Header("Authorization") token: String,
+        @Body request: CreatePrescriptionRequest
+    ): Response<PrescriptionResponse>
+
+    @POST(Constants.ADD_TO_CART_ENDPOINT)
+    suspend fun addToCart(
+        @Header("Authorization") token: String,
+        @Body request: AddToCartRequest
+    ): Response<CartResponse>
+
+    @GET(Constants.GET_CART_ENDPOINT)
+    suspend fun getCart(
+        @Header("Authorization") token: String
+    ): Response<CartResponse>
+
+    @PUT(Constants.UPDATE_CART_ITEM_ENDPOINT)
+    suspend fun updateCartItem(
+        @Header("Authorization") token: String,
+        @Path("cartItemId") cartItemId: String,
+        @Body request: UpdateCartItemRequest
+    ): Response<CartResponse>
+
+    @DELETE(Constants.REMOVE_CART_ITEM_ENDPOINT)
+    suspend fun removeCartItem(
+        @Header("Authorization") token: String,
+        @Path("cartItemId") cartItemId: String
+    ): Response<CartResponse>
+
+    @DELETE(Constants.CLEAR_CART_ENDPOINT)
+    suspend fun clearCart(
+        @Header("Authorization") token: String
+    ): Response<CartResponse>
 }

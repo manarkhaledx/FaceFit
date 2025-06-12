@@ -3,7 +3,9 @@ package com.example.facefit.di
 import android.content.Context
 import com.example.facefit.data.local.TokenManager
 import com.example.facefit.data.remote.ApiService
+import com.example.facefit.data.repository.PrescriptionRepositoryImpl
 import com.example.facefit.data.repository.UserRepositoryImpl
+import com.example.facefit.domain.repository.PrescriptionRepository
 import com.example.facefit.domain.repository.UserRepository
 import com.example.facefit.domain.usecases.auth.GetUserProfileUseCase
 import dagger.Module
@@ -32,5 +34,13 @@ object AppModule {
         return UserRepositoryImpl(apiService, tokenManager)
     }
 
+    @Provides
+    @Singleton
+    fun providePrescriptionRepository(
+        apiService: ApiService,
+        tokenManager: TokenManager
+    ): PrescriptionRepository {
+        return PrescriptionRepositoryImpl(apiService, tokenManager)
+    }
 
 }

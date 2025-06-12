@@ -99,6 +99,7 @@ class ProductDetailsActivity : ComponentActivity() {
         setContent {
             val productId = intent.getStringExtra("productId") ?: ""
             val viewModel: ProductDetailsViewModel = hiltViewModel()
+            var selectedColorIndex by remember { mutableIntStateOf(0) }
 
             LaunchedEffect(productId) {
                 viewModel.loadProductDetails(productId)
@@ -114,7 +115,10 @@ class ProductDetailsActivity : ComponentActivity() {
                     error = uiState.error,
                     onBackClick = { finish() },
                     onNavigateToLenses = {
-                        val intent = Intent(this, PrescriptionLensActivity::class.java)
+                        val intent = Intent(this, PrescriptionLensActivity::class.java).apply {
+                            putExtra("productId", productId)
+                            putExtra("color", uiState.glasses?.colors?.get(selectedColorIndex))
+                        }
                         startActivity(intent)
                     },
                     onNavigateToReviews = { productId ->
@@ -123,7 +127,9 @@ class ProductDetailsActivity : ComponentActivity() {
                         }
                         startActivity(intent)
                     },
-                    activity = this
+                    activity = this,
+                    selectedColorIndex = selectedColorIndex,
+                    onColorSelected = { index -> selectedColorIndex = index }
                 )
             }
         }
@@ -152,7 +158,9 @@ fun ProductDetailScreen(
     onNavigateToReviews: (String) -> Unit,
     viewModel: ProductDetailsViewModel = hiltViewModel(),
     activity: ComponentActivity? = null,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    selectedColorIndex: Int,
+    onColorSelected: (Int) -> Unit
 ) {
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -203,7 +211,8 @@ fun ProductDetailScreen(
         return
     }
 
-
+    var selectedColorIndex by remember { mutableIntStateOf(0) }
+    val isInStock = glasses?.stock ?: 0 > 0
     Scaffold(
         bottomBar = {
             ProductBottomNavBar(
@@ -226,8 +235,13 @@ fun ProductDetailScreen(
                         }
                     }
                 },
-                onSelectLensesClick = onNavigateToLenses,
-                isTryOnEnabled = glasses?.tryOn == true && glasses.arModels != null
+                onSelectLensesClick = {
+                    if (isInStock) {
+                        onNavigateToLenses()
+                    }
+                },
+                isTryOnEnabled = glasses?.tryOn == true && glasses.arModels != null,
+                isInStock = isInStock
             )
         }
     ) {  paddingValues ->
@@ -316,7 +330,6 @@ fun ProductDetailScreen(
                         }
                     }
                 }
-
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
@@ -401,11 +414,11 @@ fun ProductDetailScreen(
                                                 isSelected = index == selectedColorIndex,
                                                 onClick = {
                                                     selectedColorIndex = index
+                                                    onColorSelected(index)
                                                 }
                                             )
                                         }
                                     }
-
                                 }
                             }
                         }
@@ -992,7 +1005,8 @@ fun ReviewItem(
 fun ProductBottomNavBar(
     onTryOnClick: () -> Unit,
     onSelectLensesClick: () -> Unit,
-    isTryOnEnabled: Boolean = false
+    isTryOnEnabled: Boolean = false,
+    isInStock: Boolean = true
 ) {
     Surface(
         shadowElevation = 8.dp,
@@ -1034,19 +1048,36 @@ fun ProductBottomNavBar(
             }
 
             Spacer(modifier = Modifier.width(16.dp))
-
-            Button(
-                onClick = { onSelectLensesClick() },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Blue1,
-                    contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(24.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(48.dp)
-            ) {
-                Text(text = "Select Lenses", style = MaterialTheme.typography.bodyMedium)
+            // Select Lenses Button
+            if (isInStock) {
+                Button(
+                    onClick = onSelectLensesClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Blue1,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(24.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                ) {
+                    Text(text = "Select Lenses", style = MaterialTheme.typography.bodyMedium)
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .background(Color.Gray.copy(alpha = 0.2f), RoundedCornerShape(24.dp))
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Out of Stock",
+                        color = Color.Gray,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }
