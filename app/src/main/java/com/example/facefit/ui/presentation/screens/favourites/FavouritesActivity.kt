@@ -40,6 +40,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -49,13 +50,19 @@ import com.example.facefit.R
 import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.base.RefreshableViewModel
-import com.example.facefit.ui.presentation.components.PullToRefreshContainer
+import com.example.facefit.ui.presentation.components.PullToRefreshContainer // Import your component
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 import com.example.facefit.ui.presentation.screens.products.ProductDetailsActivity
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 import com.example.facefit.ui.utils.Constants
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
+import com.example.facefit.ui.presentation.components.ErrorScreen
 
 @AndroidEntryPoint
 class FavouritesActivity : ComponentActivity() {
@@ -90,19 +97,23 @@ fun FavouritesScreen(
 ) {
     val favoritesState by viewModel.favoritesState.collectAsStateWithLifecycle()
     val isRefreshing = favoritesState is Resource.Loading
+    val listContentPadding = combineSystemAndContentPadding(top = 0.dp)
 
     Scaffold(
-        bottomBar = { AppBottomNavigation() }
-    ) { innerPadding ->
+        bottomBar = { AppBottomNavigation() },
+
+        ) { _ ->
         PullToRefreshContainer(
             isRefreshing = isRefreshing,
             onRefresh = { (viewModel as? RefreshableViewModel)?.refresh() },
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.fillMaxSize()
         ) {
             when (favoritesState) {
                 is Resource.Loading -> {
-                    // Shimmer loading state
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = listContentPadding
+                    ) {
                         items(5) {
                             ShimmerFavoritesItem()
                         }
@@ -112,9 +123,17 @@ fun FavouritesScreen(
                 is Resource.Success -> {
                     val favorites = (favoritesState as Resource.Success<List<Glasses>>).data ?: emptyList()
                     if (favorites.isEmpty()) {
-                        EmptyFavoritesScreen(onExploreClick = {})
+                        EmptyFavoritesScreen(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(listContentPadding),
+                            onExploreClick = { /* TODO: Implement navigation to explore products */ }
+                        )
                     } else {
-                        LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = listContentPadding
+                        ) {
                             items(favorites) { glasses ->
                                 FavouriteItem(
                                     glasses = glasses,
@@ -129,21 +148,76 @@ fun FavouritesScreen(
                 is Resource.Error -> {
                     val message = (favoritesState as Resource.Error<List<Glasses>>).message ?: "Unknown error"
                     if (message.contains("network", ignoreCase = true) || message.contains("Unable to resolve host", ignoreCase = true)) {
-                        NoInternetScreen()
+                        NoInternetScreen(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(listContentPadding)
+                        )
                     } else {
-                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(message)
-                                Button(onClick = { viewModel.loadFavorites() }) {
-                                    Text("Retry")
-                                }
-                            }
-                        }
+                        // Display generic error screen for non-internet errors
+                        ErrorScreen(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(listContentPadding),
+                            title = "Something Went Wrong",
+                            message = message,
+                            imageResId = R.drawable.error // Make sure you have this drawable
+                        )
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+fun EmptyFavoritesScreen(
+    modifier: Modifier = Modifier,
+    onExploreClick: () -> Unit
+) {
+    Box(
+        modifier = modifier
+            .padding(horizontal = 24.dp, vertical = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.favourite_empty),
+                contentDescription = "No favorites illustration",
+                modifier = Modifier.height(180.dp),
+                colorFilter = ColorFilter.tint(Blue1)
+            )
+
+            Text(
+                text = "No favourites yet",
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp,
+                color = Color.Black
+            )
+
+            Text(
+                text = "Browse our collection and save your\nfavourite styles. We'll keep them here for you.",
+                fontSize = 14.sp,
+                color = Color.Gray,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+
+
+@Composable
+fun NoInternetScreen(modifier: Modifier = Modifier) {
+    ErrorScreen(
+        modifier = modifier,
+        title = "No Internet Connection",
+        message = "Please check your connection and try again.",
+        imageResId = R.drawable.no_int // Your existing no internet image
+    )
 }
 
 @Composable
@@ -162,7 +236,7 @@ fun ShimmerFavoritesItem() {
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Image placeholder with shimmer
+
             Box(
                 modifier = Modifier
                     .width(120.dp)
@@ -177,7 +251,7 @@ fun ShimmerFavoritesItem() {
                     .fillMaxHeight(),
                 verticalArrangement = Arrangement.Center
             ) {
-                // Name placeholder
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.7f)
@@ -187,7 +261,7 @@ fun ShimmerFavoritesItem() {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Price placeholder
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(0.5f)
@@ -196,7 +270,7 @@ fun ShimmerFavoritesItem() {
                 )
             }
 
-            // Favorite icon placeholder
+
             Box(
                 modifier = Modifier
                     .size(24.dp)
@@ -236,7 +310,7 @@ fun FavouriteItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Image container with fixed width and flexible height
+
             Box(
                 modifier = Modifier
                     .width(120.dp)
@@ -294,80 +368,11 @@ fun FavouriteItem(
                     painter = painterResource(
                         id = if (isFavorite) R.drawable.heart_filled else R.drawable.heart
                     ),
-                    contentDescription = if (isFavorite) "Unmark Favorite" else "Mark Favorite"
+                    contentDescription = if (isFavorite) "Unmark Favorite" else "Mark Favorite",
+                    tint = Blue1
                 )
             }
         }
-    }
-}
-
-@Composable
-fun EmptyFavoritesScreen(onExploreClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.favourite_empty),
-                contentDescription = "No favorites illustration",
-                modifier = Modifier.height(180.dp),
-                colorFilter = ColorFilter.tint(Blue1)
-            )
-
-            Text(
-                text = "No favourites yet",
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp,
-                color = Color.Black
-            )
-
-            Text(
-                text = "Browse our collection and save your\nfavourite styles. We'll keep them here for you.",
-                fontSize = 14.sp,
-                color = Color.Gray,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@Composable
-fun NoInternetScreen() {
-    val scrollState = rememberScrollState()
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Image(
-            painter = painterResource(id = R.drawable.no_int),
-            contentDescription = "No internet illustration",
-            modifier = Modifier.height(180.dp)
-        )
-
-        Text(
-            text = "No Internet Connection",
-            fontWeight = FontWeight.Bold,
-            fontSize = 20.sp,
-            color = Color.Black
-        )
-
-        Text(
-            text = "Please check your connection and try again.",
-            fontSize = 14.sp,
-            color = Color.Gray,
-            textAlign = TextAlign.Center
-        )
     }
 }
 
@@ -413,6 +418,23 @@ fun Modifier.shimmerEffect(): Modifier = composed {
 @Composable
 fun PreviewFavouritesScreen() {
     FaceFitTheme {
-        // FavouritesScreen preview
+        FavouritesScreen(onProductClick = {})
     }
+}
+@Composable
+fun combineSystemAndContentPadding(
+    top: Dp = 0.dp,
+    bottom: Dp = 0.dp,
+    start: Dp = 0.dp,
+    end: Dp = 0.dp
+): PaddingValues {
+    val systemStatusBarsPadding = WindowInsets.statusBars.asPaddingValues()
+    val systemNavigationBarsPadding = WindowInsets.navigationBars.asPaddingValues()
+
+    return PaddingValues(
+        start = systemNavigationBarsPadding.calculateStartPadding(androidx.compose.ui.unit.LayoutDirection.Ltr) + start,
+        top = systemStatusBarsPadding.calculateTopPadding() + top,
+        end = systemNavigationBarsPadding.calculateEndPadding(androidx.compose.ui.unit.LayoutDirection.Ltr) + end,
+        bottom = systemNavigationBarsPadding.calculateBottomPadding() + bottom
+    )
 }

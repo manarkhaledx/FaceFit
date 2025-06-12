@@ -46,7 +46,6 @@ import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -99,6 +98,10 @@ import com.example.facefit.ui.theme.lightBackground
 import com.example.facefit.ui.utils.Constants
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
+import com.example.facefit.ui.presentation.components.ErrorScreen // Import the new ErrorScreen
+import com.example.facefit.ui.presentation.components.PullToRefreshContainer
+import com.example.facefit.ui.presentation.screens.favourites.NoInternetScreen
+
 
 @AndroidEntryPoint
 class ProfileActivity : ComponentActivity() {
@@ -115,25 +118,15 @@ class ProfileActivity : ComponentActivity() {
                 val profileEditUiState by viewModel.profileEditUiState.collectAsStateWithLifecycle()
                 val imageUploadState by viewModel.imageUploadState.collectAsStateWithLifecycle()
 
-                LaunchedEffect(userState) {
-                    when (userState) {
-                        is ProfileState.Error -> {
-                            Toast.makeText(
-                                this@ProfileActivity,
-                                (userState as ProfileState.Error).message,
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }
-                        else -> {}
-                    }
-                }
+
+                val isRefreshing = userState is ProfileState.Loading
 
                 LaunchedEffect(updateState) {
                     when (updateState) {
                         is UpdateState.Success -> {
                             Toast.makeText(
                                 this@ProfileActivity,
-                                "Profile updated successfully",
+                                "Your profile has been updated successfully!",
                                 Toast.LENGTH_SHORT
                             ).show()
                             viewModel.clearUpdateState()
@@ -141,16 +134,16 @@ class ProfileActivity : ComponentActivity() {
                         is UpdateState.Error -> {
                             Toast.makeText(
                                 this@ProfileActivity,
-                                (updateState as UpdateState.Error).message,
-                                Toast.LENGTH_SHORT
+                                "Oops! Something went wrong while updating your profile. Please try again.",
+                                Toast.LENGTH_LONG
                             ).show()
                             viewModel.clearUpdateState()
                         }
                         is UpdateState.ValidationError -> {
                             Toast.makeText(
                                 this@ProfileActivity,
-                                "Please correct the errors in the form.",
-                                Toast.LENGTH_SHORT
+                                "Please check the information you entered. Some fields have errors.",
+                                Toast.LENGTH_LONG
                             ).show()
                             viewModel.clearUpdateState()
                         }
@@ -163,7 +156,7 @@ class ProfileActivity : ComponentActivity() {
                         is ImageUploadState.Success -> {
                             Toast.makeText(
                                 this@ProfileActivity,
-                                (imageUploadState as ImageUploadState.Success).message,
+                                "Profile picture updated successfully!",
                                 Toast.LENGTH_SHORT
                             ).show()
                             viewModel.clearImageUploadState()
@@ -171,7 +164,7 @@ class ProfileActivity : ComponentActivity() {
                         is ImageUploadState.Error -> {
                             Toast.makeText(
                                 this@ProfileActivity,
-                                (imageUploadState as ImageUploadState.Error).message,
+                                "Couldn't upload your picture. Please try again later.",
                                 Toast.LENGTH_LONG
                             ).show()
                             viewModel.clearImageUploadState()
@@ -193,10 +186,32 @@ class ProfileActivity : ComponentActivity() {
                 Box(modifier = Modifier.fillMaxSize()) {
                     when (val state = userState) {
                         is ProfileState.Loading -> ShimmerProfileScreen()
-                        is ProfileState.Error -> ErrorScreen(
-                            message = state.message,
-                            onRetry = { viewModel.loadUserProfile() }
-                        )
+                        is ProfileState.Error -> {
+
+                            val message = state.message
+                            if (message.contains("network", ignoreCase = true) || message.contains("Unable to resolve host", ignoreCase = true)) {
+                                PullToRefreshContainer(
+                                    isRefreshing = isRefreshing,
+                                    onRefresh = { viewModel.loadUserProfile() },
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    NoInternetScreen(modifier = Modifier.fillMaxSize())
+                                }
+                            } else {
+                                PullToRefreshContainer(
+                                    isRefreshing = isRefreshing,
+                                    onRefresh = { viewModel.loadUserProfile() },
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    ErrorScreen(
+                                        modifier = Modifier.fillMaxSize(),
+                                        title = "Something Went Wrong ,",
+                                        message = message,
+                                        imageResId = R.drawable.error
+                                    )
+                                }
+                            }
+                        }
                         is ProfileState.Success -> {
                             Column(
                                 modifier = Modifier
@@ -240,20 +255,7 @@ class ProfileActivity : ComponentActivity() {
     }
 }
 
-@Composable
-fun ErrorScreen(message: String, onRetry: () -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Error: $message", color = Color.Red)
-            Button(onClick = onRetry) {
-                Text("Retry")
-            }
-        }
-    }
-}
+// Removed the ErrorScreen composable from here as it's now in the components package
 
 @Composable
 fun LoadingScreen() {
@@ -996,7 +998,13 @@ fun ShimmerProfileScreen() {
             Spacer(modifier = Modifier.height(8.dp))
         }
         item {
-            ShimmerText(width = 150.dp, height = 20.dp, modifier = Modifier.padding(vertical = 8.dp))
+            Text(
+                text = "Account Settings",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Black,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
             ShimmerAccountSettingsCard()
         }
     }
