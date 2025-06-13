@@ -8,10 +8,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.facefit.data.local.TokenManager
 import com.example.facefit.data.models.responses.ErrorResponse
 import com.example.facefit.data.models.responses.GenericBackendError
+import com.example.facefit.domain.models.Order
 import com.example.facefit.domain.models.User
 import com.example.facefit.domain.usecases.auth.GetUserProfileUseCase
 import com.example.facefit.domain.usecases.auth.UpdateUserProfileUseCase
 import com.example.facefit.domain.usecases.auth.UploadProfilePictureUseCase
+import com.example.facefit.domain.usecases.order.GetUserOrdersUseCase
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.domain.utils.validators.ProfileValidator
 import com.google.gson.Gson
@@ -33,6 +35,7 @@ class ProfileViewModel @Inject constructor(
     private val getUserProfile: GetUserProfileUseCase,
     private val updateUserProfileUseCase: UpdateUserProfileUseCase,
     private val uploadProfilePictureUseCase: UploadProfilePictureUseCase,
+    private val getUserOrders: GetUserOrdersUseCase,
     private val gson: Gson
 ) : ViewModel() {
 
@@ -51,8 +54,34 @@ class ProfileViewModel @Inject constructor(
     private val _imageUploadState = MutableStateFlow<ImageUploadState>(ImageUploadState.Idle)
     val imageUploadState: StateFlow<ImageUploadState> = _imageUploadState.asStateFlow()
 
+    private val _ordersState = MutableStateFlow<OrdersState>(OrdersState.Loading)
+    val ordersState: StateFlow<OrdersState> = _ordersState.asStateFlow()
+
+
     init {
         loadUserProfile()
+    }
+
+    fun loadUserOrders(limit: Int? = null) {
+        viewModelScope.launch {
+            _ordersState.value = OrdersState.Loading
+            when (val result = getUserOrders()) {
+                is Resource.Success -> {
+                    result.data?.let { response ->
+                        val sortedOrders = response.data.sortedByDescending { it.date }
+                        _ordersState.value = OrdersState.Success(
+                            if (limit != null) sortedOrders.take(limit) else sortedOrders
+                        )
+                    } ?: run {
+                        _ordersState.value = OrdersState.Error("No orders found")
+                    }
+                }
+                is Resource.Error -> {
+                    _ordersState.value = OrdersState.Error(result.message ?: "Failed to load orders")
+                }
+                else -> {}
+            }
+        }
     }
 
     fun loadUserProfile() {
@@ -363,6 +392,12 @@ sealed interface ProfileState {
     data object Loading : ProfileState
     data class Success(val user: User) : ProfileState
     data class Error(val message: String) : ProfileState
+}
+
+sealed interface OrdersState {
+    data object Loading : OrdersState
+    data class Success(val orders: List<Order>) : OrdersState
+    data class Error(val message: String) : OrdersState
 }
 
 sealed class UpdateState {

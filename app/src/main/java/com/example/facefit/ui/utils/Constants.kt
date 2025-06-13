@@ -24,4 +24,6 @@ object Constants {
     const val UPDATE_CART_ITEM_ENDPOINT = "facefit/cart/edit/{cartItemId}"
     const val REMOVE_CART_ITEM_ENDPOINT = "facefit/cart/delete/{cartItemId}"
     const val CLEAR_CART_ENDPOINT = "facefit/cart/clear"
+    const val CREATE_ORDER_ENDPOINT = "facefit/orders/checkout"
+    const val GET_ORDERS_ENDPOINT = "facefit/orders"
 }

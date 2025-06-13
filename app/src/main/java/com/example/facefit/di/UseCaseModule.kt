@@ -6,6 +6,7 @@ import com.example.facefit.data.repository.UserRepositoryImpl // Ensure UserRepo
 import com.example.facefit.domain.repository.AuthRepository
 import com.example.facefit.domain.repository.FavoritesRepository
 import com.example.facefit.domain.repository.GlassesRepository
+import com.example.facefit.domain.repository.OrderRepository
 import com.example.facefit.domain.repository.ReviewRepository
 import com.example.facefit.domain.repository.UserRepository // Ensure UserRepository is imported
 import com.example.facefit.domain.usecases.glasses.GetBestSellersUseCase
@@ -17,6 +18,7 @@ import com.example.facefit.domain.usecases.auth.GetUserProfileUseCase
 import com.example.facefit.domain.usecases.auth.UploadProfilePictureUseCase // Make sure this import is present!
 import com.example.facefit.domain.usecases.favorites.GetFavoritesUseCase
 import com.example.facefit.domain.usecases.favorites.ToggleFavoriteUseCase
+import com.example.facefit.domain.usecases.order.CreateOrderUseCase
 import com.example.facefit.domain.usecases.reviews.GetReviewsUseCase
 import dagger.Module
 import dagger.Provides
@@ -97,5 +99,11 @@ object UseCaseModule {
     @Singleton
     fun provideUploadProfilePictureUseCase(userRepository: UserRepository): UploadProfilePictureUseCase {
         return UploadProfilePictureUseCase(userRepository)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCreateOrderUseCase(repository: OrderRepository): CreateOrderUseCase {
+        return CreateOrderUseCase(repository)
     }
 }
