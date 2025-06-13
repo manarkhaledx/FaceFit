@@ -41,7 +41,13 @@ class FavoritesViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 Log.e("FavoritesVM", "Error loading favorites", e)
-                _favoritesState.value = Resource.Error(e.message ?: "Error loading favorites")
+                val errorMessage = when (e) {
+                    is java.net.SocketTimeoutException -> "The connection took too long. Please try again."
+                    is java.net.UnknownHostException -> "No internet connection. Please check your network."
+                    else -> e.message ?: "Something went wrong. Please try again."
+                }
+                _favoritesState.value = Resource.Error(errorMessage)
+
             }
         }
     }

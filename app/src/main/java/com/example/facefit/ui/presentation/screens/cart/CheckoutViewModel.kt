@@ -1,3 +1,4 @@
+// CheckoutViewModel.kt
 package com.example.facefit.ui.presentation.screens.cart
 
 import androidx.compose.runtime.getValue
@@ -12,7 +13,6 @@ import com.example.facefit.domain.repository.CartRepository
 import com.example.facefit.domain.repository.OrderRepository
 import com.example.facefit.domain.repository.UserRepository
 import com.example.facefit.domain.utils.Resource
-import com.example.facefit.ui.presentation.screens.profile.ProfileState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -37,9 +37,6 @@ class CheckoutViewModel @Inject constructor(
     private val _orderStatus = MutableStateFlow<Resource<String>>(Resource.Success(""))
     val orderStatus: StateFlow<Resource<String>> = _orderStatus.asStateFlow()
 
-    private val _userState = MutableStateFlow<ProfileState>(ProfileState.Loading)
-    val userState: StateFlow<ProfileState> = _userState.asStateFlow()
-
     private val _cartItems = MutableStateFlow<Resource<List<CartItem>>>(Resource.Loading())
     val cartItems: StateFlow<Resource<List<CartItem>>> = _cartItems.asStateFlow()
 
@@ -55,7 +52,7 @@ class CheckoutViewModel @Inject constructor(
         loadCartData()
     }
 
-    private fun loadCartData() {
+    fun loadCartData() {
         viewModelScope.launch {
             _cartItems.value = Resource.Loading()
             _cartTotal.value = Resource.Loading()
@@ -79,10 +76,10 @@ class CheckoutViewModel @Inject constructor(
         }
     }
 
-    private fun loadUserProfile() {
+    fun loadUserProfile() {
         val token = tokenManager.getToken()
         if (token.isNullOrEmpty()) {
-            _userState.value = ProfileState.Error("User not authenticated")
+            _userProfile.value = Resource.Error("User not authenticated")
             return
         }
         viewModelScope.launch {
@@ -118,7 +115,7 @@ class CheckoutViewModel @Inject constructor(
         }
     }
 
-    private fun loadCartTotal() {
+    fun calculateCartTotal() {
         viewModelScope.launch {
             _cartTotal.value = Resource.Loading()
             when (val result = cartRepository.getCart()) {
@@ -131,6 +128,25 @@ class CheckoutViewModel @Inject constructor(
                 }
                 is Resource.Error -> {
                     _cartTotal.value = Resource.Error(result.message ?: "Error loading cart")
+                }
+                else -> Unit
+            }
+        }
+    }
+
+    fun loadCartItems() {
+        viewModelScope.launch {
+            _cartItems.value = Resource.Loading()
+            when (val result = cartRepository.getCart()) {
+                is Resource.Success -> {
+                    result.data?.let { cartData ->
+                        _cartItems.value = Resource.Success(cartData.items)
+                    } ?: run {
+                        _cartItems.value = Resource.Error("Cart data is null")
+                    }
+                }
+                is Resource.Error -> {
+                    _cartItems.value = Resource.Error(result.message ?: "Error loading cart")
                 }
                 else -> Unit
             }
@@ -175,5 +191,10 @@ class CheckoutViewModel @Inject constructor(
         val tax = subtotal * 0.14
         val shipping = 50.0
         return subtotal + tax + shipping
+    }
+
+    // New function to reset order status
+    fun resetOrderStatus() {
+        _orderStatus.value = Resource.Success("")
     }
 }

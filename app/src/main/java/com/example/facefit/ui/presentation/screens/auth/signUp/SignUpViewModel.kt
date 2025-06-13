@@ -1,5 +1,7 @@
 package com.example.facefit.ui.presentation.screens.auth.signUp
 
+import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.facefit.data.local.TokenManager
@@ -9,15 +11,20 @@ import com.example.facefit.data.models.responses.ErrorResponse
 import com.example.facefit.data.models.responses.SignUpResponse
 import com.example.facefit.domain.usecases.auth.LoginUseCase
 import com.example.facefit.domain.usecases.auth.SignUpUseCase
+import com.example.facefit.domain.utils.NetworkUtils
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.domain.utils.validators.SignUpValidator
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 import retrofit2.Response
+import java.io.IOException
+import java.net.SocketTimeoutException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -25,8 +32,8 @@ class SignUpViewModel @Inject constructor(
     private val signUpUseCase: SignUpUseCase,
     private val loginUseCase: LoginUseCase,
     private val tokenManager: TokenManager,
-    private val gson: Gson
-
+    private val gson: Gson,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SignUpUiState())
@@ -36,6 +43,7 @@ class SignUpViewModel @Inject constructor(
     val signUpState = _signUpState.asStateFlow()
     private var tempEmail = ""
     private var tempPassword = ""
+
     fun updateFirstName(firstName: String) {
         val trimmed = firstName.trim()
         _uiState.update { currentState ->
@@ -56,7 +64,6 @@ class SignUpViewModel @Inject constructor(
         }
     }
 
-
     fun updatePhone(phone: String) {
         _uiState.update { currentState ->
             currentState.copy(
@@ -75,7 +82,6 @@ class SignUpViewModel @Inject constructor(
             )
         }
     }
-
 
     fun updatePassword(password: String) {
         _uiState.update { currentState ->
@@ -101,7 +107,6 @@ class SignUpViewModel @Inject constructor(
     }
 
     fun signUp() {
-        // Revalidate all fields
         val currentState = _uiState.value
         val errors = mapOf(
             "firstName" to SignUpValidator.validateFirstName(currentState.firstName),
@@ -131,6 +136,11 @@ class SignUpViewModel @Inject constructor(
             return
         }
 
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            _signUpState.value = Resource.Error("Please check your internet connection.")
+            return
+        }
+
         _signUpState.value = Resource.Loading()
         tempEmail = currentState.email
         tempPassword = currentState.password
@@ -149,10 +159,11 @@ class SignUpViewModel @Inject constructor(
                 val response = signUpUseCase(request)
                 handleSignUpResponse(response)
             } catch (e: Exception) {
-                _signUpState.value = Resource.Error(e.message ?: "An unexpected error occurred")
+                handleGenericError(e)
             }
         }
     }
+
     private suspend fun handleLoginAfterSignUp() {
         val loginRequest = LoginRequest(email = tempEmail, password = tempPassword)
         val loginResponse = loginUseCase(loginRequest)
@@ -162,12 +173,15 @@ class SignUpViewModel @Inject constructor(
                 tokenManager.saveToken(token)
                 _signUpState.value = Resource.Success(Unit)
             } ?: run {
-                _signUpState.value = Resource.Error("Login failed after sign up")
+                Log.e("SignUpViewModel", "Login after sign up: body is null for successful response")
+                _signUpState.value = Resource.Error("Something went wrong")
             }
         } else {
-            _signUpState.value = Resource.Error("Login failed after sign up")
+            Log.e("SignUpViewModel", "Login after sign up failed. Code: ${loginResponse.code()}, Error: ${loginResponse.errorBody()?.string()}")
+            _signUpState.value = Resource.Error("Something went wrong")
         }
     }
+
     private fun handleSignUpResponse(response: Response<SignUpResponse>) {
         if (response.isSuccessful) {
             viewModelScope.launch {
@@ -199,16 +213,46 @@ class SignUpViewModel @Inject constructor(
                 }
 
                 if (hasFieldError) {
-                    _signUpState.value = Resource.Error("")
+                    _signUpState.value = Resource.Error("Please fix the form errors")
                 } else {
-                    val fallback = errorResponse?.errors?.firstOrNull()?.message ?: "Sign up failed"
-                    _signUpState.value = Resource.Error(fallback)
+                    // For unhandled server errors or general messages not tied to a specific field
+                    val fallbackMessage = errorResponse?.errors?.firstOrNull()?.message ?: "Something went wrong"
+                    Log.e("SignUpViewModel", "Server error (code: ${response.code()}): $errorBody")
+                    _signUpState.value = Resource.Error(fallbackMessage)
                 }
 
             } catch (e: Exception) {
-                _signUpState.value = Resource.Error("Failed to parse error response")
+                Log.e("SignUpViewModel", "Error parsing sign up error response: ${e.message}", e)
+                _signUpState.value = Resource.Error("Something went wrong")
             }
         }
+    }
+
+    private fun handleGenericError(e: Exception) {
+        val userFriendlyMessage: String
+        val logMessage: String
+
+        when (e) {
+            is SocketTimeoutException -> {
+                userFriendlyMessage = "Please check your internet connection."
+                logMessage = "Timeout error: ${e.message}"
+            }
+            is IOException -> {
+                userFriendlyMessage = "Please check your internet connection."
+                logMessage = "Network error: ${e.message}"
+            }
+            is HttpException -> {
+                userFriendlyMessage = "Something went wrong"
+                logMessage = "HTTP error: ${e.code()} - ${e.message()}"
+            }
+            else -> {
+                userFriendlyMessage = "Something went wrong"
+                logMessage = "An unexpected error occurred: ${e.message}"
+            }
+        }
+
+        Log.e("SignUpViewModel", logMessage, e)
+        _signUpState.value = Resource.Error(userFriendlyMessage)
     }
 }
 

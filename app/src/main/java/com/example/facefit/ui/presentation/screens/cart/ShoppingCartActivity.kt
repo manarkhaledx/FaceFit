@@ -6,6 +6,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,20 +29,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,12 +48,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,16 +69,25 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.facefit.R
-import com.example.facefit.domain.models.CartData
+
 import com.example.facefit.domain.models.CartItem
-import com.example.facefit.domain.models.CartItemWithGlasses
-import com.example.facefit.domain.models.Glasses
+
 import com.example.facefit.domain.utils.Resource
+import com.example.facefit.ui.presentation.components.ErrorScreen
+import com.example.facefit.ui.presentation.components.PullToRefreshContainer
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 import com.example.facefit.ui.utils.Constants
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.max
+
+import androidx.compose.ui.draw.clip
+
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Shape
+
+
 
 @AndroidEntryPoint
 class ShoppingCartActivity : ComponentActivity() {
@@ -88,7 +95,7 @@ class ShoppingCartActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        cartViewModel.loadCart()
+        // No need to call loadCart here, it's in the ViewModel's init block
         setContent {
             FaceFitTheme {
                 ShoppingCartScreen(
@@ -115,13 +122,15 @@ fun ShoppingCartScreen(
     onBackClick: () -> Unit,
     viewModel: CartViewModel = hiltViewModel()
 ) {
-    val cartItems by viewModel.cartItems.collectAsState()
-    val cartState by viewModel.cartState.collectAsState()
+    val cartItems by viewModel.cartItems.collectAsState() // This is the local list for UI updates
+    val cartState by viewModel.cartState.collectAsState() // This is the Resource for loading/error
     val itemCount by viewModel.itemCount.collectAsState()
     val totalAmount by viewModel.totalAmount.collectAsState()
     var isDeleteMode by remember { mutableStateOf(false) }
     var showDeleteAllConfirmation by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    val isRefreshing = cartState is Resource.Loading
 
     Column(
         modifier = modifier
@@ -144,72 +153,78 @@ fun ShoppingCartScreen(
         )
 
         // Cart Items List
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        PullToRefreshContainer(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.loadCart() },
+            modifier = Modifier.weight(1f)
         ) {
             when (cartState) {
                 is Resource.Loading -> {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(3) { // Show 3 shimmer items as a placeholder
+                            LoadingCartItemShimmer()
                         }
                     }
                 }
 
                 is Resource.Error -> {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = (cartState as Resource.Error).message ?: "Error loading cart",
-                                color = Color.Red
-                            )
-                        }
-                    }
+                    val message = (cartState as Resource.Error).message ?: "Unknown error"
+                    val isNetworkError = message.contains("network", ignoreCase = true) || message.contains("Unable to resolve host", ignoreCase = true)
+                    ErrorScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        title = if (isNetworkError) "No Internet Connection" else "Error Loading Cart",
+                        message = if (isNetworkError) "Please check your connection and try again." else message,
+                        imageResId = if (isNetworkError) R.drawable.no_int else R.drawable.error
+                    )
                 }
 
                 is Resource.Success<*> -> {
                     val items = (cartState as Resource.Success<List<CartItem>>).data ?: emptyList()
-                    items(cartItems) { cartItem ->
-                        val imageModel = if (cartItem.glasses.images.isNotEmpty()) {
-                            "${Constants.EMULATOR_URL}/${cartItem.glasses.images.first()}"
-                        } else {
-                            R.drawable.placeholder
-                        }
-                        val totalPrice = String.format("%.2f", (cartItem.glasses.price + cartItem.lensPrice) * cartItem.quantity).toDouble()
-
-                        CartItem(
-                            item = CartItemUI(
-                                id = cartItem.id,
-                                name = cartItem.glasses.name,
-                                color = cartItem.color,
-                                visionType = cartItem.lensSpecification,
-                                price = totalPrice,
-                                quantity = cartItem.quantity,
-                                imageModel = imageModel
-                            ),
-                            isDeleteMode = isDeleteMode,
-                            onQuantityChange = { itemId, newQuantity ->
-                                viewModel.updateCartItem(
-                                    itemId = itemId,
-                                    quantity = newQuantity
-                                )
-                            },
-                            onDeleteItem = { itemId ->
-                                viewModel.removeCartItem(itemId)
-                            }
+                    if (items.isEmpty()) {
+                        EmptyCartScreen(
+                            modifier = Modifier.fillMaxSize()
                         )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(items) { cartItem ->
+                                val imageModel = if (cartItem.glasses.images.isNotEmpty()) {
+                                    "${Constants.EMULATOR_URL}/${cartItem.glasses.images.first()}"
+                                } else {
+                                    R.drawable.placeholder
+                                }
+                                val totalPrice = (cartItem.glasses.price + cartItem.lensPrice) * cartItem.quantity
+
+                                CartItem(
+                                    item = CartItemUI(
+                                        id = cartItem.id,
+                                        name = cartItem.glasses.name,
+                                        color = cartItem.color,
+                                        visionType = cartItem.lensSpecification,
+                                        price = totalPrice,
+                                        quantity = cartItem.quantity,
+                                        imageModel = imageModel
+                                    ),
+                                    isDeleteMode = isDeleteMode,
+                                    onQuantityChange = { itemId, newQuantity ->
+                                        viewModel.updateCartItem(
+                                            itemId = itemId,
+                                            quantity = newQuantity
+                                        )
+                                    },
+                                    onDeleteItem = { itemId ->
+                                        viewModel.removeCartItem(itemId)
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -229,7 +244,14 @@ fun ShoppingCartScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (!isDeleteMode) {
+                if (cartState is Resource.Loading) {
+                    LoadingShimmerEffect(
+                        modifier = Modifier
+                            .width(100.dp)
+                            .height(24.dp),
+                        shape = RoundedCornerShape(4.dp)
+                    )
+                } else {
                     Text(
                         "EGP ${String.format("%.2f", totalAmount)}",
                         fontSize = 16.sp,
@@ -282,9 +304,18 @@ fun ShoppingCartScreen(
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Blue1),
                             shape = RoundedCornerShape(24.dp),
-                            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+                            contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+                            enabled = cartState is Resource.Success && (cartState as Resource.Success).data?.isNotEmpty() == true
                         ) {
-                            Text("Checkout", color = Color.White)
+                            if (cartState is Resource.Loading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Text("Checkout", color = Color.White)
+                            }
                         }
                     }
                 }
@@ -334,6 +365,7 @@ fun CartItem(
                             placeholder = painterResource(R.drawable.placeholder)
                         )
                     }
+
                     is Int -> {
                         Image(
                             painter = painterResource(id = model),
@@ -361,7 +393,6 @@ fun CartItem(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Color display (without dropdown)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -386,7 +417,6 @@ fun CartItem(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // Vision type display (without dropdown)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -411,7 +441,7 @@ fun CartItem(
 
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "EGP ${item.price}",
+                    text = "EGP ${String.format("%.2f", item.price)}", // Ensure price is formatted
                     style = TextStyle(
                         fontSize = 18.sp,
                         fontWeight = FontWeight(700),
@@ -452,7 +482,7 @@ fun CartItem(
                         text = "−",
                         modifier = Modifier
                             .clickable {
-                                val newQuantity = max(1, item.quantity - 1) // Ensure quantity doesn't go below 1
+                                val newQuantity = max(1, item.quantity - 1)
                                 onQuantityChange(item.id, newQuantity)
                             }
                             .padding(horizontal = 4.dp),
@@ -479,6 +509,129 @@ fun CartItem(
                 }
             }
         }
+    }
+}
+
+@Composable
+fun LoadingCartItemShimmer() {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 4.dp
+        )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            LoadingShimmerEffect(
+                modifier = Modifier
+                    .size(100.dp)
+                    .padding(end = 8.dp),
+                shape = RoundedCornerShape(8.dp)
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                LoadingShimmerEffect(
+                    modifier = Modifier
+                        .fillMaxWidth(0.8f)
+                        .height(20.dp),
+                    shape = RoundedCornerShape(4.dp)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                LoadingShimmerEffect(
+                    modifier = Modifier
+                        .width(110.dp)
+                        .height(20.dp),
+                    shape = RoundedCornerShape(4.dp)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                LoadingShimmerEffect(
+                    modifier = Modifier
+                        .width(130.dp)
+                        .height(20.dp),
+                    shape = RoundedCornerShape(4.dp)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                LoadingShimmerEffect(
+                    modifier = Modifier
+                        .width(80.dp)
+                        .height(24.dp),
+                    shape = RoundedCornerShape(4.dp)
+                )
+            }
+
+            Row( // Always show shimmer for quantity controls
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                LoadingShimmerEffect(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .padding(horizontal = 4.dp),
+                    shape = CircleShape
+                )
+                LoadingShimmerEffect(
+                    modifier = Modifier
+                        .width(32.dp)
+                        .height(24.dp),
+                    shape = RoundedCornerShape(4.dp)
+                )
+                LoadingShimmerEffect(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .padding(horizontal = 4.dp),
+                    shape = CircleShape
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyCartScreen(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.empty_shopping_cart),
+            contentDescription = "Empty Cart Illustration",
+            modifier = Modifier.size(200.dp),
+            alpha = 0.6f
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Your Cart is Empty!",
+            style = TextStyle(
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Black
+            )
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = "Looks like you haven't added anything to your cart yet. Browse our collection and find your perfect pair.",
+            style = TextStyle(
+                fontSize = 16.sp,
+                color = Color.Gray,
+                fontWeight = FontWeight.Normal
+            ),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(0.8f)
+        )
     }
 }
 

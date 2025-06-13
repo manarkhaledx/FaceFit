@@ -13,12 +13,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,7 +31,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -50,7 +45,7 @@ import com.example.facefit.R
 import com.example.facefit.domain.models.Glasses
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.base.RefreshableViewModel
-import com.example.facefit.ui.presentation.components.PullToRefreshContainer // Import your component
+import com.example.facefit.ui.presentation.components.PullToRefreshContainer
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 import com.example.facefit.ui.presentation.screens.products.ProductDetailsActivity
 import com.example.facefit.ui.theme.Blue1
@@ -101,8 +96,7 @@ fun FavouritesScreen(
 
     Scaffold(
         bottomBar = { AppBottomNavigation() },
-
-        ) { _ ->
+    ) { _ ->
         PullToRefreshContainer(
             isRefreshing = isRefreshing,
             onRefresh = { (viewModel as? RefreshableViewModel)?.refresh() },
@@ -147,23 +141,16 @@ fun FavouritesScreen(
 
                 is Resource.Error -> {
                     val message = (favoritesState as Resource.Error<List<Glasses>>).message ?: "Unknown error"
-                    if (message.contains("network", ignoreCase = true) || message.contains("Unable to resolve host", ignoreCase = true)) {
-                        NoInternetScreen(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(listContentPadding)
-                        )
-                    } else {
-                        // Display generic error screen for non-internet errors
-                        ErrorScreen(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(listContentPadding),
-                            title = "Something Went Wrong",
-                            message = message,
-                            imageResId = R.drawable.error // Make sure you have this drawable
-                        )
-                    }
+                    val isNetworkError = message.contains("network", ignoreCase = true) || message.contains("Unable to resolve host", ignoreCase = true)
+
+                    ErrorScreen(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(listContentPadding),
+                        title = if (isNetworkError) "No Internet Connection" else "Something Went Wrong",
+                        message = if (isNetworkError) "Please check your connection and try again." else message,
+                        imageResId = if (isNetworkError) R.drawable.no_int else R.drawable.error
+                    )
                 }
             }
         }
@@ -206,18 +193,6 @@ fun EmptyFavoritesScreen(
             )
         }
     }
-}
-
-
-
-@Composable
-fun NoInternetScreen(modifier: Modifier = Modifier) {
-    ErrorScreen(
-        modifier = modifier,
-        title = "No Internet Connection",
-        message = "Please check your connection and try again.",
-        imageResId = R.drawable.no_int // Your existing no internet image
-    )
 }
 
 @Composable

@@ -160,6 +160,12 @@ class PrescriptionLensViewModel @Inject constructor(
         fieldErrors = errors.filterValues { it != null } as Map<PrescriptionField, String>
         return fieldErrors.isEmpty()
     }
+
+    fun resetPrescriptionState() {
+        prescriptionState = PrescriptionUiState()
+        fieldErrors = emptyMap()
+        _isSinglePD = true
+    }
 }
 
 enum class PrescriptionField {

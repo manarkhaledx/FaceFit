@@ -1,3 +1,4 @@
+// CartViewModel.kt
 package com.example.facefit.ui.presentation.screens.cart
 
 import androidx.compose.runtime.getValue
@@ -80,36 +81,67 @@ class CartViewModel @Inject constructor(
     }
 
     fun addToCart(
+
         glassesId: String,
+
         color: String,
+
         lensType: String,
+
         size: String = "standard",
+
         lensSpecification: String? = null,
+
         prescriptionId: String? = null
+
     ) {
+
         viewModelScope.launch(Dispatchers.IO) {
+
             val request = AddToCartRequest(
+
                 glassesId = glassesId,
+
                 color = color,
+
                 size = size,
+
                 lenseType = lensType,
+
                 lensSpecification = lensSpecification,
+
                 lensPrice = when (lensSpecification) {
+
                     "Standard Eyeglass Lenses" -> 50.0
+
                     "Blue Light Blocking" -> 75.0
+
                     "Driving Lenses" -> 100.0
+
                     else -> 0.0
+
                 },
+
                 prescriptionId = prescriptionId
+
             )
 
+
+
             when (val result = addToCartUseCase(request)) {
+
                 is Resource.Success -> loadCart()
+
                 is Resource.Error -> _cartState.value = Resource.Error(result.message ?: "Error")
+
                 else -> Unit
+
             }
+
             getItemCount()
+
         }
+
     }
 
 
@@ -117,6 +149,10 @@ class CartViewModel @Inject constructor(
         itemId: String,
         quantity: Int
     ) {
+        val oldQuantity = _cartItems.value.find { it.id == itemId }?.quantity ?: 0
+        val quantityChange = quantity - oldQuantity
+
+        // Optimistic update
         val updatedItems = _cartItems.value.map { item ->
             if (item.id == itemId) {
                 item.copy(quantity = quantity)
@@ -131,32 +167,38 @@ class CartViewModel @Inject constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
             val cartItem = _cartItems.value.find { it.id == itemId }
-            val prescriptionId = cartItem?.prescription?._id ?: "0"
+            val prescriptionId = cartItem?.prescription?._id // Can be null for glasses without prescription
 
-            updateCartItemUseCase(itemId, quantity, prescriptionId).also { result ->
-                if (result is Resource.Error) {
-                    loadCart()
+            when (val result = updateCartItemUseCase(itemId, quantity, prescriptionId)) {
+                is Resource.Error -> {
+                    // Revert optimistic update on error
+                    loadCart() // Reload actual cart state
+                    _cartState.value = Resource.Error(result.message ?: "Error updating item")
                 }
+                else -> Unit
             }
         }
     }
 
     fun removeCartItem(itemId: String) {
+        // Optimistic update
+        val removedItem = _cartItems.value.find { it.id == itemId }
         val updatedItems = _cartItems.value.filter { it.id != itemId }
         _cartItems.value = updatedItems
-        _totalAmount.value = updatedItems.sumOf {
-            (it.glasses.price + it.lensPrice) * it.quantity
+        if (removedItem != null) {
+            _totalAmount.value -= (removedItem.glasses.price + removedItem.lensPrice) * removedItem.quantity
         }
 
         viewModelScope.launch(Dispatchers.IO) {
             when (val result = removeCartItemUseCase(itemId)) {
                 is Resource.Success -> {
-                    loadCart()
+                    loadCart() // Reload actual cart on success
                 }
 
                 is Resource.Error -> {
-                    loadCart()
-                    _cartState.value = Resource.Error(result.message ?: "Error")
+                    // Revert optimistic update on error
+                    loadCart() // Reload actual cart state
+                    _cartState.value = Resource.Error(result.message ?: "Error removing item")
                 }
 
                 else -> Unit
@@ -166,18 +208,20 @@ class CartViewModel @Inject constructor(
     }
 
     fun clearCart() {
+        // Optimistic update
         _cartItems.value = emptyList()
         _totalAmount.value = 0.0
 
         viewModelScope.launch(Dispatchers.IO) {
             when (val result = clearCartUseCase()) {
                 is Resource.Success -> {
-                    loadCart()
+                    loadCart() // Reload actual cart on success
                 }
 
                 is Resource.Error -> {
-                    loadCart()
-                    _cartState.value = Resource.Error(result.message ?: "Error")
+                    // Revert optimistic update on error
+                    loadCart() // Reload actual cart state
+                    _cartState.value = Resource.Error(result.message ?: "Error clearing cart")
                 }
 
                 else -> Unit
@@ -190,7 +234,7 @@ class CartViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             _itemCount.value = when (val result = getCartItemCountUseCase()) {
                 is Resource.Success -> Resource.Success(result.data ?: 0)
-                is Resource.Error -> Resource.Error(result.message ?: "Error")
+                is Resource.Error -> Resource.Error(result.message ?: "Error getting item count")
                 is Resource.Loading -> Resource.Loading()
             }
         }

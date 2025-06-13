@@ -92,7 +92,6 @@ import com.example.facefit.ui.presentation.components.navigation.AppBottomNaviga
 import com.example.facefit.ui.presentation.screens.auth.login.LoginPage
 import com.example.facefit.ui.presentation.screens.auth.signUp.EgyptPhoneNumberField
 import com.example.facefit.ui.presentation.screens.cart.AllOrdersActivity
-import com.example.facefit.ui.presentation.screens.favourites.NoInternetScreen
 import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.Gray100
@@ -199,33 +198,23 @@ class ProfileActivity : ComponentActivity() {
                     when (val state = userState) {
                         is ProfileState.Loading -> ShimmerProfileScreen()
                         is ProfileState.Error -> {
-
                             val message = state.message
-                            if (message.contains(
-                                    "network",
-                                    ignoreCase = true
-                                ) || message.contains("Unable to resolve host", ignoreCase = true)
+                            val isNetworkError = message.contains(
+                                "network",
+                                ignoreCase = true
+                            ) || message.contains("Unable to resolve host", ignoreCase = true)
+
+                            PullToRefreshContainer(
+                                isRefreshing = isRefreshing,
+                                onRefresh = { viewModel.loadUserProfile() },
+                                modifier = Modifier.fillMaxSize()
                             ) {
-                                PullToRefreshContainer(
-                                    isRefreshing = isRefreshing,
-                                    onRefresh = { viewModel.loadUserProfile() },
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    NoInternetScreen(modifier = Modifier.fillMaxSize())
-                                }
-                            } else {
-                                PullToRefreshContainer(
-                                    isRefreshing = isRefreshing,
-                                    onRefresh = { viewModel.loadUserProfile() },
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    ErrorScreen(
-                                        modifier = Modifier.fillMaxSize(),
-                                        title = "Something Went Wrong ,",
-                                        message = message,
-                                        imageResId = R.drawable.error
-                                    )
-                                }
+                                ErrorScreen(
+                                    modifier = Modifier.fillMaxSize(),
+                                    title = if (isNetworkError) "No Internet Connection" else "Something Went Wrong",
+                                    message = if (isNetworkError) "Please check your connection and try again." else message,
+                                    imageResId = if (isNetworkError) R.drawable.no_int else R.drawable.error
+                                )
                             }
                         }
 
@@ -278,6 +267,7 @@ class ProfileActivity : ComponentActivity() {
 }
 
 // Removed the ErrorScreen composable from here as it's now in the components package
+// Removed the NoInternetScreen composable from here as it's now handled by ErrorScreen
 
 @Composable
 fun LoadingScreen() {

@@ -37,7 +37,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-//noinspection UsingMaterialAndMaterial3Libraries
 import androidx.compose.material.TabRowDefaults.Divider
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -96,7 +95,6 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class HomePageActivity : ComponentActivity() {
-    // Use this single ViewModel instance for the Activity lifecycle
     private val homeViewModel: HomeViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -104,7 +102,6 @@ class HomePageActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             FaceFitTheme {
-                // Pass the Activity-scoped ViewModel instance to your Composable
                 EyewearScreen(homeViewModel, this)
             }
         }
@@ -112,22 +109,16 @@ class HomePageActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Ensure all necessary data loading methods are called here
-        homeViewModel.loadFavorites() // Keep loading favorites
-        homeViewModel.refresh() // Trigger initial load/refresh of bestSellers and newArrivals
+        homeViewModel.loadFavorites()
+        homeViewModel.refresh()
     }
 }
 
 @Composable
 fun EyewearScreen(
-    viewModel: HomeViewModel = hiltViewModel(), // Default to hiltViewModel() for previews/direct calls
+    viewModel: HomeViewModel = hiltViewModel(),
     activity: ComponentActivity? = null
 ) {
-    // ... (rest of EyewearScreen remains the same)
-    // The rest of the EyewearScreen function doesn't need changes as it already uses 'viewModel'
-    // that is now consistently passed from the Activity.
-    // The isRefreshing state logic is correct as it is.
-
     val bestSellers by viewModel.bestSellers.collectAsStateWithLifecycle()
     val newArrivals by viewModel.newArrivals.collectAsStateWithLifecycle()
     val favoriteStatus by viewModel.favoriteStatus.collectAsStateWithLifecycle()
@@ -174,7 +165,7 @@ fun EyewearScreen(
                     CategorySection(
                         title = stringResource(R.string.categories),
                         categories = categories,
-                        isRefreshing = isRefreshing, // Pass isRefreshing to CategorySection
+                        isRefreshing = isRefreshing,
                         onCategoryClick = { category ->
                             activity?.let {
                                 val intent = Intent(it, AllProductsActivity::class.java).apply {
@@ -212,14 +203,23 @@ fun EyewearScreen(
                         }
 
                         is Resource.Error -> {
-                            ProductSection(
-                                title = stringResource(R.string.best_seller),
-                                products = (result.data ?: emptyList()).map {
-                                    it.toProductItem().copy(
+                            val productsToShow = if (result.data.isNullOrEmpty()) {
+                                List(3) { index ->
+                                    ProductItem(
+                                        id = "placeholder_best_$index",
                                         name = stringResource(R.string.could_not_load),
+                                        price = "",
+                                        imageUrl = "",
                                         isPlaceholder = true
                                     )
-                                },
+                                }
+                            } else {
+                                result.data.map { it.toProductItem().copy(name = stringResource(R.string.could_not_load)) }
+                            }
+
+                            ProductSection(
+                                title = stringResource(R.string.best_seller),
+                                products = productsToShow,
                                 favoriteStatus = favoriteStatus,
                                 pendingFavorites = pendingFavorites,
                                 onProductClick = {},
@@ -275,14 +275,22 @@ fun EyewearScreen(
                         }
 
                         is Resource.Error -> {
-                            ProductSection(
-                                title = stringResource(R.string.new_arrivals),
-                                products = (result.data ?: emptyList()).map {
-                                    it.toProductItem().copy(
+                            val productsToShow = if (result.data.isNullOrEmpty()) {
+                                List(3) { index ->
+                                    ProductItem(
+                                        id = "placeholder_new_$index",
                                         name = stringResource(R.string.could_not_load),
+                                        price = "",
+                                        imageUrl = "",
                                         isPlaceholder = true
                                     )
-                                },
+                                }
+                            } else {
+                                result.data.map { it.toProductItem().copy(name = stringResource(R.string.could_not_load)) }
+                            }
+                            ProductSection(
+                                title = stringResource(R.string.new_arrivals),
+                                products = productsToShow,
                                 favoriteStatus = favoriteStatus,
                                 pendingFavorites = pendingFavorites,
                                 onProductClick = {},
@@ -667,14 +675,12 @@ fun FeaturedImagesSection(isRefreshing: Boolean) {
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
                 if (isRefreshing) {
-                    // Show shimmer effect when loading
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .shimmerEffect()
                     )
                 } else {
-                    // Show actual image when loaded
                     Image(
                         painter = painterResource(id = image),
                         contentDescription = stringResource(R.string.featured_image),
@@ -700,7 +706,6 @@ fun CategorySection(
         LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             items(categories) { (category, imageResId) ->
                 if (isRefreshing) {
-                    // Shimmer for category items
                     Column(
                         modifier = Modifier
                             .width(100.dp),
@@ -710,19 +715,18 @@ fun CategorySection(
                             modifier = Modifier
                                 .size(70.dp)
                                 .clip(CircleShape)
-                                .shimmerEffect() // Apply shimmer to the circle
+                                .shimmerEffect()
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Box(
                             modifier = Modifier
-                                .width(60.dp) // Smaller width for text shimmer
+                                .width(60.dp)
                                 .height(16.dp)
                                 .clip(RoundedCornerShape(4.dp))
-                                .shimmerEffect() // Apply shimmer to the text area
+                                .shimmerEffect()
                         )
                     }
                 } else {
-                    // Actual category items
                     Column(
                         modifier = Modifier
                             .width(100.dp)
@@ -825,7 +829,6 @@ fun ShimmerProductCard() {
         }
     }
 }
-
 
 
 @Composable
