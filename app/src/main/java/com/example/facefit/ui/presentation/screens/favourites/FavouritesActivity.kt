@@ -141,7 +141,7 @@ fun FavouritesScreen(
 
                 is Resource.Error -> {
                     val message = (favoritesState as Resource.Error<List<Glasses>>).message ?: "Unknown error"
-                    val isNetworkError = message.contains("network", ignoreCase = true) || message.contains("Unable to resolve host", ignoreCase = true)
+                    val isNetworkError = message.contains("internet connection", ignoreCase = true) || message.contains("network error", ignoreCase = true)
 
                     ErrorScreen(
                         modifier = Modifier

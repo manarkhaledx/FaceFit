@@ -69,9 +69,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.facefit.R
-
 import com.example.facefit.domain.models.CartItem
-
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.components.ErrorScreen
 import com.example.facefit.ui.presentation.components.PullToRefreshContainer
@@ -80,13 +78,16 @@ import com.example.facefit.ui.theme.FaceFitTheme
 import com.example.facefit.ui.utils.Constants
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.max
-
 import androidx.compose.ui.draw.clip
-
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.composed
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
 
+// Import your AppBottomNavigation composable
+import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 
 
 @AndroidEntryPoint
@@ -95,13 +96,21 @@ class ShoppingCartActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // No need to call loadCart here, it's in the ViewModel's init block
         setContent {
             FaceFitTheme {
-                ShoppingCartScreen(
-                    viewModel = cartViewModel,
-                    onBackClick = { finish() }
-                )
+                // Correct placement: Wrap everything in a Column
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // This Column holds the main screen content (TopAppBar, cart items, total)
+                    // It should take up all available space except for the bottom navigation bar
+                    ShoppingCartScreen(
+                        viewModel = cartViewModel,
+                        onBackClick = { finish() },
+                        modifier = Modifier.weight(1f) // This makes ShoppingCartScreen fill remaining vertical space
+                    )
+                    // The AppBottomNavigation goes outside (after) the ShoppingCartScreen
+                    // within the root Column, so it's always at the very bottom.
+                    AppBottomNavigation()
+                }
             }
         }
     }
@@ -122,8 +131,8 @@ fun ShoppingCartScreen(
     onBackClick: () -> Unit,
     viewModel: CartViewModel = hiltViewModel()
 ) {
-    val cartItems by viewModel.cartItems.collectAsState() // This is the local list for UI updates
-    val cartState by viewModel.cartState.collectAsState() // This is the Resource for loading/error
+    val cartItems by viewModel.cartItems.collectAsState()
+    val cartState by viewModel.cartState.collectAsState()
     val itemCount by viewModel.itemCount.collectAsState()
     val totalAmount by viewModel.totalAmount.collectAsState()
     var isDeleteMode by remember { mutableStateOf(false) }
@@ -132,19 +141,15 @@ fun ShoppingCartScreen(
 
     val isRefreshing = cartState is Resource.Loading
 
+    // This Column now represents the ENTIRE content of the shopping cart screen
+    // above the bottom navigation bar.
     Column(
-        modifier = modifier
-            .fillMaxSize()
+        modifier = modifier // This modifier now includes the weight(1f) from the parent Column
+            .fillMaxSize() // This will now make it fill the weighted space given by the parent
             .background(Color.White)
     ) {
-        // Top AppBar
         TopAppBar(
-            title = { Text("Shopping Cart", fontSize = 18.sp) },
-            navigationIcon = {
-                IconButton(onClick = onBackClick) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
-            },
+            title = { Text("Shopping Cart", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) },
             actions = {
                 TextButton(onClick = { isDeleteMode = !isDeleteMode }) {
                     Text(if (isDeleteMode) "Done" else "Edit", color = Color.Black)
@@ -152,11 +157,11 @@ fun ShoppingCartScreen(
             }
         )
 
-        // Cart Items List
+        // This PullToRefreshContainer now takes up the remaining available space for the scrollable list
         PullToRefreshContainer(
             isRefreshing = isRefreshing,
             onRefresh = { viewModel.loadCart() },
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(1f) // Ensures the scrollable content fills space above totals
         ) {
             when (cartState) {
                 is Resource.Loading -> {
@@ -165,7 +170,7 @@ fun ShoppingCartScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(3) { // Show 3 shimmer items as a placeholder
+                        items(3) {
                             LoadingCartItemShimmer()
                         }
                     }
@@ -173,7 +178,7 @@ fun ShoppingCartScreen(
 
                 is Resource.Error -> {
                     val message = (cartState as Resource.Error).message ?: "Unknown error"
-                    val isNetworkError = message.contains("network", ignoreCase = true) || message.contains("Unable to resolve host", ignoreCase = true)
+                    val isNetworkError = message.contains("internet connection", ignoreCase = true) || message.contains("network error", ignoreCase = true) || message.contains("timeout", ignoreCase = true)
                     ErrorScreen(
                         modifier = Modifier.fillMaxSize(),
                         title = if (isNetworkError) "No Internet Connection" else "Error Loading Cart",
@@ -230,7 +235,6 @@ fun ShoppingCartScreen(
             }
         }
 
-        // Bottom Bar
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -322,6 +326,8 @@ fun ShoppingCartScreen(
             }
         }
     }
+    // Remove AppBottomNavigation() from here
+    // AppBottomNavigation() // THIS LINE SHOULD BE REMOVED FROM HERE
 }
 
 @Composable
@@ -441,7 +447,7 @@ fun CartItem(
 
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "EGP ${String.format("%.2f", item.price)}", // Ensure price is formatted
+                    text = "EGP ${String.format("%.2f", item.price)}",
                     style = TextStyle(
                         fontSize = 18.sp,
                         fontWeight = FontWeight(700),
@@ -570,7 +576,7 @@ fun LoadingCartItemShimmer() {
                 )
             }
 
-            Row( // Always show shimmer for quantity controls
+            Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {

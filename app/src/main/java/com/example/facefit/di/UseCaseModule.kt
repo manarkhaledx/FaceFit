@@ -106,4 +106,5 @@ object UseCaseModule {
     fun provideCreateOrderUseCase(repository: OrderRepository): CreateOrderUseCase {
         return CreateOrderUseCase(repository)
     }
+
 }

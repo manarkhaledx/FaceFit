@@ -1,5 +1,6 @@
 package com.example.facefit.ui.presentation.screens.products
 
+import android.content.Context
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -11,15 +12,21 @@ import com.example.facefit.domain.usecases.glasses.FilterGlassesUseCase
 import com.example.facefit.domain.usecases.glasses.GetAllGlassesUseCase
 import com.example.facefit.domain.usecases.glasses.GetBestSellersUseCase
 import com.example.facefit.domain.usecases.glasses.GetNewArrivalsUseCase
+import com.example.facefit.domain.utils.NetworkUtils
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.base.RefreshableViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.io.IOException
+import java.net.SocketTimeoutException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -30,7 +37,8 @@ class AllProductsViewModel @Inject constructor(
     private val filterGlassesUseCase: FilterGlassesUseCase,
     private val toggleFavoriteUseCase: ToggleFavoriteUseCase,
     private val getFavoritesUseCase: GetFavoritesUseCase,
-    private val authManager: TokenManager
+    private val authManager: TokenManager,
+    @ApplicationContext private val context: Context // Inject Context
 ) : ViewModel(), RefreshableViewModel {
 
     companion object {
@@ -60,13 +68,26 @@ class AllProductsViewModel @Inject constructor(
     }
 
     fun loadAllProducts() {
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = "Please check your internet connection.",
+                    products = emptyList() // Ensure products are empty on network error
+                )
+            }
+            _toastTrigger.update { it + 1 }
+            return
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update {
                 it.copy(
                     isLoading = true,
                     selectedTab = 0,
                     selectedSort = SORT_DEFAULT,
-                    activeFilters = emptyMap()
+                    activeFilters = emptyMap(),
+                    error = null // Clear previous errors
                 )
             }
 
@@ -81,18 +102,7 @@ class AllProductsViewModel @Inject constructor(
                     }
                 }
                 is Resource.Error -> {
-                    val friendlyMessage = if (result.message?.contains("Unable to resolve host") == true) {
-                        "Please check your internet connection."
-                    } else {
-                        "Failed to load products. Please try again."
-                    }
-                    _uiState.update {
-                        it.copy(
-                            error = friendlyMessage,
-                            isLoading = false,
-                            products = result.data ?: emptyList()
-                        )
-                    }
+                    handleGenericError(result.message, result.data, _uiState)
                 }
                 is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
             }
@@ -100,9 +110,21 @@ class AllProductsViewModel @Inject constructor(
     }
 
     fun filterByCategory(category: String) {
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = "Please check your internet connection.",
+                    products = emptyList()
+                )
+            }
+            _toastTrigger.update { it + 1 }
+            return
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update {
-                it.copy(isLoading = true)
+                it.copy(isLoading = true, error = null) // Clear previous errors
             }
 
             val (type, gender) = when (category) {
@@ -118,55 +140,72 @@ class AllProductsViewModel @Inject constructor(
     }
 
     fun sortProducts(sortOption: String) {
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = "Please check your internet connection.",
+                    products = emptyList()
+                )
+            }
+            _toastTrigger.update { it + 1 }
+            return
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update {
                 it.copy(
                     isLoading = true,
                     selectedSort = sortOption,
-                    selectedTab = 0
+                    selectedTab = 0,
+                    error = null // Clear previous errors
                 )
             }
 
-            val result = when (sortOption) {
+            when (val result = when (sortOption) {
                 SORT_BEST_SELLERS -> getBestSellersUseCase()
                 SORT_NEW_ARRIVALS -> getNewArrivalsUseCase()
                 else -> getAllGlassesUseCase()
-            }
-
-            _uiState.update {
-                when (result) {
-                    is Resource.Success -> it.copy(
-                        products = result.data ?: emptyList(),
-                        isLoading = false,
-                        error = null
-                    )
-
-                    is Resource.Error -> {
-                        val friendlyMessage = if (result.message?.contains("Unable to resolve host") == true) {
-                            "Please check your internet connection."
-                        } else {
-                            "Failed to sort products. Please try again."
-                        }
+            }) {
+                is Resource.Success -> {
+                    _uiState.update {
                         it.copy(
-                            error = friendlyMessage,
+                            products = result.data ?: emptyList(),
                             isLoading = false,
-                            products = result.data ?: emptyList()
+                            error = null
                         )
                     }
-
-                    is Resource.Loading -> it.copy(isLoading = true)
                 }
+
+                is Resource.Error -> {
+                    handleGenericError(result.message, result.data, _uiState)
+                }
+
+                is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
             }
         }
     }
 
     fun filterByType(tabIndex: Int) {
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = "Please check your internet connection.",
+                    products = emptyList()
+                )
+            }
+            _toastTrigger.update { it + 1 }
+            return
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             _uiState.update {
                 it.copy(
                     isLoading = true,
                     selectedTab = tabIndex,
-                    selectedSort = SORT_DEFAULT
+                    selectedSort = SORT_DEFAULT,
+                    error = null // Clear previous errors
                 )
             }
 
@@ -189,6 +228,18 @@ class AllProductsViewModel @Inject constructor(
         material: String? = null,
         sort: String? = null
     ) {
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = "Please check your internet connection.",
+                    products = emptyList()
+                )
+            }
+            _toastTrigger.update { it + 1 }
+            return
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
             val tabIndex = when (type) {
                 SUNGLASSES -> 2
@@ -211,7 +262,8 @@ class AllProductsViewModel @Inject constructor(
                         "maxPrice" to maxPrice,
                         "shape" to shape,
                         "material" to material
-                    )
+                    ),
+                    error = null // Clear previous errors
                 )
             }
 
@@ -234,20 +286,7 @@ class AllProductsViewModel @Inject constructor(
                     }
                 }
                 is Resource.Error -> {
-                    val friendlyMessage = if (result.message?.contains("Unable to resolve host") == true) {
-                        "Please check your internet connection."
-                    } else {
-                        result.message ?: "Failed to filter products. Please try again."
-                    }
-
-                    _uiState.update {
-                        it.copy(
-                            error = friendlyMessage,
-                            isLoading = false,
-                            products = result.data ?: emptyList()
-                        )
-                    }
-                    _toastTrigger.update { it + 1 }
+                    handleGenericError(result.message, result.data, _uiState)
                 }
                 is Resource.Loading -> _uiState.update { it.copy(isLoading = true) }
             }
@@ -263,14 +302,32 @@ class AllProductsViewModel @Inject constructor(
                 priceRangeMax = null,
                 selectedTab = 0,
                 isLoading = true,
-                activeFilters = emptyMap()
+                activeFilters = emptyMap(),
+                error = null // Clear previous errors
             )
         }
         loadAllProducts()
     }
 
     override fun refresh() {
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = "Please check your internet connection.",
+                    products = emptyList()
+                )
+            }
+            _toastTrigger.update { it + 1 }
+            return
+        }
+
         viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) } // Clear previous errors
+
+            // Delay for better UX when pulling to refresh
+            delay(800)
+
             filterProducts(
                 type = _uiState.value.selectedType,
                 gender = _uiState.value.selectedGender,
@@ -278,13 +335,21 @@ class AllProductsViewModel @Inject constructor(
                 maxPrice = _uiState.value.priceRangeMax,
             )
             loadFavorites()
-            _toastTrigger.update { it + 1 }
         }
     }
 
     fun loadFavorites() {
+        val token = authManager.getToken()
+        if (token == null) {
+            Log.e("AllProductsVM", "No token available to load favorites.")
+            return // No error message to UI, this is a background operation
+        }
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            Log.e("AllProductsVM", "No network available for loadFavorites.")
+            return // No error message to UI, this is a background operation
+        }
+
         viewModelScope.launch(Dispatchers.IO) {
-            val token = authManager.getToken() ?: return@launch
             when (val result = getFavoritesUseCase(token)) {
                 is Resource.Success -> {
                     val newStatus = result.data?.associate { it.id to true } ?: emptyMap()
@@ -295,32 +360,83 @@ class AllProductsViewModel @Inject constructor(
                     Log.e("AllProductsVM", "Error loading favorites: ${result.message}")
                 }
 
-                is Resource.Loading -> {  }
+                is Resource.Loading -> { }
             }
         }
     }
 
     fun toggleFavorite(productId: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            val token = authManager.getToken() ?: return@launch
+        val token = authManager.getToken()
+        if (token == null) {
+            _uiState.update { it.copy(error = "Authentication required to toggle favorite.") }
+            _toastTrigger.update { it + 1 }
+            Log.e("AllProductsVM", "Authentication token missing for favorite toggle.")
+            return
+        }
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            _uiState.update { it.copy(error = "Please check your internet connection.") }
+            _toastTrigger.update { it + 1 }
+            Log.e("AllProductsVM", "No network available to toggle favorite.")
+            return
+        }
 
+        viewModelScope.launch(Dispatchers.IO) {
             val currentStatus = _favoriteStatus.value[productId] ?: false
             _favoriteStatus.update { it + (productId to !currentStatus) }
             _pendingFavorites.update { it + productId }
 
-            when (val result = toggleFavoriteUseCase(token, productId)) {
-                is Resource.Success -> {
-                    loadFavorites()
+            try {
+                when (val result = toggleFavoriteUseCase(token, productId)) {
+                    is Resource.Success -> {
+                        loadFavorites()
+                    }
+                    is Resource.Error -> {
+                        _favoriteStatus.update { it + (productId to currentStatus) }
+                        Log.e("AllProductsVM", "Failed to toggle favorite: ${result.message}")
+                        _uiState.update { it.copy(error = result.message ?: "Failed to toggle favorite.") }
+                        _toastTrigger.update { it + 1 }
+                    }
+                    is Resource.Loading -> {}
                 }
-                is Resource.Error -> {
-                    _favoriteStatus.update { it + (productId to currentStatus) }
-                    Log.e("ViewModel", "Failed to toggle favorite: ${result.message}")
-                }
-                is Resource.Loading -> {}
+            } catch (e: Exception) {
+                _favoriteStatus.update { it + (productId to currentStatus) }
+                handleGenericError(e.message, null, _uiState) // Use handleGenericError for exceptions
+            } finally {
+                _pendingFavorites.update { it - productId }
             }
-
-            _pendingFavorites.update { it - productId }
         }
+    }
+
+    // Generic error handler for ViewModel
+    private fun handleGenericError(
+        errorMessage: String?,
+        currentData: List<Glasses>?,
+        stateFlow: MutableStateFlow<AllProductsUiState>
+    ) {
+        val userFriendlyMessage: String
+        val logMessage: String = errorMessage ?: "Unknown error"
+
+        when {
+            errorMessage?.contains("internet connection", ignoreCase = true) == true ||
+                    errorMessage?.contains("network error", ignoreCase = true) == true ||
+                    errorMessage?.contains("timeout", ignoreCase = true) == true ||
+                    errorMessage?.contains("Unable to resolve host", ignoreCase = true) == true -> {
+                userFriendlyMessage = "Please check your internet connection."
+            }
+            else -> {
+                userFriendlyMessage = "Something went wrong"
+            }
+        }
+
+        Log.e("AllProductsVM", "API Call Error: $logMessage")
+        stateFlow.update {
+            it.copy(
+                error = userFriendlyMessage,
+                isLoading = false,
+                products = currentData ?: emptyList() // Preserve data if available, else empty
+            )
+        }
+        _toastTrigger.update { it + 1 }
     }
 }
 

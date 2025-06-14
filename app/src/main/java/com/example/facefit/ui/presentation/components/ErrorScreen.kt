@@ -47,11 +47,11 @@ fun ErrorScreen(
             color = Color.Black
         )
 
-        Text(
-            text = message,
-            fontSize = 14.sp,
-            color = Color.Gray,
-            textAlign = TextAlign.Center
-        )
+//        Text(
+//            text = message,
+//            fontSize = 14.sp,
+//            color = Color.Gray,
+//            textAlign = TextAlign.Center
+//        )
     }
 }

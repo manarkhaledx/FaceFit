@@ -1,4 +1,4 @@
-package com.example.facefit.ui.presentation.screens.cart // Note: This should likely be 'checkout' if you plan to move it
+package com.example.facefit.ui.presentation.screens.cart
 
 import android.content.Intent
 import android.os.Bundle
@@ -17,6 +17,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -79,9 +80,8 @@ import coil.compose.AsyncImage
 import com.example.facefit.R
 import com.example.facefit.domain.models.CartItem
 import com.example.facefit.domain.utils.Resource
-import com.example.facefit.ui.presentation.base.RefreshableViewModel // Import RefreshableViewModel
-import com.example.facefit.ui.presentation.components.ErrorScreen // Import ErrorScreen
-import com.example.facefit.ui.presentation.components.PullToRefreshContainer // Import PullToRefreshContainer
+import com.example.facefit.ui.presentation.components.ErrorScreen
+import com.example.facefit.ui.presentation.components.PullToRefreshContainer
 import com.example.facefit.ui.presentation.screens.home.HomePageActivity
 import com.example.facefit.ui.presentation.screens.profile.EditableInfoItem // Ensure this is correctly imported
 import com.example.facefit.ui.theme.Black
@@ -93,7 +93,7 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class CheckoutActivity : ComponentActivity() {
-    private val viewModel: CheckoutViewModel by viewModels() // Use viewModels() for Activity
+    private val viewModel: CheckoutViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -107,9 +107,9 @@ class CheckoutActivity : ComponentActivity() {
                         val intent = Intent(this, HomePageActivity::class.java)
                         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                         startActivity(intent)
-                        finish() // Finish CheckoutActivity
+                        finish()
                     },
-                    viewModel = viewModel // Pass the activity's viewModel instance
+                    viewModel = viewModel
                 )
             }
         }
@@ -130,7 +130,7 @@ fun CheckoutScreen(
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit,
     onOrderSuccess: () -> Unit,
-    viewModel: CheckoutViewModel = hiltViewModel() // Still allow Hilt to provide in preview/isolated cases
+    viewModel: CheckoutViewModel = hiltViewModel()
 ) {
     val userProfile by viewModel.userProfile.collectAsState()
     val cartTotal by viewModel.cartTotal.collectAsState()
@@ -139,8 +139,13 @@ fun CheckoutScreen(
 
     var isEditingAddress by remember { mutableStateOf(false) }
 
-    // Combine loading states for pull-to-refresh
+    // Check if any of the main data sources are currently loading
     val isRefreshing = userProfile is Resource.Loading || cartTotal is Resource.Loading || cartItems is Resource.Loading
+
+    // Determine if an overall error state exists for initial data loading
+    val initialDataError: String? = (userProfile as? Resource.Error)?.message
+        ?: (cartTotal as? Resource.Error)?.message
+        ?: (cartItems as? Resource.Error)?.message
 
     // Trigger order success callback directly
     LaunchedEffect(orderStatus) {
@@ -170,7 +175,6 @@ fun CheckoutScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = Blue1),
                 shape = RoundedCornerShape(24.dp),
                 contentPadding = PaddingValues(vertical = 12.dp),
-                // Button enabled only if ALL initial data loaded AND not placing order
                 enabled = userProfile is Resource.Success && cartTotal is Resource.Success && cartItems is Resource.Success && orderStatus !is Resource.Loading
             ) {
                 if (orderStatus is Resource.Loading) {
@@ -188,8 +192,6 @@ fun CheckoutScreen(
         PullToRefreshContainer(
             isRefreshing = isRefreshing,
             onRefresh = {
-                // Trigger all data loading functions on refresh
-                (viewModel as? RefreshableViewModel)?.refresh() // If CheckoutViewModel implements RefreshableViewModel
                 viewModel.loadUserProfile()
                 viewModel.loadCartItems()
                 viewModel.calculateCartTotal()
@@ -206,26 +208,21 @@ fun CheckoutScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Determine if an overall error state exists for initial data loading
-                val initialDataError = (userProfile as? Resource.Error)?.message
-                    ?: (cartTotal as? Resource.Error)?.message
-                    ?: (cartItems as? Resource.Error)?.message
-
                 if (initialDataError != null) {
-                    val isNetworkError = initialDataError.contains("network", ignoreCase = true) || initialDataError.contains("Unable to resolve host", ignoreCase = true)
+                    val isNetworkError = initialDataError.contains("internet connection", ignoreCase = true) || initialDataError.contains("network error", ignoreCase = true) || initialDataError.contains("timeout", ignoreCase = true)
                     ErrorScreen(
                         modifier = Modifier.fillMaxSize(),
                         title = if (isNetworkError) "No Internet Connection" else "Error Loading Data",
                         message = if (isNetworkError) "Please check your connection and try again." else initialDataError,
-                        imageResId = if (isNetworkError) R.drawable.no_int else R.drawable.error // Ensure you have these drawables
+                        imageResId = if (isNetworkError) R.drawable.no_int else R.drawable.error
                     )
-                } else if (isRefreshing) { // Use isRefreshing here to show shimmer if any part is loading
+                } else if (isRefreshing) {
                     LoadingCheckoutScreenContent(
-                        isEditingAddress = isEditingAddress,
+                        isEditingAddress = isEditingAddress, 
                         onEditToggle = { /* No-op in loading state */ }
                     )
                 } else {
-                    // Check for individual success states to render content
+
                     if (userProfile is Resource.Success && cartTotal is Resource.Success && cartItems is Resource.Success) {
                         OrderSummaryCard(viewModel)
                         AddressCard(
@@ -237,7 +234,7 @@ fun CheckoutScreen(
                         PaymentMethodCard(viewModel)
                         OrderTotalCard(viewModel)
                     } else {
-                        // Fallback for unexpected states, though `isRefreshing` and `initialDataError` should cover most
+
                         Text("Something went wrong while displaying data.", color = Color.Red, modifier = Modifier.padding(16.dp))
                     }
                 }
@@ -245,9 +242,9 @@ fun CheckoutScreen(
                 // Show order status error if any (separate from initial data loading errors)
                 if (orderStatus is Resource.Error) {
                     val orderErrorMessage = (orderStatus as Resource.Error).message ?: "Error placing order"
-                    val isNetworkErrorDuringOrder = orderErrorMessage.contains("network", ignoreCase = true) || orderErrorMessage.contains("Unable to resolve host", ignoreCase = true)
+                    val isNetworkErrorDuringOrder = orderErrorMessage.contains("internet connection", ignoreCase = true) || orderErrorMessage.contains("network error", ignoreCase = true) || orderErrorMessage.contains("timeout", ignoreCase = true)
                     ErrorScreen(
-                        modifier = Modifier.fillMaxWidth().height(200.dp).padding(horizontal = 16.dp), // Provide a size
+                        modifier = Modifier.fillMaxWidth().height(200.dp).padding(horizontal = 16.dp),
                         title = if (isNetworkErrorDuringOrder) "Order Failed: No Internet" else "Order Failed",
                         message = if (isNetworkErrorDuringOrder) "Could not place order. Check your internet." else orderErrorMessage,
                         imageResId = if (isNetworkErrorDuringOrder) R.drawable.no_int else R.drawable.error
@@ -258,7 +255,6 @@ fun CheckoutScreen(
     }
 }
 
-// **This is the single, canonical definition of LoadingShimmerEffect**
 @Composable
 fun LoadingShimmerEffect(modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(8.dp)) {
     val transition = rememberInfiniteTransition(label = "shimmerTransition")
@@ -273,7 +269,7 @@ fun LoadingShimmerEffect(modifier: Modifier = Modifier, shape: Shape = RoundedCo
     val brush = Brush.linearGradient(
         colors = listOf(Color.LightGray.copy(alpha = 0.2f), Color.LightGray.copy(alpha = alpha), Color.LightGray.copy(alpha = 0.2f)),
         start = Offset(0f, 0f),
-        end = Offset(1000f, 1000f) // Adjust for desired shimmer direction
+        end = Offset(1000f, 1000f)
     )
     Spacer(
         modifier = modifier
@@ -285,24 +281,23 @@ fun LoadingShimmerEffect(modifier: Modifier = Modifier, shape: Shape = RoundedCo
 @Composable
 fun LoadingCheckoutScreenContent(
     isEditingAddress: Boolean,
-    onEditToggle: () -> Unit // This will be a no-op when loading
+    onEditToggle: () -> Unit
 ) {
-    // Order Summary Card Shimmer
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            LoadingShimmerEffect( // Shimmer for "Order Summary" title
+            LoadingShimmerEffect(
                 modifier = Modifier
                     .fillMaxWidth(0.4f)
-                    .height(24.dp), // Height for a title
+                    .height(24.dp),
                 shape = RoundedCornerShape(4.dp)
             )
             Spacer(modifier = Modifier.height(12.dp))
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                repeat(2) { // Show 2 shimmer items as a placeholder
+                repeat(2) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -314,7 +309,7 @@ fun LoadingCheckoutScreenContent(
                                 modifier = Modifier
                                     .fillMaxWidth(0.7f)
                                     .height(20.dp),
-                                shape = RoundedCornerShape(4.dp) // Smaller corners for text lines
+                                shape = RoundedCornerShape(4.dp)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             LoadingShimmerEffect(
@@ -336,7 +331,6 @@ fun LoadingCheckoutScreenContent(
         }
     }
 
-    // Shipping Address Card Shimmer
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -348,26 +342,26 @@ fun LoadingCheckoutScreenContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                LoadingShimmerEffect( // Shimmer for "Shipping Address" title
+                LoadingShimmerEffect(
                     modifier = Modifier
                         .fillMaxWidth(0.5f)
                         .height(24.dp),
                     shape = RoundedCornerShape(4.dp)
                 )
-                LoadingShimmerEffect( // Shimmer for "Edit" icon
-                    modifier = Modifier.size(24.dp), // Icon size
-                    shape = CircleShape // Icons are often circular/square
+                LoadingShimmerEffect(
+                    modifier = Modifier.size(24.dp),
+                    shape = CircleShape
                 )
             }
             Spacer(modifier = Modifier.height(12.dp))
-            LoadingShimmerEffect( // Shimmer for address line 1
+            LoadingShimmerEffect(
                 modifier = Modifier
                     .fillMaxWidth(0.9f)
                     .height(20.dp),
                 shape = RoundedCornerShape(4.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
-            LoadingShimmerEffect( // Shimmer for address line 2
+            LoadingShimmerEffect(
                 modifier = Modifier
                     .fillMaxWidth(0.7f)
                     .height(20.dp),
@@ -376,14 +370,13 @@ fun LoadingCheckoutScreenContent(
         }
     }
 
-    // Contact Information Card Shimmer
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            LoadingShimmerEffect( // Shimmer for "Contact Information" title
+            LoadingShimmerEffect(
                 modifier = Modifier
                     .fillMaxWidth(0.6f)
                     .height(24.dp),
@@ -391,29 +384,28 @@ fun LoadingCheckoutScreenContent(
             )
             Spacer(modifier = Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                LoadingShimmerEffect( // Shimmer for phone icon
+                LoadingShimmerEffect(
                     modifier = Modifier.size(20.dp),
                     shape = CircleShape
                 )
                 Spacer(modifier = Modifier.width(12.dp))
-                LoadingShimmerEffect( // Shimmer for phone number input field
+                LoadingShimmerEffect(
                     modifier = Modifier
                         .weight(1f)
-                        .height(56.dp), // Height of OutlinedTextField
-                    shape = RoundedCornerShape(12.dp) // Shape of OutlinedTextField
+                        .height(56.dp),
+                    shape = RoundedCornerShape(12.dp)
                 )
             }
         }
     }
 
-    // Payment Method Card Shimmer
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            LoadingShimmerEffect( // Shimmer for "Payment Method" title
+            LoadingShimmerEffect(
                 modifier = Modifier
                     .fillMaxWidth(0.45f)
                     .height(24.dp),
@@ -421,12 +413,12 @@ fun LoadingCheckoutScreenContent(
             )
             Spacer(modifier = Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                LoadingShimmerEffect( // Shimmer for Radio Button
-                    modifier = Modifier.size(24.dp), // Size of RadioButton
+                LoadingShimmerEffect(
+                    modifier = Modifier.size(24.dp),
                     shape = CircleShape
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                LoadingShimmerEffect( // Shimmer for "Cash on Delivery" text
+                LoadingShimmerEffect(
                     modifier = Modifier
                         .fillMaxWidth(0.6f)
                         .height(20.dp),
@@ -436,14 +428,13 @@ fun LoadingCheckoutScreenContent(
         }
     }
 
-    // Order Total Card Shimmer
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            repeat(3) { // Subtotal, Shipping, Tax
+            repeat(3) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -465,19 +456,19 @@ fun LoadingCheckoutScreenContent(
             }
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 12.dp),
-                color = Color(0xFFE0E0E0) // Divider itself is static
+                color = Color(0xFFE0E0E0)
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                LoadingShimmerEffect( // Shimmer for "Total" title
+                LoadingShimmerEffect(
                     modifier = Modifier
                         .width(60.dp)
                         .height(24.dp),
                     shape = RoundedCornerShape(4.dp)
                 )
-                LoadingShimmerEffect( // Shimmer for total amount
+                LoadingShimmerEffect(
                     modifier = Modifier
                         .width(90.dp)
                         .height(24.dp),
@@ -488,10 +479,6 @@ fun LoadingCheckoutScreenContent(
     }
 }
 
-
-// These are the original Composables that display actual data.
-// They are called within CheckoutScreen when isDataLoaded is true.
-// No changes are needed here as their purpose is to show the actual content.
 
 @Composable
 private fun OrderSummaryCard(viewModel: CheckoutViewModel) {
@@ -513,13 +500,10 @@ private fun OrderSummaryCard(viewModel: CheckoutViewModel) {
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // This block is largely redundant now that CheckoutScreen handles the overall loading,
-            // but keeping it for theoretical isolated loading scenarios or if cartItems
-            // itself can be in a loading state independently while other data is ready.
             when (cartItems) {
                 is Resource.Loading -> {
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        repeat(2) { // Show 2 shimmer items as a placeholder
+                        repeat(2) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
@@ -622,7 +606,6 @@ private fun CartItemRow(item: CartItem) {
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        // Item details
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.glasses.name,
@@ -655,7 +638,6 @@ private fun CartItemRow(item: CartItem) {
             )
         }
 
-        // Price
         Text(
             text = "EGP ${String.format("%.2f", totalPrice)}",
             style = TextStyle(
@@ -791,12 +773,13 @@ private fun PhoneNumberCard(viewModel: CheckoutViewModel) {
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Phone number field with Egypt prefix
             var localPhone by remember { mutableStateOf(viewModel.phoneNumber.removePrefix("+20")) }
 
             LaunchedEffect(viewModel.phoneNumber) {
                 if (!viewModel.phoneNumber.startsWith("+20")) {
                     localPhone = ""
+                } else {
+                    localPhone = viewModel.phoneNumber.removePrefix("+20")
                 }
             }
 
@@ -861,7 +844,7 @@ private fun PaymentMethodCard(viewModel: CheckoutViewModel) {
                         onClick = { viewModel.selectedPaymentOption = option },
                         colors = RadioButtonDefaults.colors(
                             selectedColor = Blue1,
-                            unselectedColor = Color.LightGray // Changed for better shimmer appearance when static
+                            unselectedColor = Color.LightGray
                         ),
                         modifier = Modifier.padding(start = 4.dp)
                     )
@@ -998,7 +981,7 @@ fun EditableInfoItem(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = Gray600,
+            tint = Color(0xFF4D5159), // Gray600
             modifier = Modifier
                 .padding(top = if (isEditing) 20.dp else 8.dp)
                 .size(20.dp)
@@ -1034,12 +1017,12 @@ fun EditableInfoItem(
                 Text(
                     text = label,
                     fontSize = 12.sp,
-                    color = Gray600
+                    color = Color(0xFF4D5159) // Gray600
                 )
                 Text(
                     text = value,
                     fontSize = 14.sp,
-                    color = Black,
+                    color = Color.Black, // Black
                     modifier = Modifier.padding(top = 2.dp)
                 )
             }
