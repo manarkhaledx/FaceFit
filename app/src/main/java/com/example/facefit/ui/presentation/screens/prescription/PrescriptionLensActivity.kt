@@ -1,5 +1,6 @@
 package com.example.facefit.ui.presentation.screens.prescription
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
@@ -7,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.viewModels
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -14,22 +16,24 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets // Import WindowInsets
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.layout.imePadding // Added for keyboard
-
-import androidx.compose.foundation.layout.systemBars // Import systemBars
-
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.ripple.rememberRipple // Import rememberRipple
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -65,9 +69,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.facefit.R
 import com.example.facefit.domain.models.Glasses
-import com.example.facefit.domain.utils.Resource
 import com.example.facefit.domain.utils.NetworkUtils
-import com.example.facefit.ui.presentation.screens.cart.CartViewModel
+import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.screens.cart.ShoppingCartActivity
 import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
@@ -77,11 +80,11 @@ import com.example.facefit.ui.theme.Gray200
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import androidx.core.view.WindowCompat
-import androidx.activity.OnBackPressedCallback
-
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.KeyboardOptions
+import com.example.facefit.ui.presentation.screens.cart.CartViewModel
+import androidx.compose.ui.composed // Import composed
+import androidx.compose.ui.semantics.Role // Import Role
+import androidx.compose.foundation.interaction.MutableInteractionSource // Import MutableInteractionSource
+import kotlinx.coroutines.delay // Import delay for debouncing
 
 @AndroidEntryPoint
 class PrescriptionLensActivity : ComponentActivity() {
@@ -102,8 +105,6 @@ class PrescriptionLensActivity : ComponentActivity() {
                     viewModel = viewModel,
                     productId = productId,
                     color = color,
-                    onNavigateToCart = { lensType, lensSpecification, prescriptionId ->
-                    },
                     onClose = { finish() },
                     activityContext = this
                 )
@@ -117,21 +118,26 @@ fun LensPrescriptionFlow(
     viewModel: PrescriptionLensViewModel,
     productId: String,
     color: String,
-    onNavigateToCart: (lensType: String, lensSpecification: String, prescriptionId: String?) -> Unit,
     onClose: () -> Unit,
     activityContext: ComponentActivity
 ) {
     var currentStep by remember { mutableIntStateOf(1) }
     var selectedLensType by remember { mutableStateOf("") }
     var prescriptionId by remember { mutableStateOf<String?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
     var lastSelectedLensOptionIsPrescription by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    // Local loading state for this composable's direct control over UI elements
+    var isLocalLoading by remember { mutableStateOf(false) }
+
+
     DisposableEffect(currentStep) {
         val callback = object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                // Ensure back button is disabled during local loading for step 2
+                if (isLocalLoading && currentStep == 2) return
+
                 if (currentStep == 3 && !lastSelectedLensOptionIsPrescription) {
                     currentStep = 1
                     selectedLensType = ""
@@ -167,8 +173,8 @@ fun LensPrescriptionFlow(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
-                .padding(WindowInsets.systemBars.asPaddingValues()) // Apply padding from system bars
-                .imePadding() // Added to handle keyboard overlap for text fields
+                .padding(WindowInsets.systemBars.asPaddingValues())
+                .imePadding()
         ) {
             Row(
                 modifier = Modifier
@@ -182,7 +188,8 @@ fun LensPrescriptionFlow(
                     contentDescription = "Back",
                     modifier = Modifier
                         .size(24.dp)
-                        .clickable {
+                        // Use isLocalLoading to disable back button during prescription save
+                        .clickable(enabled = !isLocalLoading) {
                             if (currentStep == 3 && !lastSelectedLensOptionIsPrescription) {
                                 currentStep = 1
                                 selectedLensType = ""
@@ -216,7 +223,8 @@ fun LensPrescriptionFlow(
                     contentDescription = "Close",
                     modifier = Modifier
                         .size(24.dp)
-                        .clickable { onClose() }
+                        // Use isLocalLoading to disable close button during prescription save
+                        .clickable(enabled = !isLocalLoading) { onClose() }
                 )
             }
 
@@ -238,75 +246,34 @@ fun LensPrescriptionFlow(
                     onSavePrescription = {
                         coroutineScope.launch {
                             if (viewModel.validate()) {
-                                isLoading = true
+                                isLocalLoading = true // Show loading for prescription save
                                 if (NetworkUtils.isNetworkAvailable(activityContext)) {
                                     viewModel.createPrescription { id ->
                                         prescriptionId = id
                                         currentStep = 3
-                                        isLoading = false
+                                        isLocalLoading = false // Hide loading
                                     }
                                 } else {
                                     Toast.makeText(context, "No internet connection", Toast.LENGTH_SHORT).show()
-                                    isLoading = false
+                                    isLocalLoading = false // Hide loading
                                 }
                             }
                         }
-                    }
+                    },
+                    isLoading = isLocalLoading // Pass local loading state to EnterPrescriptionScreen
                 )
 
                 3 -> LensSpecificationScreen(
                     onNext = { lensSpecification ->
-                        coroutineScope.launch {
-                            if (NetworkUtils.isNetworkAvailable(activityContext)) {
-                                isLoading = true
-                                viewModel.addToCart(
-                                    productId = productId,
-                                    color = color,
-                                    lensType = selectedLensType,
-                                    size = "standard",
-                                    lensSpecification = lensSpecification,
-                                    prescriptionId = prescriptionId,
-                                    onComplete = { result ->
-                                        when (result) {
-                                            is Resource.Success -> {
-                                                val intent = Intent(
-                                                    activityContext,
-                                                    ShoppingCartActivity::class.java
-                                                ).apply {
-                                                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                                                            Intent.FLAG_ACTIVITY_SINGLE_TOP
-                                                }
-                                                activityContext.startActivity(intent)
-                                                activityContext.finish()
-                                            }
-                                            is Resource.Error -> {
-                                                Log.e("CartViewModel", "Failed to add to cart: ${result.message}")
-                                                Toast.makeText(activityContext, result.message ?: "Failed to add to cart", Toast.LENGTH_SHORT).show()
-                                            }
-                                            is Resource.Loading -> { }
-                                        }
-                                        isLoading = false
-                                    }
-                                )
-                            } else {
-                                Toast.makeText(context, "No internet connection", Toast.LENGTH_SHORT).show()
-                                isLoading = false
-                            }
-                        }
+                        // This onNext is not actually used for navigation to the next step
+                        // The navigation to cart is handled within LensSpecificationScreen
                     },
-                    isLoadingFlow = isLoading
+                    productId = productId,
+                    color = color,
+                    selectedLensType = selectedLensType,
+                    prescriptionId = prescriptionId,
+                    viewModel = viewModel
                 )
-            }
-        }
-
-        if (isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.3f)),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Blue1)
             }
         }
     }
@@ -361,7 +328,8 @@ fun StepIndicator(currentStep: Int, totalSteps: Int) {
 @Composable
 fun EnterPrescriptionScreen(
     viewModel: PrescriptionLensViewModel,
-    onSavePrescription: () -> Unit
+    onSavePrescription: () -> Unit,
+    isLoading: Boolean = false // Added isLoading parameter for the button
 ) {
     val state = viewModel.prescriptionState
     val errors = viewModel.fieldErrors
@@ -398,7 +366,8 @@ fun EnterPrescriptionScreen(
             onAxisChange = { viewModel.updateField(PrescriptionField.OD_AXIS, it) },
             errorSph = errors[PrescriptionField.OD_SPH],
             errorCyl = errors[PrescriptionField.OD_CYL],
-            errorAxis = errors[PrescriptionField.OD_AXIS]
+            errorAxis = errors[PrescriptionField.OD_AXIS],
+            enabled = !isLoading // Disable fields when loading
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -412,7 +381,8 @@ fun EnterPrescriptionScreen(
             onAxisChange = { viewModel.updateField(PrescriptionField.OS_AXIS, it) },
             errorSph = errors[PrescriptionField.OS_SPH],
             errorCyl = errors[PrescriptionField.OS_CYL],
-            errorAxis = errors[PrescriptionField.OS_AXIS]
+            errorAxis = errors[PrescriptionField.OS_AXIS],
+            enabled = !isLoading // Disable fields when loading
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -432,7 +402,8 @@ fun EnterPrescriptionScreen(
             RadioButton(
                 selected = isSinglePD,
                 onClick = { viewModel.setSinglePD(true) },
-                colors = RadioButtonDefaults.colors(selectedColor = Blue1)
+                colors = RadioButtonDefaults.colors(selectedColor = Blue1),
+                enabled = !isLoading // Disable radio buttons when loading
             )
             Text(
                 text = "One Number",
@@ -448,7 +419,8 @@ fun EnterPrescriptionScreen(
             RadioButton(
                 selected = !isSinglePD,
                 onClick = { viewModel.setSinglePD(false) },
-                colors = RadioButtonDefaults.colors(selectedColor = Blue1)
+                colors = RadioButtonDefaults.colors(selectedColor = Blue1),
+                enabled = !isLoading // Disable radio buttons when loading
             )
             Text(
                 text = "Two Numbers",
@@ -490,7 +462,8 @@ fun EnterPrescriptionScreen(
                     focusedBorderColor = if (errors[PrescriptionField.SINGLE_PD] != null) Color.Red else Blue1,
                     unfocusedBorderColor = if (errors[PrescriptionField.SINGLE_PD] != null) Color.Red else Blue1,
                     cursorColor = Blue1
-                )
+                ),
+                enabled = !isLoading // Disable text field when loading
             )
         } else {
             Row(
@@ -524,8 +497,8 @@ fun EnterPrescriptionScreen(
                         focusedBorderColor = if (errors[PrescriptionField.LEFT_PD] != null) Color.Red else Blue1,
                         unfocusedBorderColor = if (errors[PrescriptionField.LEFT_PD] != null) Color.Red else Blue1,
                         cursorColor = Blue1
-                    )
-
+                    ),
+                    enabled = !isLoading // Disable text field when loading
                 )
                 OutlinedTextField(
                     value = state.rightPD,
@@ -554,8 +527,8 @@ fun EnterPrescriptionScreen(
                         focusedBorderColor = if (errors[PrescriptionField.RIGHT_PD] != null) Color.Red else Blue1,
                         unfocusedBorderColor = if (errors[PrescriptionField.RIGHT_PD] != null) Color.Red else Blue1,
                         cursorColor = Blue1
-                    )
-
+                    ),
+                    enabled = !isLoading // Disable text field when loading
                 )
             }
         }
@@ -567,13 +540,22 @@ fun EnterPrescriptionScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Blue1)
+            colors = ButtonDefaults.buttonColors(containerColor = Blue1),
+            enabled = !isLoading // Disable button when loading
         ) {
-            Text(
-                text = "Save Prescription",
-                color = Color.White,
-                fontSize = 16.sp
-            )
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(
+                    text = "Save Prescription",
+                    color = Color.White,
+                    fontSize = 16.sp
+                )
+            }
         }
     }
 }
@@ -588,7 +570,7 @@ fun SectionTitle(title: String) {
             style = TextStyle(
                 fontSize = 18.sp,
                 fontWeight = FontWeight(600),
-                color = Color.Black,
+                color = Black,
                 letterSpacing = 0.9.sp,
             )
         )
@@ -617,7 +599,8 @@ fun PrescriptionField(
     onAxisChange: (String) -> Unit,
     errorSph: String? = null,
     errorCyl: String? = null,
-    errorAxis: String? = null
+    errorAxis: String? = null,
+    enabled: Boolean = true // Added enabled parameter
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -638,7 +621,8 @@ fun PrescriptionField(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Blue1,
                 unfocusedBorderColor = Blue1
-            )
+            ),
+            enabled = enabled // Apply enabled state
         )
         OutlinedTextField(
             value = cylValue,
@@ -655,7 +639,8 @@ fun PrescriptionField(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Blue1,
                 unfocusedBorderColor = Blue1
-            )
+            ),
+            enabled = enabled // Apply enabled state
         )
         OutlinedTextField(
             value = axisValue,
@@ -672,7 +657,8 @@ fun PrescriptionField(
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Blue1,
                 unfocusedBorderColor = Blue1
-            )
+            ),
+            enabled = enabled // Apply enabled state
         )
     }
 }
@@ -681,7 +667,6 @@ fun PrescriptionField(
 @Composable
 fun BottomNavigationBar(
     onNext: () -> Unit,
-    onNavigateToCart: (() -> Unit)? = null,
     currentStep: Int,
     modifier: Modifier = Modifier,
     productId: String,
@@ -738,13 +723,7 @@ fun BottomNavigationBar(
             }
 
             Button(
-                onClick = {
-                    if (currentStep == 3) {
-                        onNavigateToCart?.invoke()
-                    } else {
-                        onNext()
-                    }
-                },
+                onClick = onNext,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Blue1,
                     contentColor = Blue1
@@ -770,13 +749,19 @@ fun BottomNavigationBar(
     }
 }
 
-
 @Composable
 fun LensSpecificationScreen(
     onNext: (lensSpecification: String) -> Unit,
-    isLoadingFlow: Boolean
+    productId: String,
+    color: String,
+    selectedLensType: String,
+    prescriptionId: String?,
+    viewModel: PrescriptionLensViewModel = hiltViewModel(),
 ) {
-    var selectedOption by remember { mutableStateOf<String?>(null) }
+    // Local loading state specific to this screen and its options
+    var isScreenLoading by remember { mutableStateOf(false) }
+    var selectedOptionDuringLoading by remember { mutableStateOf<String?>(null) } // To track which item started loading
+
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -792,48 +777,62 @@ fun LensSpecificationScreen(
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        OptionItem(
-            title = LensOptions.STANDARD,
-            price = "EGP 50",
-            description = "Basic lenses for everyday use",
-            onClick = {
-                if (!isLoadingFlow) {
-                    selectedOption = LensOptions.STANDARD
-                    onNext(LensOptions.STANDARD)
-                }
-            },
-            isLoading = isLoadingFlow && selectedOption == LensOptions.STANDARD
+        val options = listOf(
+            LensOptionData(LensOptions.STANDARD, "EGP 50", "Basic lenses for everyday use"),
+            LensOptionData(LensOptions.BLUE_LIGHT, "EGP 50", "Filters harmful blue light from screens"),
+            LensOptionData(LensOptions.DRIVING, "EGP 50", "Anti-glare coating for night driving")
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OptionItem(
-            title = LensOptions.BLUE_LIGHT,
-            price = "EGP 50",
-            description = "Filters harmful blue light from screens",
-            onClick = {
-                if (!isLoadingFlow) {
-                    selectedOption = LensOptions.BLUE_LIGHT
-                    onNext(LensOptions.BLUE_LIGHT)
-                }
-            },
-            isLoading = isLoadingFlow && selectedOption == LensOptions.BLUE_LIGHT
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OptionItem(
-            title = LensOptions.DRIVING,
-            price = "EGP 50",
-            description = "Anti-glare coating for night driving",
-            onClick = {
-                if (!isLoadingFlow) {
-                    selectedOption = LensOptions.DRIVING
-                    onNext(LensOptions.DRIVING)
-                }
-            },
-            isLoading = isLoadingFlow && selectedOption == LensOptions.DRIVING
-        )
+        options.forEach { option ->
+            OptionItem(
+                title = option.title,
+                price = option.price,
+                description = option.description,
+                onClick = {
+                    if (!isScreenLoading) { // Prevent new clicks if a request is already in flight
+                        isScreenLoading = true
+                        selectedOptionDuringLoading = option.title
+                        coroutineScope.launch {
+                            if (NetworkUtils.isNetworkAvailable(context)) {
+                                viewModel.addToCart(
+                                    productId = productId,
+                                    color = color,
+                                    lensType = selectedLensType,
+                                    size = "standard",
+                                    lensSpecification = option.title, // Use option.title as spec
+                                    prescriptionId = prescriptionId,
+                                    onComplete = { result ->
+                                        isScreenLoading = false
+                                        selectedOptionDuringLoading = null
+                                        when (result) {
+                                            is Resource.Success -> {
+                                                val intent = Intent(context, ShoppingCartActivity::class.java).apply {
+                                                    flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                                                }
+                                                context.startActivity(intent)
+                                                (context as? ComponentActivity)?.finish()
+                                            }
+                                            is Resource.Error -> {
+                                                Log.e("PrescriptionLensFlow", "Failed to add to cart: ${result.message}")
+                                                Toast.makeText(context, result.message ?: "Failed to add to cart", Toast.LENGTH_SHORT).show()
+                                            }
+                                            is Resource.Loading -> { /* Not used here */ }
+                                        }
+                                    }
+                                )
+                            } else {
+                                Toast.makeText(context, "No internet connection", Toast.LENGTH_SHORT).show()
+                                isScreenLoading = false
+                                selectedOptionDuringLoading = null
+                            }
+                        }
+                    }
+                },
+                // Only show loading for the currently selected/loading item
+                isLoading = isScreenLoading && selectedOptionDuringLoading == option.title
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+        }
     }
 }
 
@@ -928,17 +927,43 @@ fun OptionItem(
     onClick: () -> Unit,
     isLoading: Boolean = false
 ) {
+    // Using rememberCoroutineScope to ensure the scope is tied to the composable's lifecycle
+    val coroutineScope = rememberCoroutineScope()
+    // Using a mutable state to prevent rapid re-launching of click handlers
+    val clickedState = remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = !isLoading) { onClick() }
+            .clickable(
+                // The enabled state of the clickable modifier.
+                // It's false if isLoading is true (from parent state) OR if a click has just been registered locally.
+                enabled = !isLoading && !clickedState.value,
+                onClick = {
+                    if (!isLoading && !clickedState.value) { // Double check
+                        clickedState.value = true // Mark as clicked immediately
+                        onClick() // Execute the actual click action
+
+                        // Reset clickedState after a short delay, regardless of the outcome
+                        coroutineScope.launch {
+                            delay(500L) // Adjust this debounce time as needed (e.g., 500ms)
+                            clickedState.value = false
+                        }
+                    }
+                },
+                // Provide a custom interactionSource to remove default ripple effect if needed
+                // For this scenario, keeping the ripple but ensuring one click.
+                // interactionSource = remember { MutableInteractionSource() },
+                // indication = rememberRipple() // Keep default ripple
+            )
             .padding(vertical = 4.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
                 modifier = Modifier.weight(1f)
@@ -966,12 +991,19 @@ fun OptionItem(
                 }
             }
 
-            if (isLoading) {
+            if (isLoading) { // This isLoading comes from the parent (LensSpecificationScreen's local state)
                 CircularProgressIndicator(
                     modifier = Modifier.size(24.dp),
-                    strokeWidth = 2.dp
+                    strokeWidth = 2.dp,
+                    color = Blue1
                 )
             }
         }
     }
 }
+
+data class LensOptionData(
+    val title: String,
+    val price: String,
+    val description: String
+)

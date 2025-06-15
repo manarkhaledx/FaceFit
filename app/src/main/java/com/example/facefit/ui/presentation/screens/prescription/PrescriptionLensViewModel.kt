@@ -23,6 +23,7 @@ import com.example.facefit.domain.utils.Resource
 import com.example.facefit.domain.utils.validators.PrescriptionValidator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay // Import delay
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
 import java.io.IOException
@@ -160,19 +161,53 @@ class PrescriptionLensViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            try {
-                val result = addToCartUseCase(request)
-                if (result is Resource.Error) {
-                    Log.e("PrescriptionVM", "Error adding to cart: ${result.message}")
+            val maxRetries = 3 // Max number of retries
+            var currentAttempt = 0
+            var delayTime = 200L // Initial delay for retry
+
+            while (currentAttempt < maxRetries) {
+                try {
+                    val result = addToCartUseCase(request)
+                    if (result is Resource.Error && result.message?.contains("Write conflict") == true) {
+                        currentAttempt++
+                        Log.w("PrescriptionVM", "Write conflict detected for add to cart. Retrying attempt $currentAttempt/$maxRetries...")
+                        delay(delayTime) // Wait before retrying
+                        delayTime *= 2 // Exponential backoff
+                        continue // Retry the loop
+                    } else {
+                        // Success or a different type of error, complete the operation
+                        if (result is Resource.Error) {
+                            Log.e("PrescriptionVM", "Error adding to cart: ${result.message}")
+                        }
+                        onComplete(result)
+                        return@launch // Exit the coroutine
+                    }
+                } catch (e: Exception) {
+                    // Handle network errors or other exceptions here
+                    val isRetriable = when (e) {
+                        is SocketTimeoutException, is IOException -> true // Network issues
+                        is HttpException -> e.code() == 500 // Generic 500 for potential server issues
+                        else -> false
+                    }
+
+                    if (isRetriable && currentAttempt < maxRetries) {
+                        currentAttempt++
+                        Log.w("PrescriptionVM", "Retriable exception during add to cart: ${e.message}. Retrying attempt $currentAttempt/$maxRetries...")
+                        delay(delayTime)
+                        delayTime *= 2
+                        continue // Retry the loop
+                    } else {
+                        // Not retriable or max retries reached
+                        handleGenericException(e, "Exception during add to cart")
+                        onComplete(Resource.Error("Something went wrong or max retries reached.", null))
+                        return@launch // Exit the coroutine
+                    }
                 }
-                onComplete(result)
-            } catch (e: Exception) {
-                handleGenericException(e, "Exception during add to cart")
-                onComplete(Resource.Error("Something went wrong.", null))
             }
+            // If loop finishes, it means max retries were reached without success
+            onComplete(Resource.Error("Failed to add to cart after multiple retries.", null))
         }
     }
-
 
     fun updateField(field: PrescriptionField, value: String) {
         prescriptionState = when (field) {

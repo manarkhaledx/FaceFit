@@ -1,3 +1,4 @@
+// CartViewModel.kt
 package com.example.facefit.ui.presentation.screens.cart
 
 import android.content.Context
@@ -56,6 +57,10 @@ class CartViewModel @Inject constructor(
 
     private var _totalAmount = MutableStateFlow(0.0)
     val totalAmount: StateFlow<Double> = _totalAmount.asStateFlow()
+
+    // New state to track which item is being deleted
+    private val _deletingItemId = MutableStateFlow<String?>(null)
+    val deletingItemId: StateFlow<String?> = _deletingItemId.asStateFlow()
 
     init {
         loadCart()
@@ -153,9 +158,8 @@ class CartViewModel @Inject constructor(
             return
         }
 
+        // Optimistic update
         val oldQuantity = _cartItems.value.find { it.id == itemId }?.quantity ?: 0
-        val quantityChange = quantity - oldQuantity
-
         val updatedItems = _cartItems.value.map { item ->
             if (item.id == itemId) {
                 item.copy(quantity = quantity)
@@ -175,48 +179,49 @@ class CartViewModel @Inject constructor(
             try {
                 when (val result = updateCartItemUseCase(itemId, quantity, prescriptionId)) {
                     is Resource.Error -> {
-                        loadCart()
+                        loadCart() // Revert to server state on error
                         handleGenericError(result.message, Resource.Error("", emptyList()), _cartState)
                     }
-                    else -> Unit
+                    else -> Unit // Success handled by optimistic update for now, or you can reload for consistency
                 }
             } catch (e: Exception) {
-                loadCart()
+                loadCart() // Revert to server state on exception
                 handleGenericError(e.message, Resource.Error("", emptyList()), _cartState)
             }
         }
     }
 
-    fun removeCartItem(itemId: String) {
+    fun removeCartItem(itemId: String, onComplete: (Boolean) -> Unit) {
         if (!NetworkUtils.isNetworkAvailable(context)) {
+            onComplete(false)
             _cartState.value = Resource.Error("Please check your internet connection.", _cartItems.value)
             return
         }
 
-        val removedItem = _cartItems.value.find { it.id == itemId }
-        val updatedItems = _cartItems.value.filter { it.id != itemId }
-        _cartItems.value = updatedItems
-        if (removedItem != null) {
-            _totalAmount.value -= (removedItem.glasses.price + removedItem.lensPrice) * removedItem.quantity
-        }
+        _deletingItemId.value = itemId // Set the ID of the item being deleted
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 when (val result = removeCartItemUseCase(itemId)) {
                     is Resource.Success -> {
-                        loadCart()
+                        loadCart() // Reload cart to reflect deletion and update UI
+                        onComplete(true)
                     }
                     is Resource.Error -> {
-                        loadCart()
+                        loadCart() // Reload cart to revert if deletion failed
                         handleGenericError(result.message, Resource.Error("", emptyList()), _cartState)
+                        onComplete(false)
                     }
-                    else -> Unit
+                    else -> onComplete(false)
                 }
                 getItemCount()
             } catch (e: Exception) {
-                loadCart()
+                loadCart() // Reload cart to revert on exception
                 handleGenericError(e.message, Resource.Error("", emptyList()), _cartState)
                 getItemCount()
+                onComplete(false)
+            } finally {
+                _deletingItemId.value = null // Clear the deleting ID after completion (success or failure)
             }
         }
     }
@@ -227,6 +232,7 @@ class CartViewModel @Inject constructor(
             return
         }
 
+        // Optimistic update
         _cartItems.value = emptyList()
         _totalAmount.value = 0.0
 
@@ -234,17 +240,17 @@ class CartViewModel @Inject constructor(
             try {
                 when (val result = clearCartUseCase()) {
                     is Resource.Success -> {
-                        loadCart()
+                        loadCart() // Reload to confirm
                     }
                     is Resource.Error -> {
-                        loadCart()
+                        loadCart() // Revert if failed
                         handleGenericError(result.message, Resource.Error("", emptyList()), _cartState)
                     }
                     else -> Unit
                 }
                 getItemCount()
             } catch (e: Exception) {
-                loadCart()
+                loadCart() // Revert on exception
                 handleGenericError(e.message, Resource.Error("", emptyList()), _cartState)
                 getItemCount()
             }
