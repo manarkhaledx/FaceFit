@@ -10,10 +10,6 @@ import androidx.compose.material.BottomNavigationItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,7 +31,7 @@ import com.example.facefit.ui.theme.LavenderBlue
 @Composable
 fun AppBottomNavigation() {
     val context = LocalContext.current
-    val defaultSelectedItem = when (context::class.java) {
+    val selectedItem = when (context::class.java) {
         HomePageActivity::class.java -> 0
         AllProductsActivity::class.java -> 2
         FavouritesActivity::class.java -> 1
@@ -44,7 +40,6 @@ fun AppBottomNavigation() {
         else -> 0
     }
 
-    var selectedItem by remember { mutableIntStateOf(defaultSelectedItem) }
 
     val items = listOf(
         NavigationItem("Home", if (selectedItem == 0)  R.drawable.home else R.drawable.home_empty),
@@ -97,13 +92,27 @@ fun AppBottomNavigation() {
                     selected = selectedItem == index,
                     onClick = {
                         if (selectedItem != index) {
-                            selectedItem = index
                             when (item.title) {
-                                "Home" -> context.startActivity(Intent(context, HomePageActivity::class.java))
-                                "Products" -> context.startActivity(Intent(context, AllProductsActivity::class.java))
-                                "Favourites" -> context.startActivity(Intent(context, FavouritesActivity::class.java))
-                                "Cart" -> context.startActivity(Intent(context, ShoppingCartActivity::class.java))
-                                "Profile" -> context.startActivity(Intent(context, ProfileActivity::class.java))
+                                "Home" -> context.startActivity(
+                                    Intent(context, HomePageActivity::class.java)
+                                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                                "Products" -> context.startActivity(
+                                    Intent(context, AllProductsActivity::class.java)
+                                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                                "Favourites" -> context.startActivity(
+                                    Intent(context, FavouritesActivity::class.java)
+                                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                                "Cart" -> context.startActivity(
+                                    Intent(context, ShoppingCartActivity::class.java)
+                                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                                "Profile" -> context.startActivity(
+                                    Intent(context, ProfileActivity::class.java)
+                                        .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
                             }
                         }
                     },
