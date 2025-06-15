@@ -1,6 +1,7 @@
 package com.example.facefit.data.remote
 
 import com.example.facefit.data.models.requests.AddToCartRequest
+import com.example.facefit.data.models.requests.OrderRequest
 import com.example.facefit.data.models.requests.CreatePrescriptionRequest
 import com.example.facefit.data.models.requests.LoginRequest
 import com.example.facefit.data.models.requests.SignUpRequest
@@ -8,15 +9,15 @@ import com.example.facefit.data.models.requests.SubmitReviewRequest
 import com.example.facefit.data.models.requests.UpdateCartItemRequest
 import com.example.facefit.data.models.requests.UpdateUserRequest
 import com.example.facefit.data.models.responses.CartResponse
-import com.example.facefit.data.models.responses.CheckEmailResponse
 import com.example.facefit.data.models.responses.FavoritesResponse
 import com.example.facefit.data.models.responses.LoginResponse
+import com.example.facefit.data.models.responses.OrderResponse
 import com.example.facefit.data.models.responses.PrescriptionResponse
 import com.example.facefit.data.models.responses.ReviewsResponse
 import com.example.facefit.data.models.responses.SignUpResponse
 import com.example.facefit.data.models.responses.UserResponse
 import com.example.facefit.domain.models.Glasses
-import com.example.facefit.domain.models.User
+import com.example.facefit.domain.models.UserOrderResponse
 import com.example.facefit.ui.utils.Constants
 import okhttp3.MultipartBody
 import retrofit2.Response
@@ -142,4 +143,15 @@ interface ApiService {
     suspend fun clearCart(
         @Header("Authorization") token: String
     ): Response<CartResponse>
+
+    @POST(Constants.CREATE_ORDER_ENDPOINT)
+    suspend fun createOrder(
+        @Header("Authorization") token: String,
+        @Body request: OrderRequest
+    ): Response<OrderResponse>
+
+    @GET(Constants.GET_ORDERS_ENDPOINT)
+    suspend fun getUserOrders(
+        @Header("Authorization") token: String
+    ): Response<UserOrderResponse>
 }

@@ -84,10 +84,15 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.rememberAsyncImagePainter
 import com.example.facefit.R
+import com.example.facefit.domain.models.Order
 import com.example.facefit.domain.models.User
+import com.example.facefit.ui.presentation.components.ErrorScreen
+import com.example.facefit.ui.presentation.components.PullToRefreshContainer
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 import com.example.facefit.ui.presentation.screens.auth.login.LoginPage
 import com.example.facefit.ui.presentation.screens.auth.signUp.EgyptPhoneNumberField
+import com.example.facefit.ui.presentation.screens.cart.AllOrdersActivity
+import com.example.facefit.ui.presentation.screens.favourites.NoInternetScreen
 import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.Gray100
@@ -98,9 +103,8 @@ import com.example.facefit.ui.theme.lightBackground
 import com.example.facefit.ui.utils.Constants
 import dagger.hilt.android.AndroidEntryPoint
 import java.io.File
-import com.example.facefit.ui.presentation.components.ErrorScreen // Import the new ErrorScreen
-import com.example.facefit.ui.presentation.components.PullToRefreshContainer
-import com.example.facefit.ui.presentation.screens.favourites.NoInternetScreen
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 
 @AndroidEntryPoint
@@ -117,7 +121,10 @@ class ProfileActivity : ComponentActivity() {
                 val updateState by viewModel.updateState.collectAsStateWithLifecycle()
                 val profileEditUiState by viewModel.profileEditUiState.collectAsStateWithLifecycle()
                 val imageUploadState by viewModel.imageUploadState.collectAsStateWithLifecycle()
-
+                val ordersState by viewModel.ordersState.collectAsStateWithLifecycle()
+                LaunchedEffect(Unit) {
+                    viewModel.loadUserOrders(3)
+                }
 
                 val isRefreshing = userState is ProfileState.Loading
 
@@ -131,6 +138,7 @@ class ProfileActivity : ComponentActivity() {
                             ).show()
                             viewModel.clearUpdateState()
                         }
+
                         is UpdateState.Error -> {
                             Toast.makeText(
                                 this@ProfileActivity,
@@ -139,6 +147,7 @@ class ProfileActivity : ComponentActivity() {
                             ).show()
                             viewModel.clearUpdateState()
                         }
+
                         is UpdateState.ValidationError -> {
                             Toast.makeText(
                                 this@ProfileActivity,
@@ -147,6 +156,7 @@ class ProfileActivity : ComponentActivity() {
                             ).show()
                             viewModel.clearUpdateState()
                         }
+
                         else -> {}
                     }
                 }
@@ -161,6 +171,7 @@ class ProfileActivity : ComponentActivity() {
                             ).show()
                             viewModel.clearImageUploadState()
                         }
+
                         is ImageUploadState.Error -> {
                             Toast.makeText(
                                 this@ProfileActivity,
@@ -169,6 +180,7 @@ class ProfileActivity : ComponentActivity() {
                             ).show()
                             viewModel.clearImageUploadState()
                         }
+
                         else -> {}
                     }
                 }
@@ -189,7 +201,11 @@ class ProfileActivity : ComponentActivity() {
                         is ProfileState.Error -> {
 
                             val message = state.message
-                            if (message.contains("network", ignoreCase = true) || message.contains("Unable to resolve host", ignoreCase = true)) {
+                            if (message.contains(
+                                    "network",
+                                    ignoreCase = true
+                                ) || message.contains("Unable to resolve host", ignoreCase = true)
+                            ) {
                                 PullToRefreshContainer(
                                     isRefreshing = isRefreshing,
                                     onRefresh = { viewModel.loadUserProfile() },
@@ -212,6 +228,7 @@ class ProfileActivity : ComponentActivity() {
                                 }
                             }
                         }
+
                         is ProfileState.Success -> {
                             Column(
                                 modifier = Modifier
@@ -235,7 +252,12 @@ class ProfileActivity : ComponentActivity() {
                                     onImageSelected = { uri ->
                                         viewModel.uploadProfileImage(uri, applicationContext)
                                     },
-                                    isImageUploading = imageUploadState is ImageUploadState.Loading
+                                    isImageUploading = imageUploadState is ImageUploadState.Loading,
+                                    ordersState = ordersState,
+                                    onViewAllOrders = {
+                                        val intent = Intent(this@ProfileActivity, AllOrdersActivity::class.java)
+                                        startActivity(intent)
+                                    }
                                 )
                             }
                         }
@@ -279,7 +301,9 @@ fun ProfileScreen(
     onUpdateProfile: () -> Unit,
     onCancelEdit: () -> Unit,
     onImageSelected: (Uri) -> Unit,
-    isImageUploading: Boolean
+    isImageUploading: Boolean,
+    ordersState: OrdersState,
+    onViewAllOrders: () -> Unit
 ) {
     var isEditing by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -310,7 +334,8 @@ fun ProfileScreen(
                     onImageSelected(uri)
                 }
             } else {
-                Toast.makeText(context, "Image capture cancelled or failed", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Image capture cancelled or failed", Toast.LENGTH_SHORT)
+                    .show()
             }
             tempCameraUri = null
         }
@@ -404,13 +429,39 @@ fun ProfileScreen(
                     text = "View All",
                     fontSize = 14.sp,
                     color = Blue1,
-                    modifier = Modifier.clickable { }
+                    modifier = Modifier.clickable { onViewAllOrders() }
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            MyOrdersCard()
+            when (ordersState) {
+                is OrdersState.Loading -> ShimmerOrderCard()
+                is OrdersState.Error -> Text(
+                    text = "Couldn't load orders: ${ordersState.message}",
+                    color = Color.Red,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+
+                is OrdersState.Success -> {
+                    if (ordersState.orders.isEmpty()) {
+                        Text(
+                            text = "No orders yet",
+                            color = Gray600,
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+                    } else {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            ordersState.orders.forEach { order ->
+                                OrderCard(order = order)
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         item {
@@ -423,6 +474,116 @@ fun ProfileScreen(
             )
 
             AccountSettingsCard(onSignOut = onSignOut)
+        }
+    }
+}
+
+@Composable
+fun OrderCard(order: Order, modifier: Modifier = Modifier) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column {
+                    Text(
+                        text = "Order #${order._id.takeLast(6)}",
+                        fontSize = 14.sp,
+                        color = Gray600,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Text(
+                        text = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(
+                            SimpleDateFormat(
+                                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+                                Locale.getDefault()
+                            ).parse(order.date) ?: "Unknown Date"
+                        ),
+                        fontSize = 12.sp,
+                        color = Gray600,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = when (order.status.lowercase()) {
+                        "delivered" -> Color(0xFF4CAF50).copy(alpha = 0.1f)
+                        "shipped" -> Blue1.copy(alpha = 0.1f)
+                        else -> Gray200.copy(alpha = 0.5f)
+                    }
+                ) {
+                    Text(
+                        text = order.status.replaceFirstChar { it.titlecase() },
+                        fontSize = 12.sp,
+                        color = when (order.status.lowercase()) {
+                            "delivered" -> Color(0xFF4CAF50)
+                            "shipped" -> Blue1
+                            else -> Gray600
+                        },
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Show first product image if available
+                if (order.items.isNotEmpty() && order.items[0].item.images.isNotEmpty()) {
+                    Image(
+                        painter = rememberAsyncImagePainter(
+                            model = "${Constants.GET_IMAGE_ENDPOINT}${order.items[0].item.images[0]}",
+                            error = painterResource(id = R.drawable.placeholder)
+                        ),
+                        contentDescription = "Order item",
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Gray100)
+                    )
+                }
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                Text(
+                    text = "EGP ${"%.2f".format(order.total)}",
+                    fontSize = 16.sp,
+                    color = Black,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "View Order",
+                    tint = Gray600,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
