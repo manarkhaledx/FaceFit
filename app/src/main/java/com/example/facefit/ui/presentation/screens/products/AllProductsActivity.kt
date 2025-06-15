@@ -72,6 +72,8 @@ class AllProductsActivity : ComponentActivity() {
             LaunchedEffect(categoryFilter) {
                 if (categoryFilter != null) {
                     viewModel.filterByCategory(categoryFilter)
+                } else {
+                    viewModel.loadAllProducts()
                 }
             }
 
@@ -132,10 +134,6 @@ fun AllProducts(
     val toastTrigger by viewModel.toastTrigger.collectAsStateWithLifecycle()
 
     GlobalErrorToast(errorMessage = uiState.error, trigger = toastTrigger)
-
-    LaunchedEffect(Unit) {
-        viewModel.loadAllProducts()
-    }
 
     Scaffold(bottomBar = { AppBottomNavigation() }) { paddingValues ->
         PullToRefreshContainer(
