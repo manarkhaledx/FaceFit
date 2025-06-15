@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -92,7 +93,6 @@ import com.example.facefit.ui.presentation.components.navigation.AppBottomNaviga
 import com.example.facefit.ui.presentation.screens.auth.login.LoginPage
 import com.example.facefit.ui.presentation.screens.auth.signUp.EgyptPhoneNumberField
 import com.example.facefit.ui.presentation.screens.cart.AllOrdersActivity
-import com.example.facefit.ui.presentation.screens.favourites.NoInternetScreen
 import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.Gray100
@@ -126,7 +126,7 @@ class ProfileActivity : ComponentActivity() {
                     viewModel.loadUserOrders(3)
                 }
 
-                val isRefreshing = userState is ProfileState.Loading
+                val isRefreshing = userState is ProfileState.Loading || ordersState is OrdersState.Loading
 
                 LaunchedEffect(updateState) {
                     when (updateState) {
@@ -142,7 +142,7 @@ class ProfileActivity : ComponentActivity() {
                         is UpdateState.Error -> {
                             Toast.makeText(
                                 this@ProfileActivity,
-                                "Oops! Something went wrong while updating your profile. Please try again.",
+                                (updateState as UpdateState.Error).message, // Use the message from the state
                                 Toast.LENGTH_LONG
                             ).show()
                             viewModel.clearUpdateState()
@@ -175,7 +175,7 @@ class ProfileActivity : ComponentActivity() {
                         is ImageUploadState.Error -> {
                             Toast.makeText(
                                 this@ProfileActivity,
-                                "Couldn't upload your picture. Please try again later.",
+                                (imageUploadState as ImageUploadState.Error).message, // Use the message from the state
                                 Toast.LENGTH_LONG
                             ).show()
                             viewModel.clearImageUploadState()
@@ -199,33 +199,23 @@ class ProfileActivity : ComponentActivity() {
                     when (val state = userState) {
                         is ProfileState.Loading -> ShimmerProfileScreen()
                         is ProfileState.Error -> {
-
                             val message = state.message
-                            if (message.contains(
-                                    "network",
-                                    ignoreCase = true
-                                ) || message.contains("Unable to resolve host", ignoreCase = true)
+                            val isNetworkError = message.contains(
+                                "internet connection",
+                                ignoreCase = true
+                            ) || message.contains("network error", ignoreCase = true) || message.contains("timeout", ignoreCase = true)
+
+                            PullToRefreshContainer(
+                                isRefreshing = isRefreshing,
+                                onRefresh = { viewModel.loadUserProfile() },
+                                modifier = Modifier.fillMaxSize()
                             ) {
-                                PullToRefreshContainer(
-                                    isRefreshing = isRefreshing,
-                                    onRefresh = { viewModel.loadUserProfile() },
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    NoInternetScreen(modifier = Modifier.fillMaxSize())
-                                }
-                            } else {
-                                PullToRefreshContainer(
-                                    isRefreshing = isRefreshing,
-                                    onRefresh = { viewModel.loadUserProfile() },
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
-                                    ErrorScreen(
-                                        modifier = Modifier.fillMaxSize(),
-                                        title = "Something Went Wrong ,",
-                                        message = message,
-                                        imageResId = R.drawable.error
-                                    )
-                                }
+                                ErrorScreen(
+                                    modifier = Modifier.fillMaxSize(),
+                                    title = if (isNetworkError) "No Internet Connection" else "Something Went Wrong",
+                                    message = if (isNetworkError) "Please check your connection and try again." else message,
+                                    imageResId = if (isNetworkError) R.drawable.no_int else R.drawable.error
+                                )
                             }
                         }
 
@@ -276,8 +266,6 @@ class ProfileActivity : ComponentActivity() {
         viewModel.loadUserProfile()
     }
 }
-
-// Removed the ErrorScreen composable from here as it's now in the components package
 
 @Composable
 fun LoadingScreen() {
@@ -504,34 +492,41 @@ fun OrderCard(order: Order, modifier: Modifier = Modifier) {
                         fontWeight = FontWeight.Medium
                     )
 
+                    // Parse and format date
+                    val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+                    val outputFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+                    val formattedDate = try {
+                        val date = inputFormat.parse(order.date)
+                        date?.let { outputFormat.format(it) } ?: "Unknown Date"
+                    } catch (e: Exception) {
+                        Log.e("OrderCard", "Error parsing date: ${e.message}")
+                        "Unknown Date"
+                    }
+
                     Text(
-                        text = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(
-                            SimpleDateFormat(
-                                "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-                                Locale.getDefault()
-                            ).parse(order.date) ?: "Unknown Date"
-                        ),
+                        text = formattedDate,
                         fontSize = 12.sp,
                         color = Gray600,
                         modifier = Modifier.padding(top = 2.dp)
                     )
                 }
 
+                // Order status surface
                 Surface(
                     shape = RoundedCornerShape(12.dp),
                     color = when (order.status.lowercase()) {
-                        "delivered" -> Color(0xFF4CAF50).copy(alpha = 0.1f)
-                        "shipped" -> Blue1.copy(alpha = 0.1f)
-                        else -> Gray200.copy(alpha = 0.5f)
+                        "delivered" -> Color(0xFF4CAF50).copy(alpha = 0.1f) // Green for delivered
+                        "shipped" -> Blue1.copy(alpha = 0.1f) // Blue for shipped
+                        else -> Gray200.copy(alpha = 0.5f) // Default for other statuses
                     }
                 ) {
                     Text(
-                        text = order.status.replaceFirstChar { it.titlecase() },
+                        text = order.status.replaceFirstChar { it.titlecase() }, // Capitalize first letter
                         fontSize = 12.sp,
                         color = when (order.status.lowercase()) {
-                            "delivered" -> Color(0xFF4CAF50)
-                            "shipped" -> Blue1
-                            else -> Gray600
+                            "delivered" -> Color(0xFF4CAF50) // Green text
+                            "shipped" -> Blue1 // Blue text
+                            else -> Gray600 // Default text color
                         },
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
@@ -545,29 +540,42 @@ fun OrderCard(order: Order, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Show first product image if available
+                // Check if there are items and images available
                 if (order.items.isNotEmpty() && order.items[0].item.images.isNotEmpty()) {
+                    val firstOrderItemImage = order.items[0].item.images[0]
+                    val imageUrl = "${Constants.GET_PRIMAGE_ENDPOINT}${order.items[0].item.images[0]}"
+
+                    Log.e("OrderCardImage", "Attempting to load image from URL: $imageUrl")
+
                     Image(
                         painter = rememberAsyncImagePainter(
-                            model = "${Constants.GET_IMAGE_ENDPOINT}${order.items[0].item.images[0]}",
-                            error = painterResource(id = R.drawable.placeholder)
+                            model = imageUrl,
+                            error = painterResource(id = R.drawable.placeholder), // Fallback image on error
+                            placeholder = painterResource(id = R.drawable.placeholder) // Image shown while loading
                         ),
-                        contentDescription = "Order item",
+                        contentDescription = "Image for order item: ${order.items[0].item.name}", // Descriptive content description
                         modifier = Modifier
                             .size(48.dp)
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop // Crop to fill bounds
                     )
                 } else {
+                    // Placeholder box if no image is available
                     Box(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Gray100)
-                    )
+                            .background(Gray100),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Optionally, you can add an icon here to indicate no image
+                        // Icon(imageVector = Icons.Default.ImageNotSupported, contentDescription = "No Image")
+                    }
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.weight(1f)) // Takes up available space
 
+                // Display total price
                 Text(
                     text = "EGP ${"%.2f".format(order.total)}",
                     fontSize = 16.sp,
@@ -577,9 +585,10 @@ fun OrderCard(order: Order, modifier: Modifier = Modifier) {
 
                 Spacer(modifier = Modifier.width(8.dp))
 
+                // Arrow icon to indicate view details
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "View Order",
+                    contentDescription = "View Order Details",
                     tint = Gray600,
                     modifier = Modifier.size(20.dp)
                 )
@@ -813,18 +822,18 @@ fun PersonalInformationCard(
                 }
             }
 
-            if (!isEditing) {
-                HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
-                EditableInfoItem(
-                    icon = Icons.Default.Email,
-                    label = "E-mail",
-                    value = profileEditUiState.email,
-                    isEditing = false,
-                    onValueChange = { },
-                    isError = profileEditUiState.emailError != null,
-                    errorText = profileEditUiState.emailError
-                )
-            }
+
+            HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
+
+            EditableInfoItem(
+                icon = Icons.Default.Email,
+                label = "E-mail",
+                value = profileEditUiState.email,
+                isEditing = false,
+                onValueChange = { },
+                isError = profileEditUiState.emailError != null,
+                errorText = profileEditUiState.emailError
+            )
 
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), color = Gray200)
@@ -1309,7 +1318,10 @@ fun ShimmerAccountSettingsCard() {
                         modifier = Modifier.weight(1f),
                         height = 18.dp
                     )
-                    if (it != 4) ShimmerBox(modifier = Modifier.size(20.dp))
+                    if (it != 4) HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                        color = Gray200
+                    )
                 }
                 if (it < 4) HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 20.dp),

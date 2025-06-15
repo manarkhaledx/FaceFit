@@ -14,11 +14,13 @@ import com.example.facefit.domain.usecases.auth.GetUserProfileUseCase
 import com.example.facefit.domain.usecases.auth.UpdateUserProfileUseCase
 import com.example.facefit.domain.usecases.auth.UploadProfilePictureUseCase
 import com.example.facefit.domain.usecases.order.GetUserOrdersUseCase
+import com.example.facefit.domain.utils.NetworkUtils
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.domain.utils.validators.ProfileValidator
 import com.google.gson.Gson
 import com.google.gson.JsonSyntaxException
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -27,6 +29,9 @@ import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
+import retrofit2.HttpException
+import java.io.IOException
+import java.net.SocketTimeoutException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -36,7 +41,8 @@ class ProfileViewModel @Inject constructor(
     private val updateUserProfileUseCase: UpdateUserProfileUseCase,
     private val uploadProfilePictureUseCase: UploadProfilePictureUseCase,
     private val getUserOrders: GetUserOrdersUseCase,
-    private val gson: Gson
+    private val gson: Gson,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _isLoggedOut = MutableStateFlow(false)
@@ -57,29 +63,38 @@ class ProfileViewModel @Inject constructor(
     private val _ordersState = MutableStateFlow<OrdersState>(OrdersState.Loading)
     val ordersState: StateFlow<OrdersState> = _ordersState.asStateFlow()
 
-
     init {
         loadUserProfile()
     }
 
     fun loadUserOrders(limit: Int? = null) {
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            _ordersState.value = OrdersState.Error("Please check your internet connection.")
+            return
+        }
+
         viewModelScope.launch {
             _ordersState.value = OrdersState.Loading
-            when (val result = getUserOrders()) {
-                is Resource.Success -> {
-                    result.data?.let { response ->
-                        val sortedOrders = response.data.sortedByDescending { it.date }
-                        _ordersState.value = OrdersState.Success(
-                            if (limit != null) sortedOrders.take(limit) else sortedOrders
-                        )
-                    } ?: run {
-                        _ordersState.value = OrdersState.Error("No orders found")
+            try {
+                when (val result = getUserOrders()) {
+                    is Resource.Success -> {
+                        result.data?.let { response ->
+                            val sortedOrders = response.data.sortedByDescending { it.date }
+                            _ordersState.value = OrdersState.Success(
+                                if (limit != null) sortedOrders.take(limit) else sortedOrders
+                            )
+                        } ?: run {
+                            Log.e("ProfileViewModel", "loadUserOrders: No orders data found.")
+                            _ordersState.value = OrdersState.Error("Something went wrong.")
+                        }
                     }
+                    is Resource.Error -> {
+                        handleGenericError(result.message, OrdersState.Error(""), _ordersState)
+                    }
+                    else -> {}
                 }
-                is Resource.Error -> {
-                    _ordersState.value = OrdersState.Error(result.message ?: "Failed to load orders")
-                }
-                else -> {}
+            } catch (e: Exception) {
+                handleGenericError(e.message, OrdersState.Error(""), _ordersState)
             }
         }
     }
@@ -88,37 +103,48 @@ class ProfileViewModel @Inject constructor(
         val token = tokenManager.getToken()
         if (token.isNullOrEmpty()) {
             _userState.value = ProfileState.Error("User not authenticated")
+            Log.e("ProfileViewModel", "User not authenticated for profile load.")
+            return
+        }
+
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            _userState.value = ProfileState.Error("Please check your internet connection.")
             return
         }
 
         viewModelScope.launch {
             _userState.value = ProfileState.Loading
-            when (val result = getUserProfile(token)) {
-                is Resource.Success -> {
-                    result.data?.let { user ->
-                        _userState.value = ProfileState.Success(user)
-                        _profileEditUiState.update {
-                            it.copy(
-                                firstName = user.firstName,
-                                lastName = user.lastName,
-                                email = user.email,
-                                phone = user.phone,
-                                address = user.address ?: "",
-                                firstNameError = null,
-                                lastNameError = null,
-                                emailError = null,
-                                phoneError = null,
-                                addressError = null
-                            )
+            try {
+                when (val result = getUserProfile(token)) {
+                    is Resource.Success -> {
+                        result.data?.let { user ->
+                            _userState.value = ProfileState.Success(user)
+                            _profileEditUiState.update {
+                                it.copy(
+                                    firstName = user.firstName,
+                                    lastName = user.lastName,
+                                    email = user.email,
+                                    phone = user.phone,
+                                    address = user.address ?: "",
+                                    firstNameError = null,
+                                    lastNameError = null,
+                                    emailError = null,
+                                    phoneError = null,
+                                    addressError = null
+                                )
+                            }
+                        } ?: run {
+                            Log.e("ProfileViewModel", "loadUserProfile: User data is empty for successful response.")
+                            _userState.value = ProfileState.Error("Something went wrong.")
                         }
-                    } ?: run {
-                        _userState.value = ProfileState.Error("User data is empty")
                     }
+                    is Resource.Error -> {
+                        handleGenericError(result.message, ProfileState.Error(""), _userState)
+                    }
+                    else -> {}
                 }
-                is Resource.Error -> {
-                    _userState.value = ProfileState.Error(result.message ?: "Unknown error")
-                }
-                else -> {}
+            } catch (e: Exception) {
+                handleGenericError(e.message, ProfileState.Error(""), _userState)
             }
         }
     }
@@ -166,7 +192,8 @@ class ProfileViewModel @Inject constructor(
         val currentUser = (_userState.value as? ProfileState.Success)?.user
 
         if (currentUser == null) {
-            _updateState.value = UpdateState.Error("User profile not loaded.")
+            _updateState.value = UpdateState.Error("User profile not loaded. Please try again.")
+            Log.e("ProfileViewModel", "updateUserProfile: Current user is null.")
             return
         }
 
@@ -190,6 +217,11 @@ class ProfileViewModel @Inject constructor(
             return
         }
 
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            _updateState.value = UpdateState.Error("Please check your internet connection.")
+            return
+        }
+
         _updateState.value = UpdateState.Loading
 
         viewModelScope.launch {
@@ -210,17 +242,22 @@ class ProfileViewModel @Inject constructor(
                         loadUserProfile()
                     }
                     is Resource.Error -> {
-                        handleUpdateError(result.message)
+                        handleUpdateError(result.message) // This handles specific backend errors
                     }
                     else -> {}
                 }
             } catch (e: Exception) {
-                _updateState.value = UpdateState.Error("An unexpected error occurred: ${e.message}")
+                handleGenericError(e.message, UpdateState.Error(""), _updateState) // Generic exception handling
             }
         }
     }
 
     fun uploadProfileImage(uri: Uri, context: Context) {
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            _imageUploadState.value = ImageUploadState.Error("Please check your internet connection.")
+            return
+        }
+
         _imageUploadState.value = ImageUploadState.Loading
         viewModelScope.launch {
             try {
@@ -229,14 +266,15 @@ class ProfileViewModel @Inject constructor(
                 Log.d("UploadDebug", "Image bytes size = ${bytes?.size}")
 
                 if (bytes == null) {
-                    _imageUploadState.value = ImageUploadState.Error("Failed to read image data from URI.")
+                    Log.e("ProfileViewModel", "uploadProfileImage: Failed to read image data from URI.")
+                    _imageUploadState.value = ImageUploadState.Error("Failed to read image data.")
                     return@launch
                 }
 
                 val mimeType = contentResolver.getType(uri) ?: "image/jpeg"
                 val requestBody = bytes.toRequestBody(mimeType.toMediaTypeOrNull())
                 Log.d("UploadDebug", "URI: $uri")
-                Log.d("UploadDebug", "Bytes size: ${bytes?.size}")
+                Log.d("UploadDebug", "Bytes size: ${bytes.size}")
                 Log.d("UploadDebug", "MimeType: $mimeType")
                 val multipartBodyPart = MultipartBody.Part.createFormData(
                     "profilePicture",
@@ -250,26 +288,27 @@ class ProfileViewModel @Inject constructor(
                             _userState.value = ProfileState.Success(updatedUser)
                             _imageUploadState.value = ImageUploadState.Success("Profile picture uploaded successfully!")
                         } ?: run {
-                            _imageUploadState.value = ImageUploadState.Error("Image upload success but no user data returned.")
+                            Log.e("ProfileViewModel", "uploadProfileImage: Success, but no user data returned.")
+                            _imageUploadState.value = ImageUploadState.Error("Something went wrong.")
                         }
                     }
                     is Resource.Error -> {
-                        _imageUploadState.value = ImageUploadState.Error(result.message ?: "Failed to upload image.")
+                        handleGenericError(result.message, ImageUploadState.Error(""), _imageUploadState)
                     }
                     else -> {}
                 }
             } catch (e: Exception) {
-                _imageUploadState.value = ImageUploadState.Error("Error uploading image: ${e.message}")
+                handleGenericError(e.message, ImageUploadState.Error(""), _imageUploadState)
             }
         }
     }
-
 
     private fun handleUpdateError(errorMessage: String?) {
         clearEditStateAndErrors()
 
         if (errorMessage.isNullOrEmpty()) {
-            _updateState.value = UpdateState.Error("An unknown error occurred.")
+            Log.e("ProfileViewModel", "handleUpdateError: Empty error message received.")
+            _updateState.value = UpdateState.Error("Something went wrong.")
             return
         }
 
@@ -307,8 +346,9 @@ class ProfileViewModel @Inject constructor(
                 )
             } else {
                 val generalMessage = structuredErrorResponse?.errors?.firstOrNull()?.message
-                    ?: "An unknown validation error occurred."
-                _updateState.value = UpdateState.ValidationError(mapOf("general" to generalMessage))
+                    ?: "Something went wrong" // Default user-friendly message
+                Log.e("ProfileViewModel", "Backend general error: $generalMessage (original: $errorMessage)")
+                _updateState.value = UpdateState.Error(generalMessage)
             }
 
         } catch (e: JsonSyntaxException) {
@@ -317,36 +357,39 @@ class ProfileViewModel @Inject constructor(
                 val generalErrorMessage = genericErrorResponse?.error
 
                 if (generalErrorMessage != null) {
-                    if (generalErrorMessage.contains("E11000 duplicate key error") && generalErrorMessage.contains("email")) {
-                        _updateState.value = UpdateState.Error("Cannot update profile due to an existing email conflict.")
+                    val messageToLog = if (generalErrorMessage.contains("E11000 duplicate key error") && generalErrorMessage.contains("email")) {
+                        "Duplicate email detected on update."
                     } else {
-                        val messageToDisplay = if (generalErrorMessage == "Update failed.") {
-                            "Profile update failed due to an unknown reason."
-                        } else {
-                            generalErrorMessage
-                        }
-                        _updateState.value = UpdateState.Error(messageToDisplay)
+                        generalErrorMessage
                     }
+                    Log.e("ProfileViewModel", "Backend generic error: $messageToLog (original: $errorMessage)")
+
+                    // User-friendly messages
+                    val messageToDisplay = when {
+                        generalErrorMessage.contains("E11000 duplicate key error") && generalErrorMessage.contains("email") -> "Cannot update profile due to an existing email conflict."
+                        generalErrorMessage == "Update failed." -> "Profile update failed due to an unknown reason."
+                        else -> "Something went wrong" // Catch-all for unspecific backend messages
+                    }
+                    _updateState.value = UpdateState.Error(messageToDisplay)
                 } else {
-                    val fallbackMessage = "An unknown error occurred: Response format unexpected (no 'error' field)."
-                    _updateState.value = UpdateState.Error(fallbackMessage)
+                    Log.e("ProfileViewModel", "handleUpdateError: Backend response had no specific error message or a general error field: $errorMessage")
+                    _updateState.value = UpdateState.Error("Something went wrong.")
                 }
             } catch (e2: JsonSyntaxException) {
-                val fallbackMessage = "An unhandled error occurred: ${errorMessage}"
-                _updateState.value = UpdateState.Error(fallbackMessage)
+                Log.e("ProfileViewModel", "handleUpdateError: Secondary JSON parsing error: ${e2.message}. Original error: $errorMessage", e2)
+                _updateState.value = UpdateState.Error("Something went wrong.")
             } catch (e2: Exception) {
-                val fallbackMessage = "An unexpected error occurred during generic error parsing: ${e2.message}"
-                _updateState.value = UpdateState.Error(fallbackMessage)
+                Log.e("ProfileViewModel", "handleUpdateError: Unexpected error during generic error parsing: ${e2.message}. Original error: $errorMessage", e2)
+                _updateState.value = UpdateState.Error("Something went wrong.")
             }
         } catch (e: Exception) {
-            val fallbackMessage = "An unexpected error occurred during structured error parsing: ${e.message}"
-            _updateState.value = UpdateState.Error(fallbackMessage)
+            Log.e("ProfileViewModel", "handleUpdateError: Unexpected error during structured error parsing: ${e.message}. Original error: $errorMessage", e)
+            _updateState.value = UpdateState.Error("Something went wrong.")
         }
     }
 
     private fun mapOfNotNull(vararg pairs: Pair<String, String?>): Map<String, String> =
         pairs.filter { it.second != null }.associate { it.first to it.second!! }
-
 
     fun clearUpdateState() {
         _updateState.value = UpdateState.Idle
@@ -372,6 +415,34 @@ class ProfileViewModel @Inject constructor(
     fun signOut() {
         tokenManager.clearToken()
         _isLoggedOut.value = true
+    }
+
+    // Generic error handler for ProfileViewModel
+    private fun <T> handleGenericError(errorMessage: String?, initialState: T, stateFlow: MutableStateFlow<T>) {
+        val userFriendlyMessage: String
+        val logMessage: String = errorMessage ?: "Unknown error"
+
+        when {
+            errorMessage?.contains("internet connection", ignoreCase = true) == true ||
+                    errorMessage?.contains("network error", ignoreCase = true) == true ||
+                    errorMessage?.contains("timeout", ignoreCase = true) == true ||
+                    errorMessage?.contains("Unable to resolve host", ignoreCase = true) == true -> {
+                userFriendlyMessage = "Please check your internet connection."
+            }
+            else -> {
+                userFriendlyMessage = "Something went wrong"
+            }
+        }
+
+        Log.e("ProfileViewModel", "API Call Error: $logMessage")
+
+        when (stateFlow.value) {
+            is ProfileState -> (stateFlow as MutableStateFlow<ProfileState>).value = ProfileState.Error(userFriendlyMessage)
+            is OrdersState -> (stateFlow as MutableStateFlow<OrdersState>).value = OrdersState.Error(userFriendlyMessage)
+            is UpdateState -> (stateFlow as MutableStateFlow<UpdateState>).value = UpdateState.Error(userFriendlyMessage)
+            is ImageUploadState -> (stateFlow as MutableStateFlow<ImageUploadState>).value = ImageUploadState.Error(userFriendlyMessage)
+            else -> Log.e("ProfileViewModel", "Unknown state type for generic error handling.")
+        }
     }
 }
 

@@ -1,5 +1,6 @@
 package com.example.facefit.ui.presentation.screens.prescription
 
+import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -17,10 +18,16 @@ import com.example.facefit.domain.models.PdMeasurement
 import com.example.facefit.domain.usecases.cart.AddToCartUseCase
 import com.example.facefit.domain.usecases.glasses.GetGlassesByIdUseCase
 import com.example.facefit.domain.usecases.prescription.CreatePrescriptionUseCase
+import com.example.facefit.domain.utils.NetworkUtils
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.domain.utils.validators.PrescriptionValidator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay // Import delay
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
+import java.io.IOException
+import java.net.SocketTimeoutException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -29,6 +36,7 @@ class PrescriptionLensViewModel @Inject constructor(
     private val addToCartUseCase: AddToCartUseCase,
     private val tokenManager: TokenManager,
     private val getGlassesByIdUseCase: GetGlassesByIdUseCase,
+    @ApplicationContext private val context: Context // Inject Context
 ) : ViewModel() {
 
     var prescriptionState by mutableStateOf(PrescriptionUiState())
@@ -45,12 +53,28 @@ class PrescriptionLensViewModel @Inject constructor(
     }
 
     suspend fun getGlassesById(id: String): Resource<Glasses> {
-        return getGlassesByIdUseCase(id)
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            return Resource.Error("Please check your internet connection.", null)
+        }
+        return try {
+            getGlassesByIdUseCase(id)
+        } catch (e: Exception) {
+            handleGenericException(e, "Error fetching glasses by ID")
+            Resource.Error("Something went wrong.", null)
+        }
     }
 
     suspend fun createPrescription(onComplete: (String?) -> Unit) {
-        val token = tokenManager.getToken() ?: run {
+        val token = tokenManager.getToken()
+        if (token.isNullOrEmpty()) {
             onComplete(null)
+            Log.e("PrescriptionVM", "Authentication token missing for prescription creation.")
+            return
+        }
+
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            onComplete(null)
+            Log.e("PrescriptionVM", "No network for prescription creation.")
             return
         }
 
@@ -79,14 +103,22 @@ class PrescriptionLensViewModel @Inject constructor(
             add = 0.0
         )
 
-        when (val result = createPrescriptionUseCase(request)) {
-            is Resource.Success -> {
-                val prescriptionId = result.data?.data?._id
-                prescriptionState = prescriptionState.copy(prescriptionId = prescriptionId)
-                onComplete(prescriptionId)
+        try {
+            when (val result = createPrescriptionUseCase(request)) {
+                is Resource.Success -> {
+                    val prescriptionId = result.data?.data?._id
+                    prescriptionState = prescriptionState.copy(prescriptionId = prescriptionId)
+                    onComplete(prescriptionId)
+                }
+                is Resource.Error -> {
+                    Log.e("PrescriptionVM", "Error creating prescription: ${result.message}")
+                    onComplete(null)
+                }
+                else -> onComplete(null)
             }
-
-            else -> onComplete(null)
+        } catch (e: Exception) {
+            handleGenericException(e, "Exception during prescription creation")
+            onComplete(null)
         }
     }
 
@@ -99,6 +131,18 @@ class PrescriptionLensViewModel @Inject constructor(
         prescriptionId: String? = null,
         onComplete: (Resource<CartData>) -> Unit
     ) {
+        val token = tokenManager.getToken()
+        if (token.isNullOrEmpty()) {
+            onComplete(Resource.Error("Authentication required.", null))
+            Log.e("PrescriptionVM", "Authentication token missing for add to cart.")
+            return
+        }
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            onComplete(Resource.Error("Please check your internet connection.", null))
+            Log.e("PrescriptionVM", "No network for add to cart.")
+            return
+        }
+
         val lensPrice = when (lensSpecification) {
             LensOptions.STANDARD -> 50.0
             LensOptions.BLUE_LIGHT -> 75.0
@@ -117,11 +161,53 @@ class PrescriptionLensViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            val result = addToCartUseCase(request)
-            onComplete(result)
+            val maxRetries = 3 // Max number of retries
+            var currentAttempt = 0
+            var delayTime = 200L // Initial delay for retry
+
+            while (currentAttempt < maxRetries) {
+                try {
+                    val result = addToCartUseCase(request)
+                    if (result is Resource.Error && result.message?.contains("Write conflict") == true) {
+                        currentAttempt++
+                        Log.w("PrescriptionVM", "Write conflict detected for add to cart. Retrying attempt $currentAttempt/$maxRetries...")
+                        delay(delayTime) // Wait before retrying
+                        delayTime *= 2 // Exponential backoff
+                        continue // Retry the loop
+                    } else {
+                        // Success or a different type of error, complete the operation
+                        if (result is Resource.Error) {
+                            Log.e("PrescriptionVM", "Error adding to cart: ${result.message}")
+                        }
+                        onComplete(result)
+                        return@launch // Exit the coroutine
+                    }
+                } catch (e: Exception) {
+                    // Handle network errors or other exceptions here
+                    val isRetriable = when (e) {
+                        is SocketTimeoutException, is IOException -> true // Network issues
+                        is HttpException -> e.code() == 500 // Generic 500 for potential server issues
+                        else -> false
+                    }
+
+                    if (isRetriable && currentAttempt < maxRetries) {
+                        currentAttempt++
+                        Log.w("PrescriptionVM", "Retriable exception during add to cart: ${e.message}. Retrying attempt $currentAttempt/$maxRetries...")
+                        delay(delayTime)
+                        delayTime *= 2
+                        continue // Retry the loop
+                    } else {
+                        // Not retriable or max retries reached
+                        handleGenericException(e, "Exception during add to cart")
+                        onComplete(Resource.Error("Something went wrong or max retries reached.", null))
+                        return@launch // Exit the coroutine
+                    }
+                }
+            }
+            // If loop finishes, it means max retries were reached without success
+            onComplete(Resource.Error("Failed to add to cart after multiple retries.", null))
         }
     }
-
 
     fun updateField(field: PrescriptionField, value: String) {
         prescriptionState = when (field) {
@@ -159,6 +245,39 @@ class PrescriptionLensViewModel @Inject constructor(
 
         fieldErrors = errors.filterValues { it != null } as Map<PrescriptionField, String>
         return fieldErrors.isEmpty()
+    }
+
+    fun resetPrescriptionState() {
+        prescriptionState = PrescriptionUiState()
+        fieldErrors = emptyMap()
+        _isSinglePD = true
+    }
+
+    // Generic exception handler
+    private fun handleGenericException(e: Exception, contextMessage: String) {
+        val userFriendlyMessage: String
+        val logMessage: String
+
+        when (e) {
+            is SocketTimeoutException -> {
+                userFriendlyMessage = "Please check your internet connection."
+                logMessage = "$contextMessage: Timeout error: ${e.message}"
+            }
+            is IOException -> {
+                userFriendlyMessage = "Please check your internet connection."
+                logMessage = "$contextMessage: Network error: ${e.message}"
+            }
+            is HttpException -> {
+                userFriendlyMessage = "Something went wrong"
+                logMessage = "$contextMessage: HTTP error: ${e.code()} - ${e.message()}"
+            }
+            else -> {
+                userFriendlyMessage = "Something went wrong"
+                logMessage = "$contextMessage: An unexpected error occurred: ${e.message}"
+            }
+        }
+        Log.e("PrescriptionVM", logMessage, e)
+
     }
 }
 

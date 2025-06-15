@@ -26,4 +26,5 @@ object Constants {
     const val CLEAR_CART_ENDPOINT = "facefit/cart/clear"
     const val CREATE_ORDER_ENDPOINT = "facefit/orders/checkout"
     const val GET_ORDERS_ENDPOINT = "facefit/orders"
+    const val GET_PRIMAGE_ENDPOINT = "https://facefit.onrender.com/"
 }
