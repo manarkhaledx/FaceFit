@@ -239,17 +239,17 @@ fun AdditionalOptions(onItemClick: () -> Unit) {
         )
     }
 
-    Spacer(modifier = Modifier.height(16.dp))
+//    Spacer(modifier = Modifier.height(16.dp))
+//
+//    Text(
+//        text = stringResource(id=R.string.or_login_with),
+//        fontSize = 14.sp,
+//        color = Color.Gray
+//    )
+//
+//    Spacer(modifier = Modifier.height(16.dp))
 
-    Text(
-        text = stringResource(id=R.string.or_login_with),
-        fontSize = 14.sp,
-        color = Color.Gray
-    )
-
-    Spacer(modifier = Modifier.height(16.dp))
-
-    SocialLoginButtons()
+    // SocialLoginButtons()
 }
 
 @Composable
