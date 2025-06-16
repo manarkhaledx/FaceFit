@@ -9,6 +9,7 @@ data class Order(
     val _id: String,
     val date: String,
     val status: String,
+    val subtotal: Double,
     val total: Double,
     val paymentMethod: String,
     val address: String,
