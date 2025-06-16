@@ -50,7 +50,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope // Import rememberCoroutineScope
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,13 +83,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.drawWithContent
-import android.widget.Toast // Import Toast
-import kotlinx.coroutines.launch // Import launch
-import kotlinx.coroutines.Dispatchers // Import Dispatchers
-import kotlinx.coroutines.withContext // Import withContext
+import android.widget.Toast
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 // Import your AppBottomNavigation composable
 import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
+
 
 
 @AndroidEntryPoint
@@ -137,6 +138,7 @@ fun ShoppingCartScreen(
     val itemCount by viewModel.itemCount.collectAsState()
     val totalAmount by viewModel.totalAmount.collectAsState()
     val deletingItemId by viewModel.deletingItemId.collectAsState() // Collect deletingItemId
+    val updatingItemId by viewModel.updatingItemId.collectAsState() // Collect updatingItemId
     var isDeleteMode by remember { mutableStateOf(false) }
     var showDeleteAllConfirmation by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -155,7 +157,7 @@ fun ShoppingCartScreen(
                 if (cartState is Resource.Success && (cartState as Resource.Success).data?.isNotEmpty() == true) {
                     TextButton(
                         onClick = { isDeleteMode = !isDeleteMode },
-                        enabled = deletingItemId == null // Disable "Edit/Done" if an item is being deleted
+                        enabled = deletingItemId == null && updatingItemId == null // Disable "Edit/Done" if an item is being deleted or updated
                     ) {
                         Text(if (isDeleteMode) "Done" else "Edit", color = Color.Black)
                     }
@@ -210,7 +212,8 @@ fun ShoppingCartScreen(
                                 } else {
                                     R.drawable.placeholder
                                 }
-                                val totalPrice = (cartItem.glasses.price + cartItem.lensPrice) * cartItem.quantity
+                                // Calculate the unit price (price of one glass + price of one lens)
+                                val unitPrice = cartItem.glasses.price + cartItem.lensPrice
 
                                 CartItem(
                                     item = CartItemUI(
@@ -218,13 +221,14 @@ fun ShoppingCartScreen(
                                         name = cartItem.glasses.name,
                                         color = cartItem.color,
                                         visionType = cartItem.lensSpecification,
-                                        price = totalPrice,
+                                        unitPrice = unitPrice, // Pass the calculated unit price
                                         quantity = cartItem.quantity,
                                         imageModel = imageModel
                                     ),
                                     isDeleteMode = isDeleteMode,
-                                    isDeleting = deletingItemId == cartItem.id, // Pass specific item loading state
-                                    isAnyItemDeleting = deletingItemId != null, // Pass if ANY item is deleting
+                                    isDeleting = deletingItemId == cartItem.id, // Pass specific item loading state for deletion
+                                    isUpdating = updatingItemId == cartItem.id, // Pass specific item loading state for update
+                                    isAnyItemLoading = deletingItemId != null || updatingItemId != null, // True if ANY item is deleting or updating
                                     onQuantityChange = { itemId, newQuantity ->
                                         viewModel.updateCartItem(
                                             itemId = itemId,
@@ -262,7 +266,7 @@ fun ShoppingCartScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (cartState is Resource.Loading) {
+                    if (cartState is Resource.Loading || deletingItemId != null || updatingItemId != null) { // Show loading if overall cart is loading or any item is being deleted/updated
                         LoadingShimmerEffect(
                             modifier = Modifier
                                 .width(100.dp)
@@ -286,7 +290,7 @@ fun ShoppingCartScreen(
                                 ),
                                 shape = RoundedCornerShape(24.dp),
                                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-                                enabled = deletingItemId == null // Disable "Delete All" if an item is being deleted
+                                enabled = deletingItemId == null && updatingItemId == null // Disable "Delete All" if an item is being deleted or updated
                             ) {
                                 Text("Delete All", color = Color.Red)
                             }
@@ -324,9 +328,9 @@ fun ShoppingCartScreen(
                                 colors = ButtonDefaults.buttonColors(containerColor = Blue1),
                                 shape = RoundedCornerShape(24.dp),
                                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-                                enabled = cartState is Resource.Success && (cartState as Resource.Success).data?.isNotEmpty() == true && deletingItemId == null // Disable checkout if an item is being deleted
+                                enabled = cartState is Resource.Success && (cartState as Resource.Success).data?.isNotEmpty() == true && deletingItemId == null && updatingItemId == null // Disable checkout if an item is being deleted or updated
                             ) {
-                                if (cartState is Resource.Loading) {
+                                if (cartState is Resource.Loading || deletingItemId != null || updatingItemId != null) { // Show loading if overall cart is loading or any item is being deleted/updated
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(24.dp),
                                         color = Color.White,
@@ -373,14 +377,13 @@ fun Modifier.shimmerEffect(shape: Shape): Modifier = composed {
 }
 
 
-
-
 @Composable
 fun CartItem(
     item: CartItemUI,
     isDeleteMode: Boolean,
     isDeleting: Boolean, // True if this specific item is being deleted
-    isAnyItemDeleting: Boolean, // True if ANY item is currently deleting
+    isUpdating: Boolean, // True if this specific item's quantity is being updated
+    isAnyItemLoading: Boolean, // True if ANY item is currently deleting or updating
     onQuantityChange: (String, Int) -> Unit,
     onDeleteItem: (String) -> Unit
 ) {
@@ -407,8 +410,8 @@ fun CartItem(
                     .padding(end = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Apply shimmer effect if this item is deleting
-                if (isDeleting) {
+                // Apply shimmer effect if this item is deleting or updating
+                if (isDeleting || isUpdating) {
                     LoadingShimmerEffect(
                         modifier = Modifier.fillMaxSize(),
                         shape = RoundedCornerShape(8.dp)
@@ -442,8 +445,8 @@ fun CartItem(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Apply shimmer to text content if deleting
-                if (isDeleting) {
+                // Apply shimmer to text content if deleting or updating
+                if (isDeleting || isUpdating) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         LoadingShimmerEffect(modifier = Modifier.fillMaxWidth(0.7f).height(16.dp), shape = RoundedCornerShape(4.dp))
                         LoadingShimmerEffect(modifier = Modifier.width(80.dp).height(12.dp), shape = RoundedCornerShape(4.dp))
@@ -510,8 +513,9 @@ fun CartItem(
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
+                    // Display the subtotal for the current item (unit price * quantity)
                     Text(
-                        text = "EGP ${String.format("%.2f", item.price)}",
+                        text = "EGP ${String.format("%.2f", item.unitPrice * item.quantity)}",
                         style = TextStyle(
                             fontSize = 18.sp,
                             fontWeight = FontWeight(700),
@@ -525,17 +529,17 @@ fun CartItem(
             if (isDeleteMode) {
                 IconButton(
                     onClick = { onDeleteItem(item.id) },
-                    enabled = !isAnyItemDeleting // Disable button if any item is deleting
+                    enabled = !isAnyItemLoading // Disable button if any item is deleting or updating
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.trash),
-                        tint = if (isAnyItemDeleting) Color.Gray else Color.Unspecified, // Gray out if disabled
+                        tint = if (isAnyItemLoading) Color.Gray else Color.Unspecified, // Gray out if disabled
                         contentDescription = "Delete",
                         modifier = Modifier
                             .width(24.dp)
                             .height(24.dp)
                             .background(
-                                color = if (isAnyItemDeleting) Color(0x1A808080) else Color(0x1AD20000), // Change background color if disabled
+                                color = if (isAnyItemLoading) Color(0x1A808080) else Color(0x1AD20000), // Change background color if disabled
                                 shape = RoundedCornerShape(size = 8.dp)
                             )
                             .padding(4.dp)
@@ -552,36 +556,47 @@ fun CartItem(
                         )
                         .padding(horizontal = 4.dp, vertical = 4.dp)
                 ) {
+                    val isQuantityChangeDisabled = isAnyItemLoading || isUpdating // Disable quantity change buttons if any item is loading or THIS item is updating
+
                     Text(
                         text = "−",
                         modifier = Modifier
-                            .clickable(enabled = !isAnyItemDeleting) { // Disable quantity change if deleting
+                            .clickable(enabled = !isQuantityChangeDisabled) {
                                 val newQuantity = max(1, item.quantity - 1)
                                 onQuantityChange(item.id, newQuantity)
                             }
                             .padding(horizontal = 4.dp),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (isAnyItemDeleting) Color.Gray else Color.Black // Gray out text if disabled
+                        color = if (isQuantityChangeDisabled) Color.Gray else Color.Black
                     )
 
-                    Text(
-                        text = "${item.quantity}",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isAnyItemDeleting) Color.Gray else Color.Black
-                    )
+                    // Show loading indicator in place of quantity text if this item is updating
+                    if (isUpdating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Blue1,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = "${item.quantity}",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (isQuantityChangeDisabled) Color.Gray else Color.Black
+                        )
+                    }
 
                     Text(
                         text = "+",
                         modifier = Modifier
-                            .clickable(enabled = !isAnyItemDeleting) { // Disable quantity change if deleting
+                            .clickable(enabled = !isQuantityChangeDisabled) {
                                 onQuantityChange(item.id, item.quantity + 1)
                             }
                             .padding(horizontal = 4.dp),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (isAnyItemDeleting) Color.Gray else Color.Black
+                        color = if (isQuantityChangeDisabled) Color.Gray else Color.Black
                     )
                 }
             }
@@ -717,7 +732,7 @@ data class CartItemUI(
     val name: String = "Unknown Glasses",
     val color: String = "Unknown Color",
     val visionType: String = "Unknown Type",
-    val price: Double,
+    val unitPrice: Double, // Changed from 'price' to 'unitPrice' to represent the price of a single item + its lens
     val quantity: Int,
     val imageModel: Any?
 )
