@@ -99,8 +99,7 @@ class PrescriptionLensViewModel @Inject constructor(
                         right = state.rightPD.toDoubleOrNull() ?: 0.0
                     )
                 )
-            },
-            add = 0.0
+            }
         )
 
         try {

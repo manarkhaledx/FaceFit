@@ -10,7 +10,5 @@ data class CreatePrescriptionRequest(
     @SerializedName("OD")
     val leftEye: EyePrescription,
     @SerializedName("PD")
-    val pd: PdMeasurement,
-    @SerializedName("ADD")
-    val add: Double? = null
+    val pd: PdMeasurement
 )
