@@ -292,6 +292,8 @@ fun AllProducts(
                                                     glasses.arModels.armsMaterials?.map { "${Constants.EMULATOR_URL}$it" }
                                                         ?.toTypedArray()
                                                 )
+                                                putStringArrayListExtra("COLORS", ArrayList(glasses.colors))
+                                                putExtra("GLASSES_TYPE", glasses.type)
                                             }
                                             context.startActivity(intent)
                                         }

@@ -256,6 +256,8 @@ fun ProductDetailScreen(
                                         glasses.arModels?.armsMaterials?.map { "${Constants.EMULATOR_URL}$it" }
                                             ?.toTypedArray()
                                     )
+                                    putStringArrayListExtra("COLORS", ArrayList(glasses.colors))
+                                    putExtra("GLASSES_TYPE", glasses.type)
                                 }
                                 it.startActivity(intent)
                             }
@@ -372,18 +374,46 @@ fun ProductDetailScreen(
                                         Toast.makeText(context, "No internet connection", Toast.LENGTH_SHORT).show()
                                         return@ImageCarousel
                                     }
-                                    glasses.let { product ->
+                                    glasses?.let { product ->
                                         if (product.tryOn && product.arModels != null) {
                                             activity?.let {
                                                 val intent = Intent(it, AugmentedFacesActivity::class.java).apply {
-                                                    putExtra("FRAME_PATH", product.arModels.frameObj)
-                                                    putExtra("FRAME_MTL_PATH", product.arModels.frameMtl)
-                                                    putExtra("LENSES_PATH", product.arModels.lensesObj)
-                                                    putExtra("LENSES_MTL_PATH", product.arModels.lensesMtl)
-                                                    putExtra("ARMS_PATH", product.arModels.armsObj)
-                                                    putExtra("ARMS_MTL_PATH", product.arModels.armsMtl)
-                                                    putExtra("FRAME_MATERIALS", product.arModels.frameMaterials?.toTypedArray())
-                                                    putExtra("ARMS_MATERIALS", product.arModels.armsMaterials?.toTypedArray())
+                                                    putExtra(
+                                                        "FRAME_PATH",
+                                                        "${Constants.EMULATOR_URL}${glasses.arModels?.frameObj}"
+                                                    )
+                                                    putExtra(
+                                                        "FRAME_MTL_PATH",
+                                                        "${Constants.EMULATOR_URL}${glasses.arModels?.frameMtl}"
+                                                    )
+                                                    putExtra(
+                                                        "LENSES_PATH",
+                                                        "${Constants.EMULATOR_URL}${glasses.arModels?.lensesObj}"
+                                                    )
+                                                    putExtra(
+                                                        "LENSES_MTL_PATH",
+                                                        "${Constants.EMULATOR_URL}${glasses.arModels?.lensesMtl}"
+                                                    )
+                                                    putExtra(
+                                                        "ARMS_PATH",
+                                                        "${Constants.EMULATOR_URL}${glasses.arModels?.armsObj}"
+                                                    )
+                                                    putExtra(
+                                                        "ARMS_MTL_PATH",
+                                                        "${Constants.EMULATOR_URL}${glasses.arModels?.armsMtl}"
+                                                    )
+                                                    putExtra(
+                                                        "FRAME_MATERIALS",
+                                                        glasses.arModels?.frameMaterials?.map { "${Constants.EMULATOR_URL}$it" }
+                                                            ?.toTypedArray()
+                                                    )
+                                                    putExtra(
+                                                        "ARMS_MATERIALS",
+                                                        glasses.arModels?.armsMaterials?.map { "${Constants.EMULATOR_URL}$it" }
+                                                            ?.toTypedArray()
+                                                    )
+                                                    putStringArrayListExtra("COLORS", ArrayList(glasses.colors))
+                                                    putExtra("GLASSES_TYPE", glasses.type)
                                                 }
                                                 it.startActivity(intent)
                                             }
