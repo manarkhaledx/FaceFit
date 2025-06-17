@@ -20,11 +20,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
-import java.io.IOException
-import java.net.SocketTimeoutException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -48,12 +45,45 @@ class CheckoutViewModel @Inject constructor(
     private val _cartItems = MutableStateFlow<Resource<List<CartItem>>>(Resource.Loading())
     val cartItems: StateFlow<Resource<List<CartItem>>> = _cartItems.asStateFlow()
 
+    private val _stockError = MutableStateFlow<String?>(null)
+    val stockError: StateFlow<String?> = _stockError.asStateFlow()
+
+    private val _outOfStockItems = MutableStateFlow<List<String>>(emptyList())
+    val outOfStockItems: StateFlow<List<String>> = _outOfStockItems.asStateFlow()
+
     var streetName by mutableStateOf("")
     var buildingNameNo by mutableStateOf("")
     var floorApartmentVillaNo by mutableStateOf("")
     var cityArea by mutableStateOf("")
     var phoneNumber by mutableStateOf("")
     var selectedPaymentOption by mutableStateOf("Cash on Delivery")
+
+    private val _isAddressValidationError = MutableStateFlow(false)
+    val isAddressValidationError: StateFlow<Boolean> = _isAddressValidationError.asStateFlow()
+    var streetNameError by mutableStateOf<String?>(null)
+    var buildingNameNoError by mutableStateOf<String?>(null)
+    var floorApartmentVillaNoError by mutableStateOf<String?>(null)
+    var cityAreaError by mutableStateOf<String?>(null)
+
+    private fun validateAddressFields(): Boolean {
+        streetNameError = if (streetName.isBlank()) "Street name is required" else null
+        buildingNameNoError = if (buildingNameNo.isBlank()) "Building name/number is required" else null
+        floorApartmentVillaNoError = if (floorApartmentVillaNo.isBlank()) "Floor/Apartment is required" else null
+        cityAreaError = if (cityArea.isBlank()) "City/Area is required" else null
+
+        return streetName.isNotBlank() &&
+                buildingNameNo.isNotBlank() &&
+                floorApartmentVillaNo.isNotBlank() &&
+                cityArea.isNotBlank()
+    }
+
+    fun clearAddressValidationError() {
+        _isAddressValidationError.value = false
+        streetNameError = null
+        buildingNameNoError = null
+        floorApartmentVillaNoError = null
+        cityAreaError = null
+    }
 
     init {
         loadUserProfile()
@@ -83,14 +113,12 @@ class CheckoutViewModel @Inject constructor(
                         }
                     }
                     is Resource.Error -> {
-                        // Pass appropriate default data for the type
                         handleGenericError(result.message, emptyList(), _cartItems)
                         handleGenericError(result.message, 0.0, _cartTotal)
                     }
                     else -> Unit
                 }
             } catch (e: Exception) {
-                // Pass appropriate default data for the type
                 handleGenericError(e.message, emptyList(), _cartItems)
                 handleGenericError(e.message, 0.0, _cartTotal)
             }
@@ -136,13 +164,11 @@ class CheckoutViewModel @Inject constructor(
                         }
                     }
                     is Resource.Error -> {
-                        // Pass appropriate default data for the type
                         handleGenericError(result.message, null, _userProfile)
                     }
                     else -> Unit
                 }
             } catch (e: Exception) {
-                // Pass appropriate default data for the type
                 handleGenericError(e.message, null, _userProfile)
             }
         }
@@ -167,13 +193,11 @@ class CheckoutViewModel @Inject constructor(
                         }
                     }
                     is Resource.Error -> {
-                        // Pass appropriate default data for the type
                         handleGenericError(result.message, 0.0, _cartTotal)
                     }
                     else -> Unit
                 }
             } catch (e: Exception) {
-                // Pass appropriate default data for the type
                 handleGenericError(e.message, 0.0, _cartTotal)
             }
         }
@@ -198,13 +222,11 @@ class CheckoutViewModel @Inject constructor(
                         }
                     }
                     is Resource.Error -> {
-                        // Pass appropriate default data for the type
                         handleGenericError(result.message, emptyList(), _cartItems)
                     }
                     else -> Unit
                 }
             } catch (e: Exception) {
-                // Pass appropriate default data for the type
                 handleGenericError(e.message, emptyList(), _cartItems)
             }
         }
@@ -215,6 +237,14 @@ class CheckoutViewModel @Inject constructor(
             _orderStatus.value = Resource.Error("Please check your internet connection.")
             return
         }
+
+        if (!validateAddressFields()) {
+            _isAddressValidationError.value = true
+            _orderStatus.value = Resource.Error("Please fill all address fields")
+            return
+        }
+
+        _isAddressValidationError.value = false
 
         viewModelScope.launch {
             _orderStatus.value = Resource.Loading()
@@ -242,16 +272,60 @@ class CheckoutViewModel @Inject constructor(
                         _orderStatus.value = Resource.Success("Order placed successfully")
                     }
                     is Resource.Error -> {
-                        // Pass appropriate default data for the type
-                        handleGenericError(result.message, "", _orderStatus)
+                        if (result.message?.contains("Stock validation failed") == true) {
+                            val errorMessage = result.message ?: "Stock validation failed"
+                            val outOfStockItemsList = parseOutOfStockItems(errorMessage)
+
+                            _outOfStockItems.value = outOfStockItemsList
+                            _stockError.value = errorMessage
+                            _orderStatus.value = Resource.Error("Stock validation failed")
+                        } else {
+                            handleGenericError(result.message, "", _orderStatus)
+                        }
                     }
                     else -> Unit
                 }
             } catch (e: Exception) {
-                // Pass appropriate default data for the type
-                handleGenericError(e.message, "", _orderStatus)
+                when (e) {
+                    is HttpException -> {
+                        try {
+                            val errorBody = e.response()?.errorBody()?.string()
+                            if (errorBody?.contains("Stock validation failed") == true) {
+                                val outOfStockItemsList = parseOutOfStockItems(errorBody)
+                                _outOfStockItems.value = outOfStockItemsList
+                                _stockError.value = "Stock validation failed"
+                                _orderStatus.value = Resource.Error("Stock validation failed")
+                            } else {
+                                handleGenericError(errorBody ?: e.message(), "", _orderStatus)
+                            }
+                        } catch (parseEx: Exception) {
+                            handleGenericError(e.message(), "", _orderStatus)
+                        }
+                    }
+                    else -> handleGenericError(e.message, "", _orderStatus)
+                }
             }
         }
+    }
+
+    private fun parseOutOfStockItems(errorMessage: String): List<String> {
+        val jsonStart = errorMessage.indexOf("\"error\":\"") + 9
+        val jsonEnd = errorMessage.lastIndexOf("\"}")
+        val cleanMessage = if (jsonStart > 8 && jsonEnd > jsonStart) {
+            errorMessage.substring(jsonStart, jsonEnd)
+        } else {
+            errorMessage
+        }
+
+        val pattern = Regex("([^:]+):\\s*Insufficient stock[^\\(]*\\([^)]*\\)\\s*\\(Available:\\s*(\\d+),\\s*Requested:\\s*(\\d+)\\)")
+        return pattern.findAll(cleanMessage).map { match ->
+            val (modelName, available, requested) = match.destructured
+            "$modelName"
+        }.toList()
+    }
+
+    fun clearStockError() {
+        _stockError.value = null
     }
 
     fun calculateTotal(): Double {
@@ -265,9 +339,6 @@ class CheckoutViewModel @Inject constructor(
         _orderStatus.value = Resource.Success("")
     }
 
-    // Generic error handler for ViewModel
-    // Note: The `initialData` parameter is now explicitly typed to `T` (nullable)
-    // to match the generic `Resource<T>`
     private fun <T> handleGenericError(errorMessage: String?, initialData: T?, stateFlow: MutableStateFlow<Resource<T>>) {
         val userFriendlyMessage: String
         val logMessage: String = errorMessage ?: "Unknown error"

@@ -540,7 +540,7 @@ fun OrderCard(order: Order, modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Check if there are items and images available
+
                 if (order.items.isNotEmpty() && order.items[0].item.images.isNotEmpty()) {
                     val firstOrderItemImage = order.items[0].item.images[0]
                     val imageUrl = "${Constants.GET_PRIMAGE_ENDPOINT}${order.items[0].item.images[0]}"
@@ -550,17 +550,17 @@ fun OrderCard(order: Order, modifier: Modifier = Modifier) {
                     Image(
                         painter = rememberAsyncImagePainter(
                             model = imageUrl,
-                            error = painterResource(id = R.drawable.placeholder), // Fallback image on error
-                            placeholder = painterResource(id = R.drawable.placeholder) // Image shown while loading
+                            error = painterResource(id = R.drawable.placeholder),
+                            placeholder = painterResource(id = R.drawable.placeholder)
                         ),
-                        contentDescription = "Image for order item: ${order.items[0].item.name}", // Descriptive content description
+                        contentDescription = "Image for order item: ${order.items[0].item.name}",
                         modifier = Modifier
                             .size(48.dp)
                             .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.Crop // Crop to fill bounds
+                        contentScale = ContentScale.Crop
                     )
                 } else {
-                    // Placeholder box if no image is available
+
                     Box(
                         modifier = Modifier
                             .size(48.dp)
@@ -568,14 +568,13 @@ fun OrderCard(order: Order, modifier: Modifier = Modifier) {
                             .background(Gray100),
                         contentAlignment = Alignment.Center
                     ) {
-                        // Optionally, you can add an icon here to indicate no image
-                        // Icon(imageVector = Icons.Default.ImageNotSupported, contentDescription = "No Image")
+
                     }
                 }
 
-                Spacer(modifier = Modifier.weight(1f)) // Takes up available space
+                Spacer(modifier = Modifier.weight(1f))
 
-                // Display total price
+
                 Text(
                     text = "EGP ${"%.2f".format(order.total)}",
                     fontSize = 16.sp,
@@ -585,7 +584,7 @@ fun OrderCard(order: Order, modifier: Modifier = Modifier) {
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Arrow icon to indicate view details
+
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                     contentDescription = "View Order Details",

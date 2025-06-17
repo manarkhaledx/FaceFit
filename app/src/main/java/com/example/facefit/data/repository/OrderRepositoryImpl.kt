@@ -44,7 +44,15 @@ class OrderRepositoryImpl @Inject constructor(
                     Error Body: $errorBody
                 """.trimIndent()
                 )
-                Resource.Error(errorBody ?: "HTTP ${response.code()}")
+
+                // Parse stock error specifically
+                val errorMessage = if (errorBody?.contains("Stock validation failed") == true) {
+                    errorBody.substringAfter("\"error\":\"").substringBefore("\"")
+                } else {
+                    errorBody ?: "HTTP ${response.code()}"
+                }
+
+                Resource.Error(errorMessage)
             }
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Unknown error occurred while creating order")

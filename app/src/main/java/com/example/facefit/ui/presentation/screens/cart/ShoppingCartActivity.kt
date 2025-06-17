@@ -2,6 +2,7 @@ package com.example.facefit.ui.presentation.screens.cart
 
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -54,8 +55,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -72,25 +77,13 @@ import com.example.facefit.domain.models.CartItem
 import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.components.ErrorScreen
 import com.example.facefit.ui.presentation.components.PullToRefreshContainer
+import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
 import com.example.facefit.ui.utils.Constants
 import dagger.hilt.android.AndroidEntryPoint
-import kotlin.math.max
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.composed
-import androidx.compose.ui.draw.drawWithContent
-import android.widget.Toast
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-
-// Import your AppBottomNavigation composable
-import com.example.facefit.ui.presentation.components.navigation.AppBottomNavigation
-
+import kotlinx.coroutines.launch
 
 
 @AndroidEntryPoint
@@ -112,6 +105,7 @@ class ShoppingCartActivity : ComponentActivity() {
             }
         }
     }
+
     override fun onResume() {
         super.onResume()
         cartViewModel.loadCart()
@@ -137,12 +131,12 @@ fun ShoppingCartScreen(
     val cartState by viewModel.cartState.collectAsState()
     val itemCount by viewModel.itemCount.collectAsState()
     val totalAmount by viewModel.totalAmount.collectAsState()
-    val deletingItemId by viewModel.deletingItemId.collectAsState() // Collect deletingItemId
-    val updatingItemId by viewModel.updatingItemId.collectAsState() // Collect updatingItemId
+    val deletingItemId by viewModel.deletingItemId.collectAsState()
+    val updatingItemId by viewModel.updatingItemId.collectAsState()
     var isDeleteMode by remember { mutableStateOf(false) }
     var showDeleteAllConfirmation by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope() // Obtain a CoroutineScope
+    val coroutineScope = rememberCoroutineScope()
 
     val isRefreshing = cartState is Resource.Loading
 
@@ -152,12 +146,20 @@ fun ShoppingCartScreen(
             .background(Color.White)
     ) {
         TopAppBar(
-            title = { Text("Shopping Cart", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth(), textAlign = androidx.compose.ui.text.style.TextAlign.Center) },
+            title = {
+                Text(
+                    "Shopping Cart",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            },
             actions = {
                 if (cartState is Resource.Success && (cartState as Resource.Success).data?.isNotEmpty() == true) {
                     TextButton(
                         onClick = { isDeleteMode = !isDeleteMode },
-                        enabled = deletingItemId == null && updatingItemId == null // Disable "Edit/Done" if an item is being deleted or updated
+                        enabled = deletingItemId == null && updatingItemId == null
                     ) {
                         Text(if (isDeleteMode) "Done" else "Edit", color = Color.Black)
                     }
@@ -185,7 +187,13 @@ fun ShoppingCartScreen(
 
                 is Resource.Error -> {
                     val message = (cartState as Resource.Error).message ?: "Unknown error"
-                    val isNetworkError = message.contains("internet connection", ignoreCase = true) || message.contains("network error", ignoreCase = true) || message.contains("timeout", ignoreCase = true)
+                    val isNetworkError = message.contains(
+                        "internet connection",
+                        ignoreCase = true
+                    ) || message.contains(
+                        "network error",
+                        ignoreCase = true
+                    ) || message.contains("timeout", ignoreCase = true)
                     ErrorScreen(
                         modifier = Modifier.fillMaxSize(),
                         title = if (isNetworkError) "No Internet Connection" else "Error Loading Cart",
@@ -212,7 +220,7 @@ fun ShoppingCartScreen(
                                 } else {
                                     R.drawable.placeholder
                                 }
-                                // Calculate the unit price (price of one glass + price of one lens)
+
                                 val unitPrice = cartItem.glasses.price + cartItem.lensPrice
 
                                 CartItem(
@@ -221,14 +229,14 @@ fun ShoppingCartScreen(
                                         name = cartItem.glasses.name,
                                         color = cartItem.color,
                                         visionType = cartItem.lensSpecification,
-                                        unitPrice = unitPrice, // Pass the calculated unit price
+                                        unitPrice = unitPrice,
                                         quantity = cartItem.quantity,
                                         imageModel = imageModel
                                     ),
                                     isDeleteMode = isDeleteMode,
-                                    isDeleting = deletingItemId == cartItem.id, // Pass specific item loading state for deletion
-                                    isUpdating = updatingItemId == cartItem.id, // Pass specific item loading state for update
-                                    isAnyItemLoading = deletingItemId != null || updatingItemId != null, // True if ANY item is deleting or updating
+                                    isDeleting = deletingItemId == cartItem.id,
+                                    isUpdating = updatingItemId == cartItem.id,
+                                    isAnyItemLoading = deletingItemId != null || updatingItemId != null,
                                     onQuantityChange = { itemId, newQuantity ->
                                         viewModel.updateCartItem(
                                             itemId = itemId,
@@ -238,8 +246,12 @@ fun ShoppingCartScreen(
                                     onDeleteItem = { itemId ->
                                         viewModel.removeCartItem(itemId) { success ->
                                             if (success) {
-                                                coroutineScope.launch(Dispatchers.Main) { // Launch on Main dispatcher for Toast
-                                                    Toast.makeText(context, "Product deleted successfully", Toast.LENGTH_SHORT).show()
+                                                coroutineScope.launch(Dispatchers.Main) {
+                                                    Toast.makeText(
+                                                        context,
+                                                        "Product deleted successfully",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
                                                 }
                                             }
                                         }
@@ -266,7 +278,7 @@ fun ShoppingCartScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (cartState is Resource.Loading || deletingItemId != null || updatingItemId != null) { // Show loading if overall cart is loading or any item is being deleted/updated
+                    if (cartState is Resource.Loading || deletingItemId != null || updatingItemId != null) {
                         LoadingShimmerEffect(
                             modifier = Modifier
                                 .width(100.dp)
@@ -289,7 +301,10 @@ fun ShoppingCartScreen(
                                     brush = SolidColor(Color.Red)
                                 ),
                                 shape = RoundedCornerShape(24.dp),
-                                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+                                contentPadding = PaddingValues(
+                                    horizontal = 24.dp,
+                                    vertical = 12.dp
+                                ),
                                 enabled = deletingItemId == null && updatingItemId == null // Disable "Delete All" if an item is being deleted or updated
                             ) {
                                 Text("Delete All", color = Color.Red)
@@ -327,7 +342,10 @@ fun ShoppingCartScreen(
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = Blue1),
                                 shape = RoundedCornerShape(24.dp),
-                                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+                                contentPadding = PaddingValues(
+                                    horizontal = 24.dp,
+                                    vertical = 12.dp
+                                ),
                                 enabled = cartState is Resource.Success && (cartState as Resource.Success).data?.isNotEmpty() == true && deletingItemId == null && updatingItemId == null // Disable checkout if an item is being deleted or updated
                             ) {
                                 if (cartState is Resource.Loading || deletingItemId != null || updatingItemId != null) { // Show loading if overall cart is loading or any item is being deleted/updated
@@ -381,9 +399,9 @@ fun Modifier.shimmerEffect(shape: Shape): Modifier = composed {
 fun CartItem(
     item: CartItemUI,
     isDeleteMode: Boolean,
-    isDeleting: Boolean, // True if this specific item is being deleted
-    isUpdating: Boolean, // True if this specific item's quantity is being updated
-    isAnyItemLoading: Boolean, // True if ANY item is currently deleting or updating
+    isDeleting: Boolean,
+    isUpdating: Boolean,
+    isAnyItemLoading: Boolean,
     onQuantityChange: (String, Int) -> Unit,
     onDeleteItem: (String) -> Unit
 ) {
@@ -410,7 +428,7 @@ fun CartItem(
                     .padding(end = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Apply shimmer effect if this item is deleting or updating
+
                 if (isDeleting || isUpdating) {
                     LoadingShimmerEffect(
                         modifier = Modifier.fillMaxSize(),
@@ -445,13 +463,33 @@ fun CartItem(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Apply shimmer to text content if deleting or updating
+
                 if (isDeleting || isUpdating) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        LoadingShimmerEffect(modifier = Modifier.fillMaxWidth(0.7f).height(16.dp), shape = RoundedCornerShape(4.dp))
-                        LoadingShimmerEffect(modifier = Modifier.width(80.dp).height(12.dp), shape = RoundedCornerShape(4.dp))
-                        LoadingShimmerEffect(modifier = Modifier.width(100.dp).height(12.dp), shape = RoundedCornerShape(4.dp))
-                        LoadingShimmerEffect(modifier = Modifier.width(60.dp).height(18.dp), shape = RoundedCornerShape(4.dp))
+                        LoadingShimmerEffect(
+                            modifier = Modifier
+                                .fillMaxWidth(0.7f)
+                                .height(16.dp),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        LoadingShimmerEffect(
+                            modifier = Modifier
+                                .width(80.dp)
+                                .height(12.dp),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        LoadingShimmerEffect(
+                            modifier = Modifier
+                                .width(100.dp)
+                                .height(12.dp),
+                            shape = RoundedCornerShape(4.dp)
+                        )
+                        LoadingShimmerEffect(
+                            modifier = Modifier
+                                .width(60.dp)
+                                .height(18.dp),
+                            shape = RoundedCornerShape(4.dp)
+                        )
                     }
                 } else {
                     Text(
@@ -513,7 +551,7 @@ fun CartItem(
                     }
 
                     Spacer(modifier = Modifier.height(4.dp))
-                    // Display the subtotal for the current item (unit price * quantity)
+
                     Text(
                         text = "EGP ${String.format("%.2f", item.unitPrice * item.quantity)}",
                         style = TextStyle(
@@ -539,7 +577,9 @@ fun CartItem(
                             .width(24.dp)
                             .height(24.dp)
                             .background(
-                                color = if (isAnyItemLoading) Color(0x1A808080) else Color(0x1AD20000), // Change background color if disabled
+                                color = if (isAnyItemLoading) Color(0x1A808080) else Color(
+                                    0x1AD20000
+                                ), // Change background color if disabled
                                 shape = RoundedCornerShape(size = 8.dp)
                             )
                             .padding(4.dp)
@@ -556,22 +596,20 @@ fun CartItem(
                         )
                         .padding(horizontal = 4.dp, vertical = 4.dp)
                 ) {
-                    val isQuantityChangeDisabled = isAnyItemLoading || isUpdating // Disable quantity change buttons if any item is loading or THIS item is updating
+                    val isQuantityChangeDisabled = isAnyItemLoading || isUpdating
 
                     Text(
                         text = "−",
                         modifier = Modifier
-                            .clickable(enabled = !isQuantityChangeDisabled) {
-                                val newQuantity = max(1, item.quantity - 1)
-                                onQuantityChange(item.id, newQuantity)
+                            .clickable(enabled = !isQuantityChangeDisabled && item.quantity > 1) {
+                                onQuantityChange(item.id, item.quantity - 1)
                             }
                             .padding(horizontal = 4.dp),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (isQuantityChangeDisabled) Color.Gray else Color.Black
+                        color = if (isQuantityChangeDisabled || item.quantity <= 1) Color.Gray else Color.Black
                     )
 
-                    // Show loading indicator in place of quantity text if this item is updating
                     if (isUpdating) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(24.dp),
