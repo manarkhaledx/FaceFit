@@ -10,6 +10,7 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.example.facefit.R
 import com.google.ar.core.ArCoreApk
 import com.google.ar.core.ArCoreApk.InstallStatus
@@ -70,6 +71,9 @@ class AugmentedFacesActivity : AppCompatActivity(), GLSurfaceView.Renderer {
     private var armsMaterials = listOf<String>()
     private var currentFrameTexture = ""
     private var currentArmsTexture = ""
+    private lateinit var colors: List<String>
+    private var selectedColorIndex = 0
+    private lateinit var glassesType: String
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -85,6 +89,8 @@ class AugmentedFacesActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         val lensMtl = intent.getStringExtra("LENSES_MTL_PATH") ?: "models/lenses.mtl"
         arms = intent.getStringExtra("ARMS_PATH") ?: "models/arms.obj"
         val armsMtl = intent.getStringExtra("ARMS_MTL_PATH") ?: "models/arms.mtl"
+        colors = intent.getStringArrayListExtra("COLORS") ?: listOf("#FFFFFF")
+        glassesType = intent.getStringExtra("GLASSES_TYPE") ?: "glasses"
 
         // Get materials if available
         frameMaterials = intent.getStringArrayExtra("FRAME_MATERIALS")?.toList() ?: listOf("models/black.png")
@@ -106,6 +112,25 @@ class AugmentedFacesActivity : AppCompatActivity(), GLSurfaceView.Renderer {
         }
 
         installRequested = false
+    }
+
+    // Add this to your AugmentedFacesActivity or a separate utility file
+    private fun getColorHexFromName(colorName: String): Int {
+        return when (colorName.toLowerCase()) {
+            "black" -> Color.BLACK
+            "white" -> Color.WHITE
+            "red" -> Color.RED
+            "blue" -> Color.BLUE
+            "green" -> Color.GREEN
+            "yellow" -> Color.YELLOW
+            "cyan" -> Color.CYAN
+            "magenta" -> Color.MAGENTA
+            "gray", "grey" -> Color.GRAY
+            "silver" -> Color.parseColor("#C0C0C0")
+            "gold" -> Color.parseColor("#FFD700")
+            // Add more colors as needed
+            else -> Color.WHITE // Default fallback color
+        }
     }
 
     private fun updateFrameTexture(textureUrl: String) {
@@ -165,12 +190,12 @@ class AugmentedFacesActivity : AppCompatActivity(), GLSurfaceView.Renderer {
     }
 
     private fun createColorButtonForTexture(index: Int, textureUrl: String): Button {
-        // Create a button with a color based on the index
-        val colorRes = when (index) {
-            0 -> Color.BLACK
-            1 -> Color.BLUE
-            2 -> Color.GRAY
-            else -> Color.WHITE
+        // Get the color from the product's colors array
+        val colorHex = if (index < colors.size) colors[index] else "#FFFFFF"
+        val color = try {
+            Color.parseColor(colorHex)
+        } catch (e: IllegalArgumentException) {
+            Color.WHITE // Fallback color
         }
 
         return Button(this).apply {
@@ -180,13 +205,16 @@ class AugmentedFacesActivity : AppCompatActivity(), GLSurfaceView.Renderer {
             ).apply {
                 marginEnd = resources.getDimensionPixelSize(R.dimen.color_button_margin)
             }
-            backgroundTintList = ColorStateList.valueOf(colorRes)
+            backgroundTintList = ColorStateList.valueOf(color)
             elevation = 4f
             setOnClickListener {
                 updateFrameTexture(textureUrl)
                 // Update arms with corresponding texture if available
                 if (armsMaterials.size > index) {
                     updateArmsTexture(armsMaterials[index])
+                }
+                if (frameMaterials.size > index) {
+                    updateFrameTexture(frameMaterials[index])
                 }
             }
         }
@@ -317,8 +345,20 @@ class AugmentedFacesActivity : AppCompatActivity(), GLSurfaceView.Renderer {
             // Repeat for lenses/arms:
             val lensesObject = ObjectRenderer()
             val lensesInputStream = modelCache.getModel(lens) ?: assets.open("models/lenses.obj")
-            lensesObject.createOnGlThread(this, lensesInputStream, "models/transparent.png")
-            lensesObject.setMaterialProperties(0.0f, 0.0f, 0.0f, 0.2f)
+            val lensTexture = if (glassesType.equals("sunglasses", ignoreCase = true)) {
+                "models/black.png"
+            } else {
+                "models/transparent.png"
+            }
+            if (glassesType.equals("sunglasses", ignoreCase = true)) {
+                lensesObject.createOnGlThread(this, lensesInputStream, lensTexture)
+                lensesObject.setMaterialProperties(0.1f, 0.8f, 0.5f, 8.0f)
+            }else{
+                lensesObject.createOnGlThread(this, lensesInputStream, lensTexture)
+                lensesObject.setMaterialProperties(0.0f, 0.0f, 0.0f, 0.2f)
+            }
+
+
             lensesObject.setBlendMode(ObjectRenderer.BlendMode.AlphaBlending)
 
             val armsObject = ObjectRenderer()
