@@ -44,13 +44,18 @@ class CartRepositoryImpl @Inject constructor(
                 getCart() // Return updated cart
             } else {
                 val errorBody = response.errorBody()?.string()
+                val errorMessage = if (errorBody?.contains("Insufficient stock") == true) {
+                    errorBody.substringAfter("\"error\":\"").substringBefore("\"")
+                } else {
+                    response.message()
+                }
                 Log.e("CartRepository", """
                 Failed to fetch cart. 
                 Code: ${response.code()}
                 Message: ${response.message()}
                 Error Body: $errorBody
                 """.trimIndent())
-                Resource.Error(response.message())
+                Resource.Error(errorMessage)
             }
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Unknown error")
@@ -65,13 +70,18 @@ class CartRepositoryImpl @Inject constructor(
                 getCart() // Return updated cart
             } else {
                 val errorBody = response.errorBody()?.string()
+                val errorMessage = if (errorBody?.contains("Insufficient stock") == true) {
+                    errorBody.substringAfter("\"error\":\"").substringBefore("\"")
+                } else {
+                    response.message()
+                }
                 Log.e("CartRepository", """
-                Failed to fetch cart. 
+                Failed to update cart item. 
                 Code: ${response.code()}
-                Message: ${response.message()}
+                Message: $errorMessage
                 Error Body: $errorBody
-                """.trimIndent())
-                Resource.Error(response.message())
+            """.trimIndent())
+                Resource.Error(errorMessage)
             }
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Unknown error")
@@ -85,6 +95,13 @@ class CartRepositoryImpl @Inject constructor(
             if (response.isSuccessful) {
                 getCart() // Return updated cart
             } else {
+                val errorBody = response.errorBody()?.string()
+                Log.e("CartRepository", """
+                Failed to fetch cart. 
+                Code: ${response.code()}
+                Message: ${response.message()}
+                Error Body: $errorBody
+                """.trimIndent())
                 Resource.Error(response.message())
             }
         } catch (e: Exception) {

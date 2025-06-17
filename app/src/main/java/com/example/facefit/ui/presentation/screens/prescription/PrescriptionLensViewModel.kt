@@ -160,9 +160,9 @@ class PrescriptionLensViewModel @Inject constructor(
         )
 
         viewModelScope.launch {
-            val maxRetries = 3 // Max number of retries
+            val maxRetries = 3
             var currentAttempt = 0
-            var delayTime = 200L // Initial delay for retry
+            var delayTime = 200L
 
             while (currentAttempt < maxRetries) {
                 try {
@@ -170,22 +170,25 @@ class PrescriptionLensViewModel @Inject constructor(
                     if (result is Resource.Error && result.message?.contains("Write conflict") == true) {
                         currentAttempt++
                         Log.w("PrescriptionVM", "Write conflict detected for add to cart. Retrying attempt $currentAttempt/$maxRetries...")
-                        delay(delayTime) // Wait before retrying
-                        delayTime *= 2 // Exponential backoff
-                        continue // Retry the loop
-                    } else {
-                        // Success or a different type of error, complete the operation
-                        if (result is Resource.Error) {
-                            Log.e("PrescriptionVM", "Error adding to cart: ${result.message}")
+                        delay(delayTime)
+                        delayTime *= 2
+                        continue
+                    }
+                    else {
+                        // Parse stock error if exists
+                        if (result is Resource.Error && result.message?.contains("Insufficient stock") == true) {
+                            // Extract the full error message from the response
+                            val errorMessage = "The item quantity exceeds available stock. Please check your cart or try again later." ?: "Insufficient stock"
+                            onComplete(Resource.Error(errorMessage, null))
+                        } else {
+                            onComplete(result)
                         }
-                        onComplete(result)
-                        return@launch // Exit the coroutine
+                        return@launch
                     }
                 } catch (e: Exception) {
-                    // Handle network errors or other exceptions here
                     val isRetriable = when (e) {
-                        is SocketTimeoutException, is IOException -> true // Network issues
-                        is HttpException -> e.code() == 500 // Generic 500 for potential server issues
+                        is SocketTimeoutException, is IOException -> true
+                        is HttpException -> e.code() == 500
                         else -> false
                     }
 
@@ -194,16 +197,14 @@ class PrescriptionLensViewModel @Inject constructor(
                         Log.w("PrescriptionVM", "Retriable exception during add to cart: ${e.message}. Retrying attempt $currentAttempt/$maxRetries...")
                         delay(delayTime)
                         delayTime *= 2
-                        continue // Retry the loop
+                        continue
                     } else {
-                        // Not retriable or max retries reached
                         handleGenericException(e, "Exception during add to cart")
                         onComplete(Resource.Error("Something went wrong or max retries reached.", null))
-                        return@launch // Exit the coroutine
+                        return@launch
                     }
                 }
             }
-            // If loop finishes, it means max retries were reached without success
             onComplete(Resource.Error("Failed to add to cart after multiple retries.", null))
         }
     }

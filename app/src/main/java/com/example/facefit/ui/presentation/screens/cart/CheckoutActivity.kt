@@ -12,12 +12,12 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -83,7 +84,7 @@ import com.example.facefit.domain.utils.Resource
 import com.example.facefit.ui.presentation.components.ErrorScreen
 import com.example.facefit.ui.presentation.components.PullToRefreshContainer
 import com.example.facefit.ui.presentation.screens.home.HomePageActivity
-import com.example.facefit.ui.presentation.screens.profile.EditableInfoItem // Ensure this is correctly imported
+import com.example.facefit.ui.presentation.screens.profile.EditableInfoItem
 import com.example.facefit.ui.theme.Black
 import com.example.facefit.ui.theme.Blue1
 import com.example.facefit.ui.theme.FaceFitTheme
@@ -105,7 +106,8 @@ class CheckoutActivity : ComponentActivity() {
                     onOrderSuccess = {
                         Toast.makeText(this, "Order Placed Successfully", Toast.LENGTH_LONG).show()
                         val intent = Intent(this, HomePageActivity::class.java)
-                        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+                        intent.flags =
+                            Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
                         startActivity(intent)
                         finish()
                     },
@@ -117,7 +119,6 @@ class CheckoutActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Ensure data is loaded or refreshed when the activity resumes
         viewModel.loadUserProfile()
         viewModel.loadCartItems()
         viewModel.calculateCartTotal()
@@ -136,23 +137,107 @@ fun CheckoutScreen(
     val cartTotal by viewModel.cartTotal.collectAsState()
     val cartItems by viewModel.cartItems.collectAsState()
     val orderStatus by viewModel.orderStatus.collectAsState()
+    val stockError by viewModel.stockError.collectAsState()
 
     var isEditingAddress by remember { mutableStateOf(false) }
+    var showStockErrorDialog by remember { mutableStateOf(false) }
 
-    // Check if any of the main data sources are currently loading
-    val isRefreshing = userProfile is Resource.Loading || cartTotal is Resource.Loading || cartItems is Resource.Loading
 
-    // Determine if an overall error state exists for initial data loading
+    val isRefreshing = userProfile is Resource.Loading ||
+            cartTotal is Resource.Loading ||
+            cartItems is Resource.Loading
+
+
     val initialDataError: String? = (userProfile as? Resource.Error)?.message
         ?: (cartTotal as? Resource.Error)?.message
         ?: (cartItems as? Resource.Error)?.message
 
-    // Trigger order success callback directly
-    LaunchedEffect(orderStatus) {
-        if (orderStatus is Resource.Success && (orderStatus as Resource.Success).data == "Order placed successfully") {
-            onOrderSuccess()
-            viewModel.resetOrderStatus()
+
+    LaunchedEffect(stockError) {
+        if (stockError != null) {
+            showStockErrorDialog = true
         }
+    }
+
+
+    LaunchedEffect(orderStatus) {
+        when (orderStatus) {
+            is Resource.Success -> {
+                if ((orderStatus as Resource.Success).data == "Order placed successfully") {
+                    onOrderSuccess()
+                    viewModel.resetOrderStatus()
+                }
+            }
+
+            else -> {}
+        }
+    }
+
+
+    if (showStockErrorDialog) {
+        val outOfStockItems = viewModel.outOfStockItems.collectAsState().value
+        AlertDialog(
+            onDismissRequest = {
+                showStockErrorDialog = false
+                viewModel.clearStockError()
+            },
+            title = {
+                Text(
+                    text = "Out of Stock Items",
+                    style = TextStyle(
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Some items in your cart are no longer available in the requested quantities:",
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    Column(
+                        modifier = Modifier
+                            .background(Color(0x14FF0000))
+                            .padding(12.dp)
+                    ) {
+                        outOfStockItems.forEach { item ->
+                            Row(
+                                modifier = Modifier.padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = item,
+                                    color = Color.Black,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = "Please reduce quantities or remove these items to proceed with your order.",
+                        fontSize = 14.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showStockErrorDialog = false
+                        viewModel.clearStockError()
+                        viewModel.loadCartData()
+                        onBackClick() // Navigate back to cart
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Blue1)
+                ) {
+                    Text("Update Cart")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -175,7 +260,10 @@ fun CheckoutScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = Blue1),
                 shape = RoundedCornerShape(24.dp),
                 contentPadding = PaddingValues(vertical = 12.dp),
-                enabled = userProfile is Resource.Success && cartTotal is Resource.Success && cartItems is Resource.Success && orderStatus !is Resource.Loading
+                enabled = userProfile is Resource.Success &&
+                        cartTotal is Resource.Success &&
+                        cartItems is Resource.Success &&
+                        orderStatus !is Resource.Loading
             ) {
                 if (orderStatus is Resource.Loading) {
                     CircularProgressIndicator(
@@ -209,7 +297,10 @@ fun CheckoutScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 if (initialDataError != null) {
-                    val isNetworkError = initialDataError.contains("internet connection", ignoreCase = true) || initialDataError.contains("network error", ignoreCase = true) || initialDataError.contains("timeout", ignoreCase = true)
+                    val isNetworkError =
+                        initialDataError.contains("internet connection", ignoreCase = true) ||
+                                initialDataError.contains("network error", ignoreCase = true) ||
+                                initialDataError.contains("timeout", ignoreCase = true)
                     ErrorScreen(
                         modifier = Modifier.fillMaxSize(),
                         title = if (isNetworkError) "No Internet Connection" else "Error Loading Data",
@@ -218,33 +309,48 @@ fun CheckoutScreen(
                     )
                 } else if (isRefreshing) {
                     LoadingCheckoutScreenContent(
-                        isEditingAddress = isEditingAddress, 
+                        isEditingAddress = isEditingAddress,
                         onEditToggle = { /* No-op in loading state */ }
                     )
                 } else {
-
-                    if (userProfile is Resource.Success && cartTotal is Resource.Success && cartItems is Resource.Success) {
+                    if (userProfile is Resource.Success &&
+                        cartTotal is Resource.Success &&
+                        cartItems is Resource.Success
+                    ) {
                         OrderSummaryCard(viewModel)
                         AddressCard(
                             isEditingAddress = isEditingAddress,
-                            onEditToggle = { isEditingAddress = !isEditingAddress },
+                            onEditToggle = {
+                                isEditingAddress = !isEditingAddress
+                                viewModel.clearAddressValidationError()
+                            },
                             viewModel = viewModel
                         )
                         PhoneNumberCard(viewModel)
                         PaymentMethodCard(viewModel)
                         OrderTotalCard(viewModel)
                     } else {
-
-                        Text("Something went wrong while displaying data.", color = Color.Red, modifier = Modifier.padding(16.dp))
+                        Text(
+                            text = "Something went wrong while displaying data.",
+                            color = Color.Red,
+                            modifier = Modifier.padding(16.dp)
+                        )
                     }
                 }
 
-                // Show order status error if any (separate from initial data loading errors)
-                if (orderStatus is Resource.Error) {
-                    val orderErrorMessage = (orderStatus as Resource.Error).message ?: "Error placing order"
-                    val isNetworkErrorDuringOrder = orderErrorMessage.contains("internet connection", ignoreCase = true) || orderErrorMessage.contains("network error", ignoreCase = true) || orderErrorMessage.contains("timeout", ignoreCase = true)
+
+                if (orderStatus is Resource.Error && !showStockErrorDialog) {
+                    val orderErrorMessage =
+                        (orderStatus as Resource.Error).message ?: "Error placing order"
+                    val isNetworkErrorDuringOrder =
+                        orderErrorMessage.contains("internet connection", ignoreCase = true) ||
+                                orderErrorMessage.contains("network error", ignoreCase = true) ||
+                                orderErrorMessage.contains("timeout", ignoreCase = true)
                     ErrorScreen(
-                        modifier = Modifier.fillMaxWidth().height(200.dp).padding(horizontal = 16.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .padding(horizontal = 16.dp),
                         title = if (isNetworkErrorDuringOrder) "Order Failed: No Internet" else "Order Failed",
                         message = if (isNetworkErrorDuringOrder) "Could not place order. Check your internet." else orderErrorMessage,
                         imageResId = if (isNetworkErrorDuringOrder) R.drawable.no_int else R.drawable.error
@@ -267,7 +373,11 @@ fun LoadingShimmerEffect(modifier: Modifier = Modifier, shape: Shape = RoundedCo
         ), label = "shimmerAlpha"
     )
     val brush = Brush.linearGradient(
-        colors = listOf(Color.LightGray.copy(alpha = 0.2f), Color.LightGray.copy(alpha = alpha), Color.LightGray.copy(alpha = 0.2f)),
+        colors = listOf(
+            Color.LightGray.copy(alpha = 0.2f),
+            Color.LightGray.copy(alpha = alpha),
+            Color.LightGray.copy(alpha = 0.2f)
+        ),
         start = Offset(0f, 0f),
         end = Offset(1000f, 1000f)
     )
@@ -535,6 +645,7 @@ private fun OrderSummaryCard(viewModel: CheckoutViewModel) {
                         }
                     }
                 }
+
                 is Resource.Error -> {
                     Text(
                         text = (cartItems as Resource.Error).message ?: "Error loading cart items",
@@ -542,6 +653,7 @@ private fun OrderSummaryCard(viewModel: CheckoutViewModel) {
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
+
                 is Resource.Success -> {
                     val items = (cartItems as Resource.Success<List<CartItem>>).data
                     if (items.isNullOrEmpty()) {
@@ -655,10 +767,16 @@ private fun AddressCard(
     onEditToggle: () -> Unit,
     viewModel: CheckoutViewModel
 ) {
+    val isAddressValidationError by viewModel.isAddressValidationError.collectAsState()
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        border = if (isAddressValidationError) {
+            BorderStroke(2.dp, Color.Red)
+        } else {
+            null
+        }
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -690,7 +808,9 @@ private fun AddressCard(
                     label = "Street name",
                     value = viewModel.streetName,
                     isEditing = true,
-                    onValueChange = { viewModel.streetName = it }
+                    onValueChange = { viewModel.streetName = it },
+                    isError = isAddressValidationError && viewModel.streetName.isBlank(),
+                    errorText = viewModel.streetNameError
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 EditableInfoItem(
@@ -698,7 +818,9 @@ private fun AddressCard(
                     label = "Building name/no",
                     value = viewModel.buildingNameNo,
                     isEditing = true,
-                    onValueChange = { viewModel.buildingNameNo = it }
+                    onValueChange = { viewModel.buildingNameNo = it },
+                    isError = isAddressValidationError && viewModel.buildingNameNo.isBlank(),
+                    errorText = viewModel.buildingNameNoError
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 EditableInfoItem(
@@ -706,7 +828,9 @@ private fun AddressCard(
                     label = "Floor, apartment, or villa no.",
                     value = viewModel.floorApartmentVillaNo,
                     isEditing = true,
-                    onValueChange = { viewModel.floorApartmentVillaNo = it }
+                    onValueChange = { viewModel.floorApartmentVillaNo = it },
+                    isError = isAddressValidationError && viewModel.floorApartmentVillaNo.isBlank(),
+                    errorText = viewModel.floorApartmentVillaNoError
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 EditableInfoItem(
@@ -714,7 +838,9 @@ private fun AddressCard(
                     label = "City/Area",
                     value = viewModel.cityArea,
                     isEditing = true,
-                    onValueChange = { viewModel.cityArea = it }
+                    onValueChange = { viewModel.cityArea = it },
+                    isError = isAddressValidationError && viewModel.cityArea.isBlank(),
+                    errorText = viewModel.cityAreaError
                 )
             } else {
                 val fullAddress = remember(
@@ -963,6 +1089,7 @@ private fun OrderTotalCard(viewModel: CheckoutViewModel) {
         }
     }
 }
+
 @Composable
 fun EditableInfoItem(
     icon: ImageVector,

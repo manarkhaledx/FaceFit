@@ -84,6 +84,7 @@ import com.example.facefit.ui.presentation.screens.cart.CartViewModel
 import androidx.compose.ui.composed // Import composed
 import androidx.compose.ui.semantics.Role // Import Role
 import androidx.compose.foundation.interaction.MutableInteractionSource // Import MutableInteractionSource
+import androidx.compose.material3.AlertDialog
 import kotlinx.coroutines.delay // Import delay for debouncing
 
 @AndroidEntryPoint
@@ -760,7 +761,9 @@ fun LensSpecificationScreen(
 ) {
     // Local loading state specific to this screen and its options
     var isScreenLoading by remember { mutableStateOf(false) }
-    var selectedOptionDuringLoading by remember { mutableStateOf<String?>(null) } // To track which item started loading
+    var selectedOptionDuringLoading by remember { mutableStateOf<String?>(null) }
+    var showStockErrorDialog by remember { mutableStateOf(false) }
+    var stockErrorMessage by remember { mutableStateOf("") }
 
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -789,7 +792,7 @@ fun LensSpecificationScreen(
                 price = option.price,
                 description = option.description,
                 onClick = {
-                    if (!isScreenLoading) { // Prevent new clicks if a request is already in flight
+                    if (!isScreenLoading) {
                         isScreenLoading = true
                         selectedOptionDuringLoading = option.title
                         coroutineScope.launch {
@@ -799,7 +802,7 @@ fun LensSpecificationScreen(
                                     color = color,
                                     lensType = selectedLensType,
                                     size = "standard",
-                                    lensSpecification = option.title, // Use option.title as spec
+                                    lensSpecification = option.title,
                                     prescriptionId = prescriptionId,
                                     onComplete = { result ->
                                         isScreenLoading = false
@@ -813,8 +816,14 @@ fun LensSpecificationScreen(
                                                 (context as? ComponentActivity)?.finish()
                                             }
                                             is Resource.Error -> {
-                                                Log.e("PrescriptionLensFlow", "Failed to add to cart: ${result.message}")
-                                                Toast.makeText(context, result.message ?: "Failed to add to cart", Toast.LENGTH_SHORT).show()
+                                                val errorMessage = result.message ?: "Failed to add to cart"
+                                                if (errorMessage.contains("Insufficient stock")) {
+                                                    // Extract the stock error message
+                                                    stockErrorMessage = errorMessage.substringAfter("error\":\"").substringBefore("\"")
+                                                    showStockErrorDialog = true
+                                                } else {
+                                                    Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
+                                                }
                                             }
                                             is Resource.Loading -> { /* Not used here */ }
                                         }
@@ -828,11 +837,46 @@ fun LensSpecificationScreen(
                         }
                     }
                 },
-                // Only show loading for the currently selected/loading item
                 isLoading = isScreenLoading && selectedOptionDuringLoading == option.title
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
+    }
+
+    // Stock error dialog
+    if (showStockErrorDialog) {
+        AlertDialog(
+            onDismissRequest = { showStockErrorDialog = false },
+            title = { Text("Item Availability") },
+            text = {
+                Column {
+                    Text("We couldn't add this item to your cart because:")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "• The item quantity exceeds available stock.",
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("What would you like to do?")
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showStockErrorDialog = false
+                        // Optionally refresh data or navigate to cart
+                        val intent = Intent(context, ShoppingCartActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                        }
+                        context.startActivity(intent)
+                        (context as? ComponentActivity)?.finish()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Blue1)
+                ) {
+                    Text("View Cart")
+                }
+            }
+        )
     }
 }
 
