@@ -20,9 +20,9 @@ FaceFit is an innovative Android application that leverages Augmented Reality (A
     <td>
       <img src="https://github.com/user-attachments/assets/ab05581b-3da1-4ecf-9fa9-f4282778d6e0" width="250" height="500"/>
     </td>
-<!--       <td>
+      <td>
       <img src="https://github.com/user-attachments/assets/a06e5472-c786-4506-b72f-dc1826660b71" width="230" height="500"/>
-    </td> -->
+    </td>
   </tr>
 </table>
 
