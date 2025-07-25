@@ -1,4 +1,5 @@
 # FaceFit - Your Virtual Eyewear Try-On Experience
+FaceFit is an innovative Android application that leverages Augmented Reality (AR) to transform the online eyewear shopping experience. It addresses the common challenge of customers being unable to physically try on glasses before purchase, allowing users to visualize how different styles look on their face in real-time. FaceFit aims to enhance customer confidence and reduce return rates by offering a realistic virtual try-on solution. 
 
 <table>
   <tr>
@@ -25,13 +26,6 @@
   </tr>
 </table>
 
-## About the Project
-
-FaceFit is an innovative Android application that leverages Augmented Reality (AR) to transform the online eyewear shopping experience. It addresses the common challenge of customers being unable to physically try on glasses before purchase, allowing users to visualize how different styles look on their face in real-time. FaceFit aims to enhance customer confidence and reduce return rates by offering a realistic virtual try-on solution.
-
-## FaceFit (End-User) App
-
-The FaceFit end-user application is a mobile app for Android that allows users to virtually try on glasses using augmented reality.
 
 ### Features
 
